@@ -187,14 +187,23 @@ export function Bibliotheque({ data, go, zoneIdx, reload }) {
   const ui = useUI()
   const [cat, setCat] = useState(cache)
   const [q, setQ] = useState('')
-  const [zone, setZone] = useState(zoneIdx !== undefined && data.zones[zoneIdx] ? data.zones[zoneIdx].nom : '')
+  const z0 = zoneIdx !== undefined && data.zones[zoneIdx] ? data.zones[zoneIdx].nom : ''
+  const [zone, setZone] = useState(z0)
+  const [ouverts, setOuverts] = useState(() => new Set(z0 ? [`z:${z0}`] : []))
   const [cree, setCree] = useState(false)
   const [busy, setBusy] = useState(null)
   useEffect(() => { api.catalogueListe().then(c => { cache = c; setCat(c) }).catch(err => ui.toast(err.message)) }, [])
   const dedans = c => data.elements.some(e => e.catalogue_id === c.id || norm(e.element) === norm(c.element))
-  const vus = (cat || []).filter(c => (!zone || c.zone === zone) && (!q || norm(`${c.element} ${c.sous_zone || ''}`).includes(norm(q))))
-  const groupes = {}
-  vus.slice(0, 300).forEach(c => { const k = zone ? (c.sous_zone || 'Divers') : c.zone; (groupes[k] = groupes[k] || []).push(c) })
+  const cherche = norm(q).trim()
+  const vus = (cat || []).filter(c => !cherche || norm(`${c.element} ${c.sous_zone || ''} ${c.zone}`).includes(cherche))
+  // Famille (zone) › sous-famille › articles, dans l'ordre des zones de l'appli
+  const arbre = data.zones.map(zz => {
+    const l = vus.filter(c => c.zone === zz.nom), sf = {}
+    l.forEach(c => { const k = c.sous_zone || 'Divers'; (sf[k] = sf[k] || []).push(c) })
+    return { nom: zz.nom, n: l.length, dedans: l.filter(dedans).length, sous: Object.entries(sf).sort((x, y) => x[0].localeCompare(y[0], 'fr')) }
+  }).filter(f => f.n)
+  const ouvert = k => !!cherche || ouverts.has(k)
+  const basculer = (k, zn) => { setOuverts(o => { const x = new Set(o); x.has(k) ? x.delete(k) : x.add(k); return x }); if (zn) setZone(zn) }
   async function ajouter(c) {
     setBusy(c.id)
     try { await api.elementDepuisCatalogue(data.evt, c.id); await reload(); ui.toast(`${c.element} ajouté · à voir dans la revue`) } catch (err) { ui.toast(err.message) }
@@ -203,29 +212,34 @@ export function Bibliotheque({ data, go, zoneIdx, reload }) {
   const retour = zoneIdx !== undefined ? `revue/${zoneIdx}` : 'revue'
   return (
     <motion.div {...slide}>
-      <div className="head"><button className="back" onClick={() => go(retour)}>‹ Revue</button><h1 style={{ fontSize: 34 }}>Bibliothèque</h1></div>
+      <div className="head"><button className="back" onClick={() => go(retour)}>‹ Revue</button><h1 style={{ fontSize: 34 }}>Bibliothèque</h1><div className="meta">{(cat || []).length} articles · touche une famille pour l'ouvrir</div></div>
       <div className="px"><input className="rv-search" placeholder="🔍  Chercher : verre, glace, nappe…" value={q} onChange={x => setQ(x.target.value)} /></div>
-      <div className="rv-fz">
-        <button className={!zone ? 'on' : ''} onClick={() => setZone('')}>Tout · {(cat || []).length}</button>
-        {data.zones.map(z => <button key={z.nom} className={zone === z.nom ? 'on' : ''} onClick={() => setZone(z.nom)}>{z.nom}</button>)}
-      </div>
-      {!cat ? <div className="empty">Chargement…</div> : !vus.length ? (
+      {!cat ? <div className="empty">Chargement…</div> : !arbre.length ? (
         <div className="empty">Rien ne correspond. Crée-le ci-dessous : il entrera dans la bibliothèque.</div>
-      ) : Object.entries(groupes).map(([g, l]) => (
-        <div key={g}>
-          <div className="group">{g} · {l.length}</div>
-          <div className="list">{l.map(c => {
-            const ok = dedans(c), m = MODES.find(x => x.cat === c.mode), px = m?.p ? c[m.p] : null
+      ) : <div className="bb">{arbre.map(f => (
+        <div key={f.nom} className={`bb-f ${ouvert(`z:${f.nom}`) ? 'on' : ''}`}>
+          <button className="bb-fh" onClick={() => basculer(`z:${f.nom}`, f.nom)}>
+            <span className="ch">›</span><b>{f.nom}</b><span className="ct">{f.dedans ? <em>{f.dedans} ✓</em> : null}{f.n}</span>
+          </button>
+          {ouvert(`z:${f.nom}`) && f.sous.map(([sn, l]) => {
+            const k = `s:${f.nom}|${sn}`, nd = l.filter(dedans).length
             return (
-              <div key={c.id} className="row rv-it">
-                <div><div className="name">{c.element}</div><div className="info">{[m?.l.toLowerCase(), px ? `${dec(px)} MAD` : null, regle({ base: c.base, qte_par_base: c.qte_par_base }, null)].filter(Boolean).join(' · ')}</div></div>
-                {ok ? <i className="rv-ok">✓</i> : <motion.button whileTap={{ scale: .9 }} className="rv-plus" disabled={busy === c.id} onClick={() => ajouter(c)}>{busy === c.id ? '…' : '+'}</motion.button>}
+              <div key={k} className={`bb-s ${ouvert(k) ? 'on' : ''}`}>
+                <button className="bb-sh" onClick={() => basculer(k, f.nom)}><span className="ch">›</span><span className="n">{sn}</span><span className="ct">{nd ? <em>{nd} ✓</em> : null}{l.length}</span></button>
+                {ouvert(k) && <div className="list bb-l">{l.map(c => {
+                  const ok = dedans(c), m = MODES.find(x => x.cat === c.mode), px = m?.p ? c[m.p] : null
+                  return (
+                    <div key={c.id} className="row rv-it">
+                      <div><div className="name">{c.element}</div><div className="info">{[m?.l.toLowerCase(), px ? `${dec(px)} MAD` : null, regle({ base: c.base, qte_par_base: c.qte_par_base }, null)].filter(Boolean).join(' · ')}</div></div>
+                      {ok ? <i className="rv-ok">✓</i> : <motion.button whileTap={{ scale: .9 }} className="rv-plus" disabled={busy === c.id} onClick={() => ajouter(c)}>{busy === c.id ? '…' : '+'}</motion.button>}
+                    </div>
+                  )
+                })}</div>}
               </div>
             )
-          })}</div>
+          })}
         </div>
-      ))}
-      {vus.length > 300 && <p className="small mute px" style={{ marginTop: 8 }}>Affine la recherche pour voir la suite ({vus.length} articles).</p>}
+      ))}</div>}
       <div className="px"><button className="btn primary block rv-new" onClick={() => setCree(true)}>+ Créer un nouvel article</button></div>
       <Creer open={cree} onClose={() => setCree(false)} data={data} zone={zone} nom={q} reload={reload} onCree={() => { setQ(''); api.catalogueListe().then(c => { cache = c; setCat(c) }) }} />
     </motion.div>
