@@ -123,13 +123,13 @@ export function CadrageBarre({ data, go, reload }) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const c = ev.cadrage || {}
   const ui = useUI()
-  if (['Réalisé', 'Clôturé', 'Perdu'].includes(ev.statut)) return null
-  if (c.fait_le || c.passe) return <div className="cd-ok">{c.fait_le && <>Cadrage ✓ · <button onClick={() => go('cadrage')}>modifier</button> · </>}<button onClick={() => go('equipe')}>Équipe ›</button></div>
+  if (['Réalisé', 'Clôturé', 'Perdu'].includes(ev.statut)) return <div className="cd-ok"><button onClick={() => go('staff-evt')}>Staff et notes ›</button></div>
+  if (c.fait_le || c.passe) return <div className="cd-ok">{c.fait_le && <>Cadrage ✓ · <button onClick={() => go('cadrage')}>modifier</button> · </>}<button onClick={() => go('equipe')}>Équipe ›</button> · <button onClick={() => go('staff-evt')}>Staff ›</button></div>
   const nb = Object.keys(c.reponses || {}).length
   return <>
     <motion.button className="rv-entree cd-entree" whileTap={{ scale: .98 }} onClick={() => go('cadrage')}>
       <div><b>Cadrage</b><span>{nb ? 'à terminer · ' : ''}une dizaine de questions, puis ta liste se remplit</span></div><strong>{nb ? 'Reprendre' : 'Commencer'}</strong>›
     </motion.button>
-    <div className="cd-ok"><button onClick={() => go('equipe')}>Équipe ›</button> · <button onClick={() => api.cadrageMaj(data.evt, { passe: true }).then(reload).catch(e => ui.toast(e.message))}>passer, je remplis à la main</button></div>
+    <div className="cd-ok"><button onClick={() => go('equipe')}>Équipe ›</button> · <button onClick={() => go('staff-evt')}>Staff ›</button> · <button onClick={() => api.cadrageMaj(data.evt, { passe: true }).then(reload).catch(e => ui.toast(e.message))}>passer, je remplis à la main</button></div>
   </>
 }

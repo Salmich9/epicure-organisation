@@ -645,3 +645,52 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .rv-card .q .rv-mut { margin-left: auto; }
 .rv-nav button.rouge { background: var(--red); color: #fff; border-color: var(--red); }
 .eq-def input { width: 20px; height: 20px; flex: none; margin: 0; accent-color: var(--accent); }
+
+/* ---------- Staff ---------- */
+.sf-av { border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-style: normal; font-weight: 800; flex: none; background-size: cover; background-position: center; }
+.ac-staff { display: flex; align-items: center; gap: 10px; width: calc(100% - 28px); margin: 8px 14px 0; padding: 12px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); text-align: left; }
+.ac-staff b { font-size: 14.5px; } .ac-staff em { margin-left: auto; font-style: normal; font-size: 12.5px; color: var(--mute); font-weight: 650; }
+.sf-q { margin: 12px 14px 0; width: calc(100% - 28px); }
+.sf-ch { display: flex; gap: 6px; overflow-x: auto; padding: 10px 14px 2px; scrollbar-width: none; }
+.sf-ch::-webkit-scrollbar { display: none; }
+.sf-ch button { flex: none; border-radius: 999px; padding: 7px 12px; font-size: 12.5px; font-weight: 700; background: var(--surface); border: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.sf-ch button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.sf-l { background: var(--surface); border-radius: 20px; margin: 0 14px; overflow: hidden; }
+.sf-l > button { display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px 13px; border-bottom: 1px solid var(--line); text-align: left; color: var(--ink); }
+.sf-l > button:last-child { border: 0; }
+.sf-l > button > div { flex: 1; min-width: 0; } .sf-l b { display: block; font-size: 14px; } .sf-l span { font-size: 11.5px; color: var(--mute); font-weight: 600; }
+.sf-l em { font-style: normal; font-size: 12.5px; font-weight: 800; color: var(--gold); white-space: nowrap; text-align: right; } .sf-l em small { display: block; color: var(--mute); font-weight: 600; font-size: 10.5px; }
+.sf-fab { position: fixed; right: 20px; bottom: calc(96px + env(safe-area-inset-bottom)); width: 54px; height: 54px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 26px; box-shadow: 0 8px 20px rgba(0,0,0,.25); z-index: 5; }
+.sf-photo { position: relative; width: 104px; margin: 4px auto 0; cursor: pointer; }
+.sf-photo em { position: absolute; right: -2px; bottom: -2px; width: 32px; height: 32px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); font-style: normal; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.sf-photo .sf-av { font-family: var(--display); font-weight: 400; }
+.sf-nm { font-family: var(--display); font-size: 30px; text-align: center; margin-top: 10px; padding: 0 16px; }
+.sf-rl { text-align: center; font-size: 13px; color: var(--mute); font-weight: 650; margin-top: 3px; }
+.sf-kpi { display: flex; justify-content: center; gap: 22px; margin-top: 12px; }
+.sf-kpi div { text-align: center; font-size: 11px; color: var(--mute); font-weight: 700; } .sf-kpi b { display: block; font-family: var(--display); font-weight: 400; font-size: 26px; color: var(--ink); }
+.sf-f { background: var(--surface); border-radius: 18px; margin: 12px 14px 0; overflow: hidden; }
+.sf-r { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; min-height: 46px; }
+.sf-r:last-child { border: 0; }
+.sf-r > span { color: var(--mute); font-weight: 600; font-size: 12.5px; flex: none; } .sf-r > span small { display: block; font-size: 11px; }
+.sf-r b { font-weight: 750; text-align: right; } .sf-r b.m, .sf-r i.m { color: var(--mute); font-weight: 600; font-style: normal; }
+.sf-r input, .sf-r select { flex: 1; min-width: 0; text-align: right; padding: 6px 10px; border-radius: 10px; font-size: 14px; }
+.sf-r select { flex: none; width: auto; }
+.sf-st { color: var(--gold); letter-spacing: 1px; }
+.sf-roles { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 14px; }
+.sf-roles button { border-radius: 999px; padding: 7px 12px; font-size: 12.5px; font-weight: 700; background: var(--surface); border: 1px solid var(--line); color: var(--mute); }
+.sf-roles button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.sf-m > button, .sf-m > .sf-rate { width: 100%; }
+.sf-p { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; color: var(--ink); }
+.sf-p:last-child { border: 0; }
+.sf-p > div:first-child { flex: 1; min-width: 0; } .sf-p b { display: block; font-size: 14px; } .sf-p span { font-size: 11.5px; color: var(--mute); font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sf-faces { display: flex; padding-left: 7px; } .sf-faces .sf-av { margin-left: -7px; border: 2px solid var(--surface); }
+.sf-p strong { font-family: var(--display); font-weight: 400; font-size: 20px; min-width: 44px; text-align: right; } .sf-p strong.g { color: var(--accent); } .sf-p strong.r { color: var(--red); }
+.sf-pick > div > button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 4px; border-bottom: 1px solid var(--line); text-align: left; color: var(--ink); }
+.sf-pick > div > button > div { flex: 1; min-width: 0; } .sf-pick b { display: block; font-size: 14px; } .sf-pick span { font-size: 11.5px; color: var(--mute); font-weight: 600; }
+.sf-pick em { font-style: normal; font-size: 12px; font-weight: 800; color: var(--gold); }
+.sf-pick strong { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface2); font-size: 16px; }
+.sf-pick button.on strong { background: var(--accent); color: var(--accent-ink); }
+.sf-sep { font-size: 11px; font-weight: 800; color: var(--mute); letter-spacing: .5px; text-transform: uppercase; margin: 12px 0 2px; }
+.sf-rate { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--line); }
+.sf-rate:last-child { border: 0; } .sf-rate > div:nth-child(2) { flex: 1; min-width: 0; } .sf-rate b { display: block; font-size: 13.5px; } .sf-rate span { font-size: 11px; color: var(--mute); font-weight: 600; }
+.sf-stars { display: flex; } .sf-stars button { font-size: 22px; padding: 2px 2px; color: var(--surface2); } .sf-stars button.on { color: var(--gold); }
