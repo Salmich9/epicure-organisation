@@ -314,7 +314,7 @@ Deno.serve(async (req) => {
       const c = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
       const cat: Record<string, any> = {}
       for (const x of (c.data?.catalogue || [])) cat[x.id] = x
-      const env = (z: any) => ev.budget_zones && ev.budget_zones[z.nom] != null ? Number(ev.budget_zones[z.nom]) : Number(z.enveloppe || 0) * Number(ev.invites || 0)
+      const env = (z: any) => ev.budget_zones && Object.keys(ev.budget_zones).length ? Number(ev.budget_zones[z.nom] || 0) : Number(z.enveloppe || 0) * Number(ev.invites || 0)
       bilanTxt = `Prix signé HT : ${ev.prix_signe ?? '?'} MAD, budget retenu ${ev.budget ?? '?'} MAD, ${ev.invites ?? '?'} invités, ${(ev.prestations || []).join(' + ')}, ${ev.format ?? ''}.
 Par zone (prévu | engagé | facturé réel) puis éléments (quantité | coût engagé | facturé | catalogue) :
 ${data.zones.map((z: any) => {
@@ -356,7 +356,7 @@ ${leconsTxt}`
       : mode === 'planning'
       ? `${planningTxt}\n\nInspecte ce planning de J-30 à J+5 : repère ce qui manque dans le temps (livraisons non planifiées pour ce qui est loué ou acheté, confirmations des tiers, arrivée et repas du staff, montage, démontage et retour des locations à J+1, paiements). Ne propose pas ce qui existe déjà. Appelle l'outil « creneaux ».`
       : mode === 'bilan'
-      ? `${bilanTxt}\n\nL'événement est passé. Fais le bilan : pour chaque zone dont le facturé s'écarte du prévu de plus de 10 % ou de 3 000 MAD, dis pourquoi en citant les éléments responsables. Une zone sans facture n'est pas un écart : dis seulement que les pièces manquent. Puis au plus 5 leçons utiles pour les prochains chiffrages. Corrige le catalogue (catalogue_id, champ, valeur) seulement quand le réel le prouve clairement ; sinon laisse vide. Ne répète pas une leçon déjà retenue. Appelle l'outil « bilan ».`
+      ? `${bilanTxt}\n\nL'événement est passé. Fais le bilan : pour chaque zone dont le facturé s'écarte du prévu de plus de 10 % ou de 3 000 MAD, dis pourquoi en citant les éléments responsables. Une zone sans facture n'est pas un écart : dis seulement que les pièces manquent. Puis au plus 5 leçons utiles pour les prochains chiffrages. Corrige le catalogue (catalogue_id, champ, valeur) seulement quand le réel le prouve clairement ; sinon laisse vide. Ne répète pas une leçon déjà retenue. Les leçons portent sur le chiffrage et l'organisation des prochains événements (quantités, prix, ratios, oublis), jamais sur la saisie des pièces ou la clôture : la check-list s'en charge. Une seule facture ne suffit pas à changer un prix du catalogue : propose une valeur prudente entre l'ancien prix et le réel. Appelle l'outil « bilan ».`
       : mode === 'placer'
       ? `Voici une note dictée ou écrite par ${data.moi} :\n« ${note} »\nTraduis-la en changements concrets sur l'organisation (souvent un seul). Appelle l'outil « proposer ».`
       : `Challenge ${data.moi} sur cet événement${theme ? `, thème : ${theme}` : ''}. Cherche ce qui risque d'être oublié, mal dimensionné, non délégué ou hors budget, du général au particulier. Évite ce qui est déjà bouclé. Pour chaque question, 2 à 4 réponses dont « Plus tard », avec leurs effets. Appelle l'outil « questions ».`

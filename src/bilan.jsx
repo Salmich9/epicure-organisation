@@ -101,7 +101,7 @@ function Zones({ r, data, go, recharger, b }) {
     try { await api.copilote('bilan', { note }); ui.toast('Écarts expliqués, leçons proposées'); setNote(''); await recharger() } catch (e) { ui.toast(e.message) }
     setBusy(false)
   }
-  const tri = [...r.zones].sort((a, b) => Math.abs(b.reel - b.prevu) - Math.abs(a.reel - a.prevu))
+  const tri = [...r.zones].sort((a, b) => (!!b.reel - !!a.reel) || Math.abs(b.reel - b.prevu) - Math.abs(a.reel - a.prevu))
   return (
     <motion.div {...slide}>
       <div className="head"><button className="back" onClick={() => go('bilan')}>‹ Bilan</button><h1 style={{ fontSize: 34 }}>Prévu / réel</h1></div>
@@ -183,8 +183,13 @@ function Lecons({ r, data, go, b, setB, recharger }) {
   const ui = useUI()
   const [busy, setBusy] = useState(false)
   const l = b.lecons || []
+  const [val, setVal] = useState({})
+  async function annuler(x) {
+    try { const y = await api.leconAnnuler(x.id); setB({ ...b, lecons: l.map(z => z.id === x.id ? y : z) }); ui.toast(x.catalogue_id && x.champ ? 'Annulée : catalogue remis comme avant' : 'Annulée') } catch (e) { ui.toast(e.message) }
+  }
   async function decider(x, ok) {
-    try { const y = await api.leconDecider(x.id, ok); setB({ ...b, lecons: l.map(z => z.id === x.id ? y : z) }); ui.toast(ok ? (y.catalogue_id && y.champ ? 'Retenue : catalogue corrigé' : 'Retenue pour les prochains chiffrages') : 'Ignorée') } catch (e) { ui.toast(e.message) }
+    const v = val[x.id] != null && val[x.id] !== '' ? Number(String(val[x.id]).replace(',', '.')) : null
+    try { const y = await api.leconDecider(x.id, ok, v); setB({ ...b, lecons: l.map(z => z.id === x.id ? y : z) }); ui.toast(ok ? (y.catalogue_id && y.champ ? 'Retenue : catalogue corrigé' : 'Retenue pour les prochains chiffrages') : 'Ignorée') } catch (e) { ui.toast(e.message) }
   }
   async function analyser() {
     setBusy(true)
@@ -201,9 +206,11 @@ function Lecons({ r, data, go, b, setB, recharger }) {
           <small>{x.zone}</small>
           <div className="t">{x.texte}</div>
           <div className="s">{x.detail}</div>
-          {x.catalogue_id && x.champ && x.valeur != null && <div className="cat">Catalogue : {dec(x.avant)} → <b>{dec(x.valeur)}</b>{unite(x)}</div>}
+          {x.catalogue_id && x.champ && x.valeur != null && (x.statut === 'proposee'
+            ? <div className="cat">Catalogue : {dec(x.avant)} → <input className="cat-v" inputMode="decimal" value={val[x.id] ?? String(x.valeur).replace('.', ',')} onChange={e => setVal({ ...val, [x.id]: e.target.value })} />{unite(x)}</div>
+            : <div className="cat">Catalogue : {dec(x.avant)} → <b>{dec(x.valeur)}</b>{unite(x)}</div>)}
           {x.statut === 'proposee' ? <div className="bt"><button className="p" onClick={() => decider(x, true)}>Retenir</button><button onClick={() => decider(x, false)}>Ignorer</button></div>
-            : <div className="st">{x.statut === 'retenue' ? `✓ Retenue${x.catalogue_id && x.champ ? ' · catalogue corrigé' : ''}` : 'Ignorée'}</div>}
+            : <div className="st">{x.statut === 'retenue' ? `✓ Retenue${x.catalogue_id && x.champ ? ' · catalogue corrigé' : ''}` : 'Ignorée'} <button className="lien" onClick={() => annuler(x)}>Annuler</button></div>}
         </div>
       ))}
       {l.length > 0 && <p className="small mute px" style={{ marginTop: 12 }}>Ce que tu retiens corrige le catalogue et nourrit les prochains chiffrages.</p>}

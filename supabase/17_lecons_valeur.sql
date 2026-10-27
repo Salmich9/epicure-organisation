@@ -1,0 +1,1 @@
+-- Appliqué via migration orga_17_lecon_valeur et orga_18_lecon_annuler : valeur modifiable avant de retenir, et annulation (remet le catalogue comme avant).
