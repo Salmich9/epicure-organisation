@@ -58,6 +58,7 @@ export const api = {
   planningSupprimer: (id) => rpc('planning_supprimer', { p_token: store.token, p_id: id }),
   actionModifier: (id, p) => rpc('action_modifier', { p_token: store.token, p_id: id, p }),
   derouleModifier: (id, p) => rpc('deroule_modifier', { p_token: store.token, p_id: id, p }),
+  bullesListe: (evt) => rpc('bulles_liste', { p_token: store.token, p_evt: evt }),
   listeResponsable: (lien) => rpc('liste_responsable', { p_lien: lien }),
   respAction: (lien, id, statut, reponse) => rpc('resp_action', { p_lien: lien, p_id: id, p_statut: statut, p_reponse: reponse ?? null }),
   respReception: (lien, id, reception, manque) => rpc('resp_reception', { p_lien: lien, p_id: id, p_reception: reception, p_manque: manque ?? null }),

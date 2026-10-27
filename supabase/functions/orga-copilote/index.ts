@@ -34,6 +34,57 @@ const CHANGEMENT = {
 }
 
 const TOOLS: Record<string, any> = {
+  bulles: {
+    name: 'bulles',
+    description: 'Au plus 4 bulles courtes pour le tableau de bord : des conseils concrets et des réflexions de pro.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        bulles: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['conseil', 'reflexion'] },
+              titre: { type: 'string', description: '3 à 6 mots' },
+              texte: { type: 'string', description: 'Deux phrases maximum, avec les chiffres réels' },
+              zone: { type: 'string', description: 'Zone concernée, ou vide' },
+            },
+            required: ['type', 'titre', 'texte'],
+          },
+        },
+      },
+      required: ['bulles'],
+    },
+  },
+  chiffrer: {
+    name: 'chiffrage',
+    description: 'Chiffrage complet de l\'événement, zone par zone, à partir du catalogue et des événements passés.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        lignes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              zone: { type: 'string', description: 'Zone existante' },
+              element: { type: 'string' },
+              catalogue_id: { type: 'string', description: 'Id du catalogue si l\'élément y est, sinon vide' },
+              mode: { type: 'string', enum: ['stock', 'location', 'achat', 'production'] },
+              quantite: { type: 'number' },
+              prix: { type: 'number', description: 'Coût unitaire MAD (catalogue ou référence passée)' },
+              note: { type: 'string', description: 'Hypothèse courte, facultative' },
+            },
+            required: ['zone', 'element', 'mode', 'quantite', 'prix'],
+          },
+        },
+        hypotheses: { type: 'string', description: 'Les hypothèses retenues, en 2 à 4 phrases courtes' },
+        question: { type: 'string', description: 'UNE question si une info manque vraiment, sinon vide' },
+      },
+      required: ['lignes', 'hypotheses'],
+    },
+  },
   placer: {
     name: 'proposer',
     description: 'Propose les changements à appliquer à l\'organisation pour tenir compte de la note.',
@@ -73,7 +124,7 @@ const TOOLS: Record<string, any> = {
   },
   challenge: {
     name: 'questions',
-    description: 'Pose exactement 3 questions d'inspection, de la plus risquée à la moins risquée.',
+    description: 'Pose exactement 3 questions d\'inspection, de la plus risquée à la moins risquée.',
     input_schema: {
       type: 'object',
       properties: {
@@ -159,19 +210,52 @@ Comment tu poses tes questions :
 Règles des effets : pour modifier un élément existant, son id exact. Sinon « ajouter » dans une zone existante. Une quantité dite va dans qte_forcee. Un nouveau nombre d'invités passe par le type « invites ». N'invente jamais de prix. Échéances AAAA-MM-JJ, avant la date de l'événement.
 ${CHAMPS}`
 
+const actu0 = (l: any) => l && l.length ? 'Garde les lignes du chiffrage actuel sauf si la consigne les change. ' : ''
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
-    const { token, evt, mode, note, theme } = await req.json()
-    if (!['placer', 'challenge', 'planning'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
-    const key = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!key) return json({ error: 'Clé Claude absente : ajoute ANTHROPIC_API_KEY dans les secrets Supabase.' }, 500)
+    const { token, evt, mode, note, theme, lignes } = await req.json()
+    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
 
     // Le jeton de session de l'appli est vérifié par la base elle-même.
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
     const { data, error } = await sb.rpc('donnees', { p_token: token, p_evt: evt || null })
     if (error) return json({ error: 'Session expirée, reconnecte-toi.' }, 401)
+    const ev = data.evenements.find((x: any) => x.id === data.evt) || {}
+
+    // Dossier Drive de l'événement : créé par l'Apps Script de la trésorerie (seul à pouvoir écrire dans le Drive).
+    if (mode === 'dossier') {
+      const url = Deno.env.get('APPS_SCRIPT_URL'), secret = Deno.env.get('APPS_SCRIPT_SECRET')
+      if (!url || !secret) return json({ error: 'Création du dossier pas encore branchée (APPS_SCRIPT_URL et APPS_SCRIPT_SECRET à ajouter dans les secrets Supabase).' }, 501)
+      const adm = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'orga' } })
+      const { data: par } = await adm.from('parametres').select('valeur').eq('cle', 'drive').single()
+      const parent = par?.valeur?.[ev.entite || 'Epicure']
+      if (!parent) return json({ error: 'Dossier société introuvable' }, 500)
+      const nom = `${ev.date || 'date à fixer'} · ${ev.nom}`
+      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ secret, action: 'evtDossier', parent, nom }), redirect: 'follow' })
+      const o = await r.json().catch(() => ({ ok: false, erreur: 'réponse illisible' }))
+      if (!o.ok) return json({ error: o.erreur || 'Création du dossier impossible' }, 502)
+      await adm.from('evenements').update({ drive_id: o.id, drive_url: o.url, drive_sous: o.sous }).eq('id', ev.id)
+      return json({ id: o.id, url: o.url, sous: o.sous })
+    }
+    const key = Deno.env.get('ANTHROPIC_API_KEY')
+    if (!key) return json({ error: 'Clé Claude absente : ajoute ANTHROPIC_API_KEY dans les secrets Supabase.' }, 500)
+
+    let chiffrageTxt = ''
+    if (mode === 'chiffrer') {
+      const c = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
+      const cx = c.data || {}
+      const cat = (cx.catalogue || []).map((x: any) => `${x.id} | ${x.zone} | ${x.el} | base=${x.base ?? ''} q/base=${x.qpb ?? ''} | ${x.mode ?? ''} | achat=${x.pa ?? ''} loc=${x.pl ?? ''} prod=${x.pp ?? ''}`).join('\n')
+      const refs = (cx.references || []).map((r: any) => `${r.nom} (${r.invites} invités, ${(r.prestations || []).join('+')}, ${r.format ?? ''}) — totaux : ${JSON.stringify(r.zones)}\n  ${(r.lignes || []).join('\n  ')}`).join('\n')
+      const actu = (lignes && lignes.length ? lignes : cx.chiffrage?.lignes || []).map((l: any) => `${l.zone} | ${l.element} | ${l.mode} | ${l.quantite} × ${l.prix}`).join('\n')
+      chiffrageTxt = `Prestations : ${(ev.prestations || []).join(' + ') || '?'}, format ${ev.format ?? '?'}, ${ev.invites ?? '?'} invités, facturé par ${ev.entite ?? '?'}.
+Zones : ${data.zones.map((z: any) => z.nom).join(', ')}.
+Catalogue (id | zone | élément | base | mode | prix MAD) :\n${cat}
+Événements passés (références de coûts réels) :\n${refs || '(aucun)'}
+${actu ? `Chiffrage actuel :\n${actu}` : ''}`
+    }
 
     let planningTxt = ''
     if (mode === 'planning') {
@@ -183,7 +267,11 @@ Deno.serve(async (req) => {
       planningTxt = `Planning actuel (créneaux, actions, livraisons, déroulé) :\n` +
         [...rows.map((x: any) => `${x.date} ${x.heure ?? ''} ${x.titre} (${x.qui ?? '?'})`), ...acts, ...liv, ...der].sort().join('\n')
     }
-    const demande = mode === 'planning'
+    const demande = mode === 'bulles'
+      ? `Donne au plus 4 bulles pour le tableau de bord de ${data.moi} aujourd'hui : 2 ou 3 conseils concrets (ce qu'il faut faire maintenant, avec les chiffres réels) et 1 réflexion de pro (un risque moins évident, une idée qui fait la différence le jour J). Ne répète pas les alertes évidentes (retards, éléments sans responsable) : elles sont déjà affichées. Appelle l'outil « bulles ».`
+      : mode === 'chiffrer'
+      ? `${chiffrageTxt}\n\n${note ? `Consigne de ${data.moi} : « ${note} »\n` : ''}Chiffre cet événement zone par zone, en coût de revient (pas en prix de vente). Pars des quantités du catalogue (qte par base × invités), corrige avec les événements passés de taille proche, n'oublie aucune zone utile pour ces prestations (staff, logistique, art de table, bar si prévu). ${actu0(lignes)}Prix : uniquement ceux du catalogue ou des références, jamais inventés (0 si inconnu, et dis-le dans la note). Appelle l'outil « chiffrage ».`
+      : mode === 'planning'
       ? `${planningTxt}\n\nInspecte ce planning de J-30 à J+5 : repère ce qui manque dans le temps (livraisons non planifiées pour ce qui est loué ou acheté, confirmations des tiers, arrivée et repas du staff, montage, démontage et retour des locations à J+1, paiements). Ne propose pas ce qui existe déjà. Appelle l'outil « creneaux ».`
       : mode === 'placer'
       ? `Voici une note dictée ou écrite par ${data.moi} :\n« ${note} »\nTraduis-la en changements concrets sur l'organisation (souvent un seul). Appelle l'outil « proposer ».`
@@ -194,7 +282,7 @@ Deno.serve(async (req) => {
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 3000,
+        max_tokens: mode === 'chiffrer' ? 8000 : 3000,
         system: SYSTEME,
         tools: [TOOLS[mode]],
         tool_choice: { type: 'auto' },
@@ -206,8 +294,16 @@ Deno.serve(async (req) => {
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
     if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     const res: any = { ...use.input }
-    for (const k of ['questions', 'changements', 'creneaux']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
+    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
     if (Array.isArray(res.questions)) res.questions = res.questions.filter((q: any) => q?.question && Array.isArray(q.options) && q.options.length)
+    if (mode === 'bulles') {
+      res.bulles = (res.bulles || []).filter((b: any) => b?.texte).slice(0, 4)
+      await sb.rpc('bulles_enregistrer', { p_token: token, p_evt: data.evt, p: res.bulles })
+    }
+    if (mode === 'chiffrer') {
+      res.lignes = (res.lignes || []).filter((l: any) => l?.element && l?.zone).map((l: any) => ({ ...l, quantite: Number(l.quantite) || 0, prix: Number(l.prix) || 0 }))
+      await sb.rpc('chiffrage_enregistrer', { p_token: token, p_evt: data.evt, p_lignes: res.lignes, p_hyp: res.hypotheses || '', p_coef: null })
+    }
     return json({ ...res, usage: out.usage })
   } catch (e) {
     return json({ error: String(e?.message || e) }, 500)

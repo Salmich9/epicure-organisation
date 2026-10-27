@@ -3,6 +3,7 @@ import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { api } from './api'
 import { sendWa } from './element'
 import { ALERTE, ETATS, Info, OUVERT, Seg, Sheet, Table, dans, dateLongue, ddmm, jours, mad, n, useUI } from './ui'
+import { Bulles, regles, useBulles } from './bulles'
 
 export function zoneStats(data, z) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
@@ -100,13 +101,9 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
   const cout = data.elements.reduce((s, e) => s + n(e.cout), 0)
   const env = data.zones.reduce((s, z) => s + n(z.enveloppe) * n(ev.invites), 0)
   const budget = n(ev.budget) || env
-  const nudge = useMemo(() => {
-    const late = data.actions.filter(a => a.statut !== 'Fait' && a.statut !== 'Annulé' && a.echeance && a.echeance < data.aujourdhui)
-    if (late.length) return { t: <><b>{late.length} action{late.length > 1 ? 's' : ''} en retard</b>, dont « {late[0].quoi} » pour {late[0].resp}.</>, to: 'deleguer' }
-    const z = data.zones.map(z => ({ z, s: zoneStats(data, z) })).filter(x => x.s.ouverts || x.s.alertes).sort((a, b) => (b.s.alertes * 3 + b.s.ouverts) - (a.s.alertes * 3 + a.s.ouverts))[0]
-    if (z) return { t: <><b>{z.z.nom}</b> : {z.s.ouverts ? `${z.s.ouverts} élément${z.s.ouverts > 1 ? 's' : ''} sans solution` : ''}{z.s.ouverts && z.s.alertes ? ', ' : ''}{z.s.alertes ? `${z.s.alertes} en alerte` : ''}.</>, to: `zone/${data.zones.indexOf(z.z)}` }
-    return null
-  }, [data])
+  const ia = useBulles(data)
+  const bulles = [...regles(data), ...ia]
+  const marque = z => bulles.some(b => b.type === 'avertissement' && b.zone === z) ? 'warn' : bulles.some(b => b.zone === z) ? 'idea' : null
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head" onClick={openEvt}>
@@ -122,7 +119,7 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
       </div>
       {(() => { const k = data.elements.filter(e => OUVERT.includes(e.etat) || ALERTE.includes(e.etat)).length; return k > 0 && <motion.button className="decide-link" whileTap={{ scale: .98 }} onClick={() => go('decider')}><span>À décider</span><span className="pill red">{k}</span></motion.button> })()}
       <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>
-      {nudge && <motion.button className="nudge" style={{ width: 'calc(100% - 32px)', textAlign: 'left' }} whileTap={{ scale: .98 }} onClick={() => go(nudge.to)}><span className="d" /><p>{nudge.t}</p><span className="go">Voir</span></motion.button>}
+      <Bulles items={bulles} go={go} />
       <div className="plan" id="plan">
         {data.zones.map((z, i) => {
           const s = zoneStats(data, z)
@@ -130,6 +127,8 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
           return (
             <motion.button key={z.nom} className="table-btn" whileTap={{ scale: .94 }} onClick={() => go(`zone/${i}`)}>
               <Table els={s.els} />
+              {marque(z.nom) === 'warn' && <span className="badge-warn">!</span>}
+              {marque(z.nom) === 'idea' && <span className="badge-idea">i</span>}
               <div className="n">{z.nom}</div>
               <div className={`s ${s.alertes || s.ouverts ? 'alert' : ''}`}>{st}</div>
             </motion.button>
@@ -161,6 +160,12 @@ function SwipeRow({ e, onOpen, onConfirm, onDelegate }) {
   )
 }
 
+function ZoneBulles({ data, zone, go }) {
+  const ia = useBulles(data)
+  const items = [...regles(data), ...ia].filter(b => b.zone === zone)
+  return <div style={{ marginTop: 6 }}><Bulles items={items} go={go} compact /></div>
+}
+
 /* ---------- Une zone (une table) ---------- */
 export function Zone({ data, idx, go, open, patch, delegate, addEl }) {
   const ui = useUI()
@@ -176,6 +181,7 @@ export function Zone({ data, idx, go, open, patch, delegate, addEl }) {
         <h1 style={{ fontSize: 38 }}>{z.nom}</h1>
         <div className="meta">{s.els.length - s.ouverts - s.alertes}/{s.els.length} bouclés · {mad(s.cout)}{s.env ? ` sur ${mad(s.env)}` : ''} MAD{s.env && s.cout > s.env ? ' · au-dessus de l\'enveloppe' : ''}</div>
       </div>
+      <ZoneBulles data={data} zone={z.nom} go={go} />
       {!s.els.length && <div className="empty">Aucun élément dans cette zone. Ajoutez le premier.</div>}
       {Object.entries(groups).map(([g, els]) => (
         <div key={g}>
