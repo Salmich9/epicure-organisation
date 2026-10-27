@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
 import { ElementSheet, sendWa } from './element'
+import { Chiffrer, Nouveau } from './creation'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { Copilote, Proposition, prechargerChallenge } from './copilote'
 import { Planning } from './planning'
@@ -147,10 +148,12 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === '' ? 'plan' : route
+  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === '' ? 'plan' : route
   let screen
   if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
+  else if (route === 'nouveau') screen = <Nouveau data={data} go={go} onCreated={id => load(id)} />
+  else if (route === 'chiffrer') screen = <Chiffrer key={data.evt} data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'planning') screen = <Planning data={data} reload={() => load(data.evt)} open={setOpenEl} go={go} />
   else if (route === 'copilote') screen = <Copilote data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'decider') screen = <Decider data={view} open={setOpenEl} />
@@ -186,9 +189,12 @@ export default function App() {
         <div className="list" style={{ margin: '14px 0 0' }}>{data.evenements.map(x => (
           <button key={x.id} className="row" onClick={() => { setEvtSheet(false); go(''); load(x.id) }}>
             <div className="top"><span className="name" style={{ fontWeight: x.id === data.evt ? 800 : 600 }}>{x.nom}</span><span className="small mute">{x.date ? ddmm(x.date) : 'date ?'}</span></div>
-            <div className="info">{x.invites || '?'} invités · {x.statut}</div>
+            <div className="info">{x.invites || '?'} invités · {x.statut}{x.entite ? ` · ${x.entite}` : ''}</div>
           </button>
         ))}</div>
+        <button className="btn primary block" style={{ marginTop: 12 }} onClick={() => { setEvtSheet(false); go('nouveau') }}>+ Nouvel événement</button>
+        {ev.drive_url && <a className="btn block" style={{ marginTop: 8 }} href={ev.drive_url} target="_blank" rel="noreferrer">📁 Dossier Drive</a>}
+        <button className="btn block" style={{ marginTop: 8 }} onClick={() => { setEvtSheet(false); go('chiffrer') }}>{ev.budget ? 'Revoir le chiffrage' : 'Chiffrer cet événement'}</button>
         <div className="label">Invités pour {ev.nom}</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <input inputMode="numeric" defaultValue={ev.invites || ''} id="inv" />

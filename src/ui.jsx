@@ -18,6 +18,8 @@ export const MODES = [
 ]
 export const n = v => (v === null || v === undefined || v === '' ? 0 : Number(v))
 export const mad = v => { v = n(v); return v >= 10000 ? `${Math.round(v / 1000)} k` : Math.round(v).toLocaleString('fr-FR') }
+/* Enveloppe d'une zone : celle retenue pour l'événement, sinon MAD par invité × invités */
+export const envZone = (z, ev) => (ev.budget_zones && ev.budget_zones[z.nom] != null ? n(ev.budget_zones[z.nom]) : n(z.enveloppe) * n(ev.invites))
 export const ddmm = d => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '')
 export const jours = (d, today) => (d ? Math.round((new Date(d) - new Date(today)) / 864e5) : null)
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']

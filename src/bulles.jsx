@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api } from './api'
-import { ALERTE, OUVERT, n } from './ui'
+import { ALERTE, OUVERT, envZone, n } from './ui'
 
 /* Avertissements calculés sur place : instantanés et gratuits */
 export function regles(data) {
@@ -23,7 +23,7 @@ export function regles(data) {
   data.zones.forEach(z => {
     const els = data.elements.filter(e => e.zone === z.nom)
     const cout = els.reduce((s, e) => s + n(e.cout), 0)
-    const env = n(z.enveloppe) * n(ev.invites)
+    const env = envZone(z, ev)
     if (env && cout > env * 1.05) out.push({ type: 'avertissement', zone: z.nom, titre: `${z.nom} au-dessus de l'enveloppe`, texte: `${Math.round(cout / 1000)} k engagés pour ${Math.round(env / 1000)} k prévus.`, action: { label: 'Ouvrir', to: `zone/${zoneIdx(z.nom)}` } })
     const urgent = els.filter(e => OUVERT.includes(e.etat) && e.echeance && e.echeance <= auj)
     if (urgent.length) out.push({ type: 'avertissement', zone: z.nom, titre: `${z.nom} : ${urgent.length} élément${urgent.length > 1 ? 's' : ''} à couvrir aujourd'hui`, texte: urgent.slice(0, 4).map(e => e.element).join(', ') + (urgent.length > 4 ? '…' : '.'), action: { label: 'Ouvrir', to: `zone/${zoneIdx(z.nom)}` } })

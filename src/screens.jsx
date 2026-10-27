@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { api } from './api'
 import { sendWa } from './element'
-import { ALERTE, ETATS, Info, OUVERT, Seg, Sheet, Table, dans, dateLongue, ddmm, jours, mad, n, useUI } from './ui'
+import { ALERTE, ETATS, Info, envZone, OUVERT, Seg, Sheet, Table, dans, dateLongue, ddmm, jours, mad, n, useUI } from './ui'
 import { Bulles, regles, useBulles } from './bulles'
 
 export function zoneStats(data, z) {
@@ -11,7 +11,7 @@ export function zoneStats(data, z) {
   const ouverts = els.filter(e => OUVERT.includes(e.etat)).length
   const alertes = els.filter(e => ALERTE.includes(e.etat)).length
   const cout = els.reduce((s, e) => s + n(e.cout), 0)
-  const env = n(z.enveloppe) * n(ev.invites)
+  const env = envZone(z, ev)
   return { els, ouverts, alertes, cout, env }
 }
 
@@ -99,7 +99,7 @@ export function Perimetre({ data, kind, go, open }) {
 export function Plan({ data, go, openEvt, mine, setMine }) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const cout = data.elements.reduce((s, e) => s + n(e.cout), 0)
-  const env = data.zones.reduce((s, z) => s + n(z.enveloppe) * n(ev.invites), 0)
+  const env = data.zones.reduce((s, z) => s + envZone(z, ev), 0)
   const budget = n(ev.budget) || env
   const ia = useBulles(data)
   const bulles = [...regles(data), ...ia]
