@@ -104,7 +104,8 @@ Déroulé :\n${der || '(vide)'}
 Actions :\n${acts || '(aucune)'}`
 }
 
-const SYSTEME = `Tu es le copilote d'organisation d'Epicure Catering (traiteur événementiel haut de gamme à Marrakech).
+const SYSTEME = `Tu réponds TOUJOURS en appelant l'outil fourni, jamais en texte libre.
+Tu es le copilote d'organisation d'Epicure Catering (traiteur événementiel haut de gamme à Marrakech).
 Objectifs de l'utilisateur, dans l'ordre : 1) ne rien oublier, tout considérer ; 2) tenir le budget ; 3) anticiper et déléguer efficacement.
 Règles : français, phrases courtes, tutoiement. Tu ne proposes que des changements utiles et sûrs, appuyés sur les données fournies.
 Pour modifier un élément existant, utilise son id exact. Si l'élément n'existe pas, propose « ajouter » avec une zone existante.
@@ -138,13 +139,14 @@ Deno.serve(async (req) => {
         max_tokens: 4000,
         system: SYSTEME,
         tools: [TOOLS[mode]],
-        tool_choice: { type: 'tool', name: TOOLS[mode].name },
+        tool_choice: { type: 'auto' },
         messages: [{ role: 'user', content: `${contexte(data)}\n\n${demande}` }],
       }),
     })
     const out = await r.json()
     if (!r.ok) return json({ error: out?.error?.message || 'Erreur Claude' }, 502)
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
+    if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     return json({ ...use?.input, usage: out.usage })
   } catch (e) {
     return json({ error: String(e?.message || e) }, 500)
