@@ -85,6 +85,14 @@ function Reflexion() {
   )
 }
 
+let CACHE = null
+/* Prépare la prochaine série de questions en arrière-plan, pour qu'elle soit prête au toucher */
+export function prechargerChallenge(evt) {
+  if (CACHE && CACHE.evt === evt && Date.now() - CACHE.t < 15 * 60e3) return
+  const p = api.copilote('challenge', { theme: null }); p.catch(() => {})
+  CACHE = { evt, t: Date.now(), p }
+}
+
 const THEMES = ['Tout', 'Logistique', 'Technique et électricité', 'Art de table', 'Staff', 'Cuisine', 'Budget', 'Tiers']
 
 /* Écran : le copilote te challenge, une question à la fois */
@@ -98,7 +106,13 @@ export function Copilote({ data, go, reload }) {
   const [err, setErr] = useState('')
   async function charger(t = theme) {
     setQs(null); setI(0); setChoix(null); setErr('')
-    try { const r = await api.copilote('challenge', { theme: t === 'Tout' ? null : t }); setQs(r.questions || []) } catch (e) { setErr(e.message); setQs([]) }
+    try {
+      let p
+      if (t === 'Tout' && CACHE && CACHE.evt === data.evt) { p = CACHE.p; CACHE = null } else p = api.copilote('challenge', { theme: t === 'Tout' ? null : t })
+      const r = await p
+      setQs(r.questions || [])
+      if (t === 'Tout') prechargerChallenge(data.evt)
+    } catch (e) { setErr(e.message); setQs([]) }
   }
   useEffect(() => { charger() }, [])
   const q = qs?.[i]
@@ -147,7 +161,7 @@ export function Copilote({ data, go, reload }) {
         </AnimatePresence>
         {qs && !err && i >= qs.length && (
           <div className="empty">
-            {qs.length ? 'Fini pour cette série.' : 'Rien à signaler sur ce thème.'}
+            {qs.length ? 'Fini pour cette série.' : 'Pas de question cette fois.'}
             <div style={{ marginTop: 14 }}><button className="btn primary" onClick={() => charger()}>Trois nouvelles questions</button></div>
           </div>
         )}

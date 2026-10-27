@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
 import { ElementSheet, sendWa } from './element'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
-import { Copilote, Proposition } from './copilote'
+import { Copilote, Proposition, prechargerChallenge } from './copilote'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
@@ -107,7 +107,7 @@ export default function App() {
   const [prop, setProp] = useState(null)
 
   const load = useCallback(async (evt) => {
-    try { const d = await api.donnees(evt || store.evt); setData(d); store.evt = d.evt }
+    try { const d = await api.donnees(evt || store.evt); setData(d); store.evt = d.evt; prechargerChallenge(d.evt) }
     catch (e) { if (e.code === 'session_expiree') { store.token = null; setLogged(false) } else ui.toast(e.message) }
   }, [])
   useEffect(() => { if (logged && !lien) load() }, [logged])
