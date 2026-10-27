@@ -1,0 +1,18 @@
+{
+  "name": "epicure-organisation",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "framer-motion": "^11.11.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@fontsource/instrument-serif": "^5.1.0",
+    "@fontsource/bodoni-moda": "^5.1.0",
+    "@fontsource-variable/figtree": "^5.1.0",
+    "@fontsource-variable/manrope": "^5.1.0"
+  },
+  "devDependencies": { "@vitejs/plugin-react": "^4.3.2", "vite": "^5.4.8" }
+}

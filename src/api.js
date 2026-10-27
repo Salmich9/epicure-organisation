@@ -1,0 +1,48 @@
+import { createClient } from '@supabase/supabase-js'
+
+const URL = 'https://daehifcdzrusxtzhtuxi.supabase.co'
+const KEY = 'sb_publishable_UP5yav1CuZBbkT57KrHbAA_N-9_VYps'
+
+const sb = createClient(URL, KEY, { auth: { persistSession: false }, db: { schema: 'orga' } })
+
+const MESSAGES = {
+  session_expiree: 'Session expirée, reconnectez-vous.',
+  code_incorrect: 'Code incorrect.',
+  lien_invalide: 'Ce lien n\'est plus valide.',
+  manque_obligatoire: 'Notez ce qui manque.',
+}
+
+async function rpc(fn, args) {
+  const { data, error } = await sb.rpc(fn, args)
+  if (error) {
+    const key = Object.keys(MESSAGES).find(k => (error.message || '').includes(k))
+    const e = new Error(key ? MESSAGES[key] : error.message)
+    e.code = key || error.code
+    throw e
+  }
+  return data
+}
+
+export const store = {
+  get token() { try { return localStorage.getItem('orga_token') } catch { return null } },
+  set token(v) { try { v ? localStorage.setItem('orga_token', v) : localStorage.removeItem('orga_token') } catch {} },
+  get evt() { try { return localStorage.getItem('orga_evt') } catch { return null } },
+  set evt(v) { try { localStorage.setItem('orga_evt', v) } catch {} },
+}
+
+export const api = {
+  connexion: (nom, pin) => rpc('connexion', { p_nom: nom, p_pin: pin }),
+  donnees: (evt) => rpc('donnees', { p_token: store.token, p_evt: evt || null }),
+  majElement: (id, patch) => rpc('maj_element', { p_token: store.token, p_id: id, p: patch }),
+  ajoutElement: (evt, zone, nom) => rpc('ajout_element', { p_token: store.token, p_evt: evt, p_zone: zone, p_nom: nom }),
+  ajoutAction: (evt, el, quoi, resp, ech) => rpc('ajout_action', { p_token: store.token, p_evt: evt, p_element: el, p_quoi: quoi, p_resp: resp, p_echeance: ech || null }),
+  majAction: (id, statut, reponse) => rpc('maj_action', { p_token: store.token, p_id: id, p_statut: statut, p_reponse: reponse ?? null }),
+  ajoutNote: (evt, texte) => rpc('ajout_note', { p_token: store.token, p_evt: evt, p_texte: texte }),
+  majNote: (id, statut) => rpc('maj_note', { p_token: store.token, p_id: id, p_statut: statut }),
+  majInvites: (evt, n) => rpc('maj_invites', { p_token: store.token, p_evt: evt, p_n: n }),
+  lienResponsable: (nom, evt) => rpc('lien_responsable', { p_token: store.token, p_nom: nom, p_evt: evt }),
+  changerPin: (pin) => rpc('changer_pin', { p_token: store.token, p_pin: pin }),
+  listeResponsable: (lien) => rpc('liste_responsable', { p_lien: lien }),
+  respAction: (lien, id, statut, reponse) => rpc('resp_action', { p_lien: lien, p_id: id, p_statut: statut, p_reponse: reponse ?? null }),
+  respReception: (lien, id, reception, manque) => rpc('resp_reception', { p_lien: lien, p_id: id, p_reception: reception, p_manque: manque ?? null }),
+}
