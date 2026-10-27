@@ -57,6 +57,13 @@ export function Perimetre({ data, kind, go, open }) {
   const els = data.elements.filter(autres ? estAutres : e => camp(e) === 'flou')
   const groups = {}
   els.forEach(e => { const k = autres ? (e.fourni_par || 'Fournisseur à préciser') : e.zone; (groups[k] = groups[k] || []).push(e) })
+  const ev = data.evenements.find(x => x.id === data.evt) || {}
+  function demander(qui, l) {
+    const todo = l.filter(e => !CONFIRMES.includes(e.engagement))
+    const txt = `Bonjour, pour ${ev.nom}${ev.date ? ` du ${ddmm(ev.date)}` : ''}${ev.invites ? ` (${ev.invites} invités)` : ''}, pouvez-vous nous confirmer ce qui est prévu de votre côté :\n` +
+      todo.map(e => `• ${e.element}${e.besoin ? ` : ${n(e.besoin)}` : ''}`).join('\n') + `\nMerci beaucoup.`
+    sendWa(data, { resp: qui }, txt)
+  }
   return (
     <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
       <div className="head">
@@ -67,7 +74,10 @@ export function Perimetre({ data, kind, go, open }) {
       {!els.length && <div className="empty">{autres ? 'Rien n\'est confié à un tiers pour l\'instant.' : 'Tout a un responsable. Rien d\'oublié.'}</div>}
       {Object.entries(groups).map(([g, l]) => (
         <div key={g}>
-          <div className="group">{g} · {l.length}</div>
+          <div className="group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{g} · {l.length}</span>
+            {autres && l.some(e => !CONFIRMES.includes(e.engagement)) && <button className="wa-btn" onClick={() => demander(g, l)}>Demander confirmation</button>}
+          </div>
           <div className="list">{l.map(e => {
             const ok = CONFIRMES.includes(e.engagement)
             return (
