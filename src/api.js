@@ -70,6 +70,7 @@ export const api = {
   especesListe: (evt) => rpc('especes_liste', { p_token: store.token, p_evt: evt }),
   encaissementAjouter: (evt, montant, date, note, mode) => rpc('encaissement_ajouter', { p_token: store.token, p_evt: evt, p_montant: montant, p_date: date, p_note: note, p_mode: mode || 'Espèces' }),
   evenementConfirmer: (evt, prix, avance, mode, date) => rpc('evenement_confirmer', { p_token: store.token, p_evt: evt, p_prix: prix, p_avance: avance || 0, p_mode: mode, p_date: date }),
+  accueil: () => rpc('accueil', { p_token: store.token }),
   elementRevoir: (id, p) => rpc('element_revoir', { p_token: store.token, p_id: id, p: p || {} }),
   catalogueListe: () => rpc('catalogue_liste', { p_token: store.token }),
   elementDepuisCatalogue: (evt, cat) => rpc('element_depuis_catalogue', { p_token: store.token, p_evt: evt, p_cat: cat }),

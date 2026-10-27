@@ -7,6 +7,7 @@ import { Pieces } from './pieces'
 import { Especes } from './especes'
 import { Bilan } from './bilan'
 import { Bibliotheque, Revue, RevueZone } from './revue'
+import { Accueil, Voix } from './accueil'
 import { DevisClient, Vente, estVente } from './cycle'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { Copilote, Proposition, prechargerChallenge } from './copilote'
@@ -14,7 +15,7 @@ import { Planning } from './planning'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
-  const [h, setH] = useState(location.hash.slice(2))
+  const [h, setH] = useState(location.hash ? location.hash.slice(2) : 'accueil')
   useEffect(() => { const f = () => setH(location.hash.slice(2)); addEventListener('hashchange', f); return () => removeEventListener('hashchange', f) }, [])
   return [h, to => { location.hash = '/' + to; window.scrollTo(0, 0) }]
 }
@@ -157,9 +158,12 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === 'especes' || route === 'budget' || route === 'devis' || route.startsWith('bilan') || route.startsWith('revue') || route.startsWith('biblio') || route === '' ? 'plan' : route
+  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === 'especes' || route === 'budget' || route === 'devis' || route.startsWith('bilan') || route.startsWith('revue') || route.startsWith('biblio') || route === '' || route === 'accueil' || route === 'voix' ? 'plan' : route
   let screen
-  if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
+  const ouvrir = id => { go(''); load(id) }
+  if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
+  else if (route === 'voix') screen = <Voix data={data} go={go} ouvrir={ouvrir} />
+  else if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
   else if (route === 'revue') screen = <Revue data={data} go={go} />
   else if (route.startsWith('revue/')) screen = <RevueZone key={route} data={data} go={go} idx={Number(route.split('/')[1])} elId={route.split('/')[2]} putEl={fresh => putEl(fresh)} />
@@ -184,7 +188,7 @@ export default function App() {
       <AnimatePresence mode="wait">{screen}</AnimatePresence>
 
       <nav className="tabs">
-        <button className={tab === 'plan' ? 'on' : ''} onClick={() => go('')}>{Icon.plan}Plan</button>
+        <button className={tab === 'plan' ? 'on' : ''} onClick={() => go('accueil')}>{Icon.plan}Accueil</button>
         <button className={tab === 'planning' ? 'on' : ''} onClick={() => go('planning')}>{Icon.planning}Planning</button>
         <motion.button whileTap={{ scale: .9 }} className={`mic ${listening ? 'rec' : ''}`} onClick={toggleMic} aria-label="Dicter une note">{Icon.mic}</motion.button>
         <button className={tab === 'deleguer' ? 'on' : ''} onClick={() => go('deleguer')}>{Icon.deleguer}Déléguer</button>

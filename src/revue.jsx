@@ -55,7 +55,7 @@ export function Revue({ data, go }) {
       </div>
       {suivant
         ? <motion.button whileTap={{ scale: .98 }} className="cta2" onClick={() => go(`revue/${data.zones.findIndex(z => z.nom === suivant.zone)}/${suivant.id}`)}>{c.revu ? 'Reprendre' : 'Commencer'} · {suivant.zone}, {suivant.element} ›</motion.button>
-        : <div className="rv-fini">✓ Tout est revu</div>}
+        : data.elements.length ? <div className="rv-fini">✓ Tout est revu</div> : <motion.button whileTap={{ scale: .98 }} className="cta2" onClick={() => go('biblio')}>Commencer : ouvrir la bibliothèque ›</motion.button>}
       <div className="rv-z">{data.zones.map((z, i) => {
         const l = els.filter(e => e.zone === z.nom), r = l.filter(e => etatRevue(e) === 'revu').length, av = l.filter(e => etatRevue(e) === 'a_revoir').length
         const fini = l.length && r === l.length

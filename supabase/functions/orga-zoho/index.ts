@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
-    const { token, evt, mode, code, presentation: pres } = await req.json()
+    const { token, evt, mode, code, presentation: pres, lignes_client, conditions, objet } = await req.json()
     const id = Deno.env.get('ZOHO_CLIENT_ID'), secret = Deno.env.get('ZOHO_CLIENT_SECRET')
     if (!id || !secret) return json({ error: 'Zoho pas encore branché (ZOHO_CLIENT_ID et ZOHO_CLIENT_SECRET).' }, 501)
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
@@ -64,10 +64,14 @@ Deno.serve(async (req) => {
     if (mode !== 'devis' && mode !== 'apercu') return json({ error: 'mode inconnu' }, 400)
     const ev = data.evenements.find((x: any) => x.id === data.evt) || {}
     const presentation = pres || ev.presentation || 'prestation'
+    // Lignes dictées à l'agent vocal : reprises telles quelles (première ligne = intitulé)
+    const parle = Array.isArray(lignes_client) && lignes_client.length
+      ? lignes_client.map((l: any) => { const t = String(l.description || '').split('\n'); return { nom: t[0].trim() || 'Prestation', description: t.slice(1).join('\n').trim(), montant: Math.round(Number(l.montant) || 0), unite: true } })
+      : null
     const { data: ch } = await adm.from('chiffrages').select('lignes, coef').eq('evenement_id', ev.id).maybeSingle()
     const lignes: any[] = ch?.lignes || []
-    if (!lignes.length) return json({ error: 'Chiffre d\'abord l\'événement.' }, 400)
-    const prest = prestations(ev, lignes, Number(ch?.coef || ev.coef) || 2.4, presentation)
+    if (!parle && !lignes.length) return json({ error: 'Chiffre d\'abord l\'événement.' }, 400)
+    const prest = parle ? { total: parle.reduce((a: number, l: any) => a + l.montant, 0), lignes: parle } : prestations(ev, lignes, Number(ch?.coef || ev.coef) || 2.4, presentation)
     if (mode === 'apercu') return json({ presentation, lignes: prest.lignes, total: prest.total, tva: TVA[ev.entite] ?? 0 })
     if (!TVA[ev.entite]) return json({ error: 'Pas de devis Zoho pour un événement en espèces.' }, 400)
     const { data: par } = await adm.from('parametres').select('valeur').eq('cle', 'zoho').single()
@@ -90,10 +94,10 @@ Deno.serve(async (req) => {
     const client = cs.find((c: any) => c.contact_name.toLowerCase() === nomClient.toLowerCase()) || (await zo('contacts', { method: 'POST', body: JSON.stringify({ contact_name: nomClient, contact_type: 'customer' }) })).contact
 
     const inv = Number(ev.invites) || 1
-    const lignesDevis = prest.lignes.map((l: any) => ({ name: l.nom, description: l.description, rate: Math.round((l.montant / inv) * 100) / 100, quantity: inv, ...(tax ? { tax_id: tax.tax_id } : {}) }))
+    const lignesDevis = prest.lignes.map((l: any) => ({ name: l.nom, description: l.description, rate: l.unite ? l.montant : Math.round((l.montant / inv) * 100) / 100, quantity: l.unite ? 1 : inv, ...(tax ? { tax_id: tax.tax_id } : {}) }))
     const corps = { customer_id: client.contact_id, date: data.aujourdhui, reference_number: ev.id, line_items: lignesDevis,
       notes: `${(ev.prestations || []).join(' + ')}${ev.format ? ` · ${ev.format}` : ''}${ev.lieu ? ` · ${ev.lieu}` : ''}${ev.date ? ` · le ${ev.date.split('-').reverse().join('/')}` : ''}`,
-      ...(ev.date ? { expiry_date: ev.date } : {}) }
+      ...(ev.date ? { expiry_date: ev.date } : {}), ...(conditions ? { terms: String(conditions) } : {}) }
     // Un seul devis par événement : remis à jour s'il existe déjà en brouillon
     const deja = ev.zoho_devis?.id
     const o = deja ? await zo(`estimates/${deja}`, { method: 'PUT', body: JSON.stringify(corps) }).catch(() => null) : null

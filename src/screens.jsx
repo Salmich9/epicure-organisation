@@ -114,15 +114,16 @@ export function Plan({ data, go, openEvt, mine, setMine, reload }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head" onClick={openEvt}>
+        <button className="back" onClick={x => { x.stopPropagation(); go('accueil') }}>‹ Accueil</button>
         <div className="when">{dateLongue(ev.date)}{ev.date ? ` · ${dans(ev.date, data.aujourdhui)}` : ''}</div>
         <h1>{ev.nom}</h1>
         <div className="meta">{ev.invites ? `${ev.invites} invités` : 'Invités à fixer'} · {data.elements.length} éléments {mine ? 'à ta charge' : 'suivis'}</div>
       </div>
       {!mine && <><Rail statut={ev.statut} /><Argent data={data} go={go} reload={reload} /></>}
-      {!mine && (() => { const c = compteRevue(data), tot = c.revu + c.a_revoir + c.pas_vu; return tot > 0 && (
-        <motion.button className="rv-entree" whileTap={{ scale: .98 }} onClick={() => go('revue')}>
-          <div><b>Revue</b><span>{c.revu === tot ? 'tout est revu' : `${tot - c.revu} chose${tot - c.revu > 1 ? 's' : ''} à passer en revue${c.a_revoir ? ` · ${c.a_revoir} changée${c.a_revoir > 1 ? 's' : ''}` : ''}`}</span></div>
-          <i><em style={{ width: `${(c.revu / tot) * 100}%` }} /></i><strong>{c.revu}/{tot}</strong>›
+      {!mine && (() => { const c = compteRevue(data), tot = c.revu + c.a_revoir + c.pas_vu; return (
+        <motion.button className="rv-entree" whileTap={{ scale: .98 }} onClick={() => go(tot ? 'revue' : 'biblio')}>
+          <div><b>Revue</b><span>{!tot ? 'rien encore : pars de la bibliothèque' : c.revu === tot ? 'tout est revu' : `${tot - c.revu} chose${tot - c.revu > 1 ? 's' : ''} à passer en revue${c.a_revoir ? ` · ${c.a_revoir} changée${c.a_revoir > 1 ? 's' : ''}` : ''}`}</span></div>
+          <i><em style={{ width: `${tot ? (c.revu / tot) * 100 : 0}%` }} /></i><strong>{c.revu}/{tot}</strong>›
         </motion.button>) })()}
       <Camps data={data} go={go} mine={mine} setMine={setMine} />
       <div className="couts">

@@ -34,6 +34,7 @@ export function Vente({ data, go, reload, openEvt }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head" onClick={openEvt}>
+        <button className="back" onClick={x => { x.stopPropagation(); go('accueil') }}>‹ Accueil</button>
         <div className="when">{dateLongue(ev.date)}{ev.date ? ` · ${dans(ev.date, data.aujourdhui)}` : ''}</div>
         <h1>{ev.nom}</h1>
         <div className="meta">{ev.invites ? `${ev.invites} invités` : 'Invités à fixer'} · {ev.entite || 'Epicure'}</div>
