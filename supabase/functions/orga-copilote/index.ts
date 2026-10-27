@@ -208,6 +208,7 @@ Comment tu poses tes questions :
 - 2 à 4 réponses courtes par question, la dernière toujours « Plus tard ». Chaque réponse utile porte ses effets concrets (ajouter un élément, en modifier un, créer une action datée pour la bonne personne).
 
 Règles des effets : pour modifier un élément existant, son id exact. Sinon « ajouter » dans une zone existante. Une quantité dite va dans qte_forcee. Un nouveau nombre d'invités passe par le type « invites ». N'invente jamais de prix. Échéances AAAA-MM-JJ, avant la date de l'événement.
+Dans tout texte lu par l'équipe (questions, conseils, constats, titres), n'écris jamais d'identifiant EL-xxxx : nomme l'élément.
 ${CHAMPS}`
 
 // ---------- Google Drive (compte de service, jeton signé ici) ----------
@@ -309,7 +310,7 @@ ${actu ? `Chiffrage actuel :\n${actu}` : ''}`
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === 'chiffrer' ? 16000 : 3000,
+        max_tokens: mode === 'chiffrer' ? 16000 : mode === 'challenge' ? 8000 : 4000,
         system: SYSTEME,
         tools: [TOOLS[mode]],
         tool_choice: { type: 'auto' },
