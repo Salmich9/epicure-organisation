@@ -120,6 +120,7 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
         <div className="track"><i style={{ width: `${Math.min(100, budget ? (cout / budget) * 100 : 0)}%`, background: cout > budget ? 'var(--red)' : undefined }} />{n(ev.budget) > 0 && env > 0 && <em style={{ left: `${Math.min(100, (env / budget) * 100)}%` }} />}</div>
         <div className="legend"><span>{budget ? Math.round((cout / budget) * 100) : 0} % du budget</span><span>enveloppes de zone {mad(env)} <Info text="Le trait marque la somme des enveloppes par zone (MAD par invité × invités). Le budget est celui de l'événement." /></span></div>
       </div>
+      <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>
       {nudge && <motion.button className="nudge" style={{ width: 'calc(100% - 32px)', textAlign: 'left' }} whileTap={{ scale: .98 }} onClick={() => go(nudge.to)}><span className="d" /><p>{nudge.t}</p><span className="go">Voir</span></motion.button>}
       <div className="plan" id="plan">
         {data.zones.map((z, i) => {
@@ -272,11 +273,11 @@ export function Deleguer({ data, setData }) {
 }
 
 /* ---------- Notes ---------- */
-export function Notes({ data, setData, listening, toggleMic, draft, setDraft }) {
+export function Notes({ data, setData, listening, toggleMic, draft, setDraft, placer }) {
   const ui = useUI()
   async function add() {
     const t = draft.trim(); if (!t) return
-    try { const x = await api.ajoutNote(data.evt, t); setData(d => ({ ...d, notes: [x, ...d.notes] })); setDraft(''); ui.toast('Note ajoutée') } catch (e) { ui.toast(e.message) }
+    try { const x = await api.ajoutNote(data.evt, t); setData(d => ({ ...d, notes: [x, ...d.notes] })); setDraft(''); placer(x) } catch (e) { ui.toast(e.message) }
   }
   async function st(x, s) { setData(d => ({ ...d, notes: d.notes.map(y => y.id === x.id ? { ...y, statut: s } : y) })); try { await api.majNote(x.id, s) } catch (e) { ui.toast(e.message) } }
   return (
@@ -284,9 +285,9 @@ export function Notes({ data, setData, listening, toggleMic, draft, setDraft }) 
       <div className="head"><h1>Notes</h1><div className="meta">Dites ou écrivez une idée, rien ne se perd.</div></div>
       <div style={{ padding: '16px 14px 0' }}>
         <textarea rows={3} value={draft} onChange={e => setDraft(e.target.value)} placeholder={listening ? 'Je vous écoute…' : 'Un changement, un oubli, une idée…'} />
-        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}><button className="btn" onClick={toggleMic}>{listening ? 'Arrêter' : 'Dicter'}</button><button className="btn primary" onClick={add}>Ajouter</button></div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}><button className="btn" onClick={toggleMic}>{listening ? 'Arrêter' : 'Dicter'}</button><button className="btn primary" onClick={add}>Ajouter et ranger</button></div>
       </div>
-      <div className="group">Boîte de réception <Info text="Chaque note attend votre validation. Le copilote proposera bientôt où la placer et ce qu'elle change." /></div>
+      <div className="group">Boîte de réception <Info text="Le copilote propose où ranger chaque note et ce qu'elle change. Rien n'est appliqué sans votre accord." /></div>
       <div className="list">
         {!data.notes.length && <div className="empty">Vide pour l'instant.</div>}
         {data.notes.map(x => {
@@ -298,7 +299,7 @@ export function Notes({ data, setData, listening, toggleMic, draft, setDraft }) 
               <div className="top" style={{ marginTop: 10 }}>
                 <span className="small mute">{ddmm(String(x.date).slice(0, 10))} · {x.auteur}</span>
                 {done ? <span className={`pill ${x.statut === 'Appliquée' ? 'ok' : ''}`}>{x.statut}</span>
-                  : <span className="chips"><button className="chip ghost" onClick={() => st(x, 'Ignorée')}>Ignorer</button><button className="chip on" onClick={() => st(x, 'Appliquée')}>Fait</button></span>}
+                  : <span className="chips"><button className="chip ghost" onClick={() => st(x, 'Ignorée')}>Ignorer</button><button className="chip on" onClick={() => placer(x)}>Ranger</button></span>}
               </div>
             </div>
           )

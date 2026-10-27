@@ -195,3 +195,16 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .camp .s.warn { color: var(--gold); }
 .camp.danger { background: var(--red-bg); }
 .camp.danger b, .camp.danger .t { color: var(--red); }
+
+/* Copilote */
+.cop-card { background: var(--surface); border-radius: 26px; padding: 20px; box-shadow: var(--shadow); }
+.row-top { display: flex; justify-content: space-between; align-items: baseline; }
+.cop-question { font-family: var(--display); font-size: 30px; line-height: 1.12; margin-top: 10px; }
+.cop-options { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.cop-opt { width: 100%; text-align: left; padding: 15px 16px; border-radius: 16px; background: var(--bg); font-weight: 650; font-size: 15px; border: 1px solid var(--line); }
+.cop-orb { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto; background: radial-gradient(circle at 40% 35%, var(--gold), var(--accent)); opacity: .9; }
+.cop-q { margin-top: 14px; background: var(--surface2); border-radius: 14px; padding: 12px 14px; font-size: 14px; font-weight: 600; }
+.challenge { margin: 10px 16px 0; display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); background: var(--surface); border-radius: 20px; padding: 14px 16px; text-align: left; }
+.challenge .o { width: 34px; height: 34px; border-radius: 50%; flex: none; background: radial-gradient(circle at 40% 35%, var(--gold), var(--accent)); }
+.challenge p { flex: 1; font-size: 14px; font-weight: 650; }
+.challenge span { font-size: 12.5px; color: var(--mute); font-weight: 500; display: block; }

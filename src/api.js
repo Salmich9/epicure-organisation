@@ -42,6 +42,17 @@ export const api = {
   majInvites: (evt, n) => rpc('maj_invites', { p_token: store.token, p_evt: evt, p_n: n }),
   lienResponsable: (nom, evt) => rpc('lien_responsable', { p_token: store.token, p_nom: nom, p_evt: evt }),
   changerPin: (pin) => rpc('changer_pin', { p_token: store.token, p_pin: pin }),
+  rangerNote: (id, statut, placement) => rpc('ranger_note', { p_token: store.token, p_id: id, p_statut: statut, p_placement: placement ?? null }),
+  copilote: async (mode, extra = {}) => {
+    const r = await fetch(`${URL}/functions/v1/orga-copilote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: KEY },
+      body: JSON.stringify({ token: store.token, evt: store.evt, mode, ...extra }),
+    })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || d.error) throw new Error(d.error || 'Le copilote ne répond pas.')
+    return d
+  },
   listeResponsable: (lien) => rpc('liste_responsable', { p_lien: lien }),
   respAction: (lien, id, statut, reponse) => rpc('resp_action', { p_lien: lien, p_id: id, p_statut: statut, p_reponse: reponse ?? null }),
   respReception: (lien, id, reception, manque) => rpc('resp_reception', { p_lien: lien, p_id: id, p_reception: reception, p_manque: manque ?? null }),

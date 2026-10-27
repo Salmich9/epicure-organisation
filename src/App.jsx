@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
 import { ElementSheet, sendWa } from './element'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
+import { Copilote, Proposition } from './copilote'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
@@ -103,13 +104,14 @@ export default function App() {
   const [mine, setMineState] = useState(() => { try { return localStorage.getItem('orga_mine') === '1' } catch { return false } })
   const setMine = v => { setMineState(v); try { localStorage.setItem('orga_mine', v ? '1' : '0') } catch {} }
   const rec = useRef(null)
+  const [prop, setProp] = useState(null)
 
   const load = useCallback(async (evt) => {
     try { const d = await api.donnees(evt || store.evt); setData(d); store.evt = d.evt }
     catch (e) { if (e.code === 'session_expiree') { store.token = null; setLogged(false) } else ui.toast(e.message) }
   }, [])
   useEffect(() => { if (logged && !lien) load() }, [logged])
-  useEffect(() => { setOpenEl(null) }, [route])
+  useEffect(() => { setOpenEl(null); setProp(null) }, [route])
 
   if (lien) return <RespView lien={lien} />
   if (!logged) return <Login onIn={() => setLogged(true)} />
@@ -125,6 +127,11 @@ export default function App() {
     const nom = newName.trim(); if (!nom) return
     try { const e = await api.ajoutElement(data.evt, addSheet, nom); setData(d => ({ ...d, elements: [...d.elements, e] })); setAddSheet(null); setNewName(''); go(`zone/${data.zones.findIndex(z => z.nom === e.zone)}`); setOpenEl(e) } catch (er) { ui.toast(er.message) }
   }
+  async function placer(note) {
+    setProp({ note, res: null })
+    try { const res = await api.copilote('placer', { note: note.texte }); setProp({ note, res }) }
+    catch (e) { setProp(null); ui.toast(e.message) }
+  }
   function toggleMic() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (route !== 'notes') go('notes')
@@ -139,13 +146,14 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === '' ? 'plan' : route
+  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === '' ? 'plan' : route
   let screen
   if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
+  else if (route === 'copilote') screen = <Copilote data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'decider') screen = <Decider data={view} open={setOpenEl} />
   else if (route === 'deleguer') screen = <Deleguer data={view} setData={setData} />
-  else if (route === 'notes') screen = <Notes data={data} setData={setData} listening={listening} toggleMic={toggleMic} draft={draft} setDraft={setDraft} />
+  else if (route === 'notes') screen = <Notes data={data} setData={setData} listening={listening} toggleMic={toggleMic} draft={draft} setDraft={setDraft} placer={placer} />
   else screen = <Plan data={view} go={go} openEvt={() => setEvtSheet(true)} mine={mine} setMine={setMine} />
 
   return (
@@ -159,6 +167,8 @@ export default function App() {
         <button className={tab === 'deleguer' ? 'on' : ''} onClick={() => go('deleguer')}>{Icon.deleguer}Déléguer</button>
         <button className={tab === 'notes' ? 'on' : ''} onClick={() => go('notes')}>{Icon.notes}Notes</button>
       </nav>
+
+      <Proposition prop={prop} data={data} onClose={() => setProp(null)} onDone={() => { setProp(null); load(data.evt) }} />
 
       {openEl && <ElementSheet el={openEl} data={data} onClose={() => setOpenEl(null)} onSaved={putEl} />}
 
