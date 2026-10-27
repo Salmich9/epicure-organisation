@@ -5,6 +5,7 @@ import { sendWa } from './element'
 import { ALERTE, ETATS, Info, envZone, OUVERT, Seg, Sheet, Table, dans, dateLongue, ddmm, jours, mad, n, useUI } from './ui'
 import { Bulles, regles, useBulles } from './bulles'
 import { aImputer } from './pieces'
+import { Argent, Rail } from './cycle'
 
 export function zoneStats(data, z) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
@@ -98,7 +99,7 @@ export function Perimetre({ data, kind, go, open }) {
 }
 
 /* ---------- Plan de salle (accueil) ---------- */
-export function Plan({ data, go, openEvt, mine, setMine }) {
+export function Plan({ data, go, openEvt, mine, setMine, reload }) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const cout = data.elements.reduce((s, e) => s + n(e.cout), 0)
   const env = data.zones.reduce((s, z) => s + envZone(z, ev), 0)
@@ -116,6 +117,7 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
         <h1>{ev.nom}</h1>
         <div className="meta">{ev.invites ? `${ev.invites} invités` : 'Invités à fixer'} · {data.elements.length} éléments {mine ? 'à ta charge' : 'suivis'}</div>
       </div>
+      {!mine && <><Rail statut={ev.statut} /><Argent data={data} go={go} reload={reload} /></>}
       <Camps data={data} go={go} mine={mine} setMine={setMine} />
       <div className="couts">
         <div className="trio">

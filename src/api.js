@@ -68,7 +68,9 @@ export const api = {
     const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Le copilote ne répond pas.'); return d
   },
   especesListe: (evt) => rpc('especes_liste', { p_token: store.token, p_evt: evt }),
-  encaissementAjouter: (evt, montant, date, note) => rpc('encaissement_ajouter', { p_token: store.token, p_evt: evt, p_montant: montant, p_date: date, p_note: note }),
+  encaissementAjouter: (evt, montant, date, note, mode) => rpc('encaissement_ajouter', { p_token: store.token, p_evt: evt, p_montant: montant, p_date: date, p_note: note, p_mode: mode || 'Espèces' }),
+  evenementConfirmer: (evt, prix, avance, mode, date) => rpc('evenement_confirmer', { p_token: store.token, p_evt: evt, p_prix: prix, p_avance: avance || 0, p_mode: mode, p_date: date }),
+  evenementStatut: (evt, statut) => rpc('evenement_statut', { p_token: store.token, p_evt: evt, p_statut: statut }),
   porteurAjouter: (nom) => rpc('porteur_ajouter', { p_token: store.token, p_nom: nom }),
   enveloppeRemettre: async (evt, nom, montant) => {
     const r = await fetch(`${URL}/functions/v1/orga-especes`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt, nom, montant }) })

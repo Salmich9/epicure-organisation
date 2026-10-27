@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
 import { Icon, mad, n, useUI } from './ui'
+import { estVente } from './cycle'
 
 const ENTITES = [
   { k: 'Epicure', tva: 20, sous: 'TVA 20 %' },
@@ -100,10 +101,10 @@ export function Nouveau({ data, go, onCreated }) {
 }
 
 /* ---------- 2 · Chiffrer, pré-rempli par le copilote · 3 · Retenir le budget ---------- */
-export function Chiffrer({ data, go, reload }) {
+export function Chiffrer({ data, go, reload, etapeInit }) {
   const ui = useUI()
   const ev = data.evenements.find(x => x.id === data.evt) || {}
-  const [etape, setEtape] = useState('chiffrer')
+  const [etape, setEtape] = useState(etapeInit || 'chiffrer')
   const [lignes, setLignes] = useState(null)
   const [hyp, setHyp] = useState('')
   const [question, setQuestion] = useState('')
@@ -164,7 +165,9 @@ export function Chiffrer({ data, go, reload }) {
   const tva = (ENTITES.find(x => x.k === ev.entite) || {}).tva || 0
   const palier = paliers.find(p => n(ev.invites) <= n(p.jusqua))
 
-  if (etape === 'budget') return <Budget data={data} ev={ev} zones={zones} imprevus={imprevus} prix={prixHT} coef={coef} retour={() => setEtape('chiffrer')} go={go} reload={reload} />
+  const vente = estVente(ev)
+  if (etape === 'budget' && lignes === null) return <div className="calcul"><div className="orbe" /><div>Chargement du chiffrage…</div></div>
+  if (etape === 'budget') return <Budget data={data} ev={ev} zones={zones} imprevus={imprevus} prix={n(ev.prix_signe) || prixHT} coef={coef} retour={() => setEtape('chiffrer')} go={go} reload={reload} />
 
   return (
     <motion.div {...glisse} className="wiz">
@@ -222,10 +225,15 @@ export function Chiffrer({ data, go, reload }) {
             <span className="coef"><button onClick={() => changerCoef(-0.05)}>−</button><b>× {n(coef).toFixed(2).replace('.', ',')}</b><button onClick={() => changerCoef(0.05)}>+</button></span></div>
           <div className="t-l big"><span>Prix proposé HT</span><b>{mad(prixHT)}</b></div>
           {tva > 0 && <div className="t-l"><span>TTC (TVA {tva} %)</span><b>{mad(prixHT * (1 + tva / 100))}</b></div>}
+          {n(ev.prix_signe) > 0 && <>
+            <div className="t-l big"><span>Prix signé HT (contrat)</span><b>{mad(ev.prix_signe)}</b></div>
+            <div className="t-l"><span>Marge avec ce chiffrage</span><b style={{ color: n(ev.prix_signe) - (cout + imprevus) < 0 ? 'var(--red)' : 'var(--accent)' }}>{mad(n(ev.prix_signe) - (cout + imprevus))} · {Math.round((1 - (cout + imprevus) / n(ev.prix_signe)) * 100)} %</b></div>
+          </>}
         </div>
         <div className="px" style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          {ev.entite !== 'Espèce' && <button className="btn" disabled={devis === '…'} onClick={faireDevis}>{devis === '…' ? 'Devis…' : devis ? `Devis ${devis}` : 'Devis Zoho'}</button>}
-          <button className="btn primary" onClick={() => { clearTimeout(sauve.current); api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); setEtape('budget') }}>Retenir le budget</button>
+          {ev.entite !== 'Espèce' && <button className={`btn ${vente ? 'primary' : ''}`} onClick={async () => { clearTimeout(sauve.current); await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); go('devis') }}>{devis ? `Devis ${devis}` : 'Devis client'}</button>}
+          {vente ? <button className="btn" onClick={async () => { clearTimeout(sauve.current); await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); await reload(); go('') }}>Terminer</button>
+            : <button className="btn primary" onClick={() => { clearTimeout(sauve.current); api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); setEtape('budget') }}>{data.elements.length ? 'Mettre à jour le budget' : 'Retenir le budget'}</button>}
         </div>
       </>}
     </motion.div>

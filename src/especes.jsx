@@ -34,7 +34,7 @@ export function Especes({ data, go }) {
 
   const env = useMemo(() => e ? soldes(e.mouvements) : [], [e])
   if (!e) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
-  const encaisse = e.encaissements.reduce((s, x) => s + n(x.montant), 0)
+  const encaisse = e.encaissements.filter(x => (x.mode || 'Espèces') === 'Espèces').reduce((s, x) => s + n(x.montant), 0)
   const enEnv = e.mouvements.filter(m => m.type === 'remise' && m.statut !== 'refuse').reduce((s, m) => s + n(m.montant), 0) - e.mouvements.filter(m => m.type === 'rendu' && m.statut === 'ok').reduce((s, m) => s + n(m.montant), 0)
   const depense = e.mouvements.filter(m => m.type === 'depense' && m.statut === 'ok').reduce((s, m) => s + n(m.montant), 0)
   const porteur = nom => e.porteurs.find(p => p.nom === nom)
@@ -42,7 +42,7 @@ export function Especes({ data, go }) {
   async function encaisser() {
     const v = Number(String(f.montant || '').replace(/\s/g, '').replace(',', '.')); if (!(v > 0)) { ui.bubble('Tape le montant encaissé.'); return }
     setBusy(true)
-    try { await api.encaissementAjouter(data.evt, v, f.date || data.aujourdhui, f.note || ''); ui.toast(`${mad(v)} MAD encaissés`); setSheet(null); setF({}); await charger() } catch (err) { ui.toast(err.message) }
+    try { await api.encaissementAjouter(data.evt, v, f.date || data.aujourdhui, f.note || '', f.mode || 'Espèces'); ui.toast(`${mad(v)} MAD encaissés`); setSheet(null); setF({}); await charger() } catch (err) { ui.toast(err.message) }
     setBusy(false)
   }
   async function remettre() {
@@ -94,14 +94,16 @@ export function Especes({ data, go }) {
 
       {e.encaissements.length > 0 && <>
         <div className="group">Encaissements du client</div>
-        <div className="list">{e.encaissements.map(x => <div key={x.id} className="row"><div className="top"><span className="name">{mad(x.montant)} MAD</span><span className="small mute">{ddmm(x.date)}</span></div>{x.note && <div className="info">{x.note}</div>}</div>)}</div>
+        <div className="list">{e.encaissements.map(x => <div key={x.id} className="row"><div className="top"><span className="name">{mad(x.montant)} MAD</span><span className="small mute">{x.mode || 'Espèces'} · {ddmm(x.date)}</span></div>{x.note && <div className="info">{x.note}</div>}</div>)}</div>
       </>}
 
       <Sheet open={sheet === 'enc'} onClose={() => setSheet(null)} foot={<button className="btn primary" disabled={busy} onClick={encaisser}>Noter</button>}>
         <div className="el-kicker">{ev.nom}</div>
-        <div className="el-name" style={{ fontSize: 28 }}>Encaissement espèces</div>
+        <div className="el-name" style={{ fontSize: 28 }}>Encaissement client</div>
         <div className="label">Montant reçu du client</div>
         <input inputMode="numeric" autoFocus value={f.montant || ''} onChange={x => setF({ ...f, montant: x.target.value })} placeholder="60 000" />
+        <div className="label">Mode</div>
+        <div className="chips">{['Espèces', 'Virement', 'Chèque'].map(m => <button key={m} className={`chip ${(f.mode || 'Espèces') === m ? 'on' : ''}`} onClick={() => setF({ ...f, mode: m })}>{m}</button>)}</div>
         <div className="label">Date</div>
         <input type="date" value={f.date || data.aujourdhui} onChange={x => setF({ ...f, date: x.target.value })} />
         <div className="label">Note</div>
