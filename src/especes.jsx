@@ -13,7 +13,7 @@ export function soldes(mvts) {
     const x = g(m.titulaire); x.mvts.push(m)
     const v = n(m.montant), ok = m.statut === 'ok', vivant = m.statut !== 'refuse'
     if (m.type === 'remise') { if (ok) { x.remis += v; x.reste += v } else if (m.statut === 'a_confirmer') x.attente += v }
-    if (m.type === 'transfert_in' && ok) { x.remis += v; x.reste += v }
+    if (m.type === 'transfert_in') { if (ok) { x.remis += v; x.reste += v } else if (m.statut === 'a_confirmer') x.attente += v }
     if (m.type === 'depense' && ok) { x.depense += v; x.reste -= v; x.n++ }
     if ((m.type === 'transfert_out' || m.type === 'rendu') && vivant) x.reste -= v
   })
@@ -73,9 +73,9 @@ export function Especes({ data, go }) {
       </div>
       <div className="esp-k">
         <div><b>{mad(encaisse)}</b>encaissé du client</div>
-        <div><b>{mad(enEnv)}</b>en enveloppes</div>
         <div><b>{mad(depense)}</b>dépensé</div>
-        <div className="main"><b>{mad(e.chez_salmane)}</b>reste chez toi <Info text="Encaissé du client, moins les enveloppes remises, plus ce qu'on t'a rendu." /></div>
+        <div><b>{mad(enEnv - depense)}</b>chez les porteurs</div>
+        <div className="main"><b>{mad(e.chez_salmane)}</b>reste chez toi <Info text="Encaissé = dépensé + chez les porteurs + chez toi. Chez toi : l'encaissé, moins les enveloppes remises, plus ce qu'on t'a rendu." /></div>
       </div>
 
       <div className="group">Enveloppes</div>
@@ -85,7 +85,7 @@ export function Especes({ data, go }) {
         return (
           <motion.button key={x.nom} className="who" whileTap={{ scale: .98 }} onClick={() => setVoir(x)}>
             <div className="t"><span>{x.nom}{x.attente > 0 && <span className="pend">À CONFIRMER</span>}{p && !p.relie && <span className="pend">PAS RELIÉ</span>}</span><b>{mad(x.remis + x.attente)}</b></div>
-            <div className="s">{x.attente > 0 && !x.remis ? 'remise envoyée, pas encore confirmée' : <>dépensé {mad(x.depense)} · {x.reste < 0 ? <span className="neg">on lui doit {mad(-x.reste)}</span> : `reste ${mad(x.reste)}`}{x.n ? ` · ${x.n} dépense${x.n > 1 ? 's' : ''}` : ''}</>}</div>
+            <div className="s">{x.attente > 0 && !x.remis ? `${mad(x.attente)} à confirmer` : <>dépensé {mad(x.depense)} · {x.reste < 0 ? <span className="neg">on lui doit {mad(-x.reste)}</span> : `reste ${mad(x.reste)}`}{x.n ? ` · ${x.n} dépense${x.n > 1 ? 's' : ''}` : ''}</>}</div>
             <div className="bar"><i style={{ width: `${Math.min(100, (x.depense / base) * 100)}%`, background: x.reste < 0 ? 'var(--red)' : undefined }} /></div>
           </motion.button>
         )
