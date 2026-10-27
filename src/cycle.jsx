@@ -116,7 +116,7 @@ export function DevisClient({ data, go, reload }) {
       {!a ? <div className="empty">Calcul…</div> : (
         <div className="dv">
           <div className="k">Ce que voit le client {ev.prix_signe ? <span className="pill ok" style={{ marginLeft: 6 }}>prix signé</span> : null}</div>
-          {a.lignes.map(l => <div key={l.nom} className="r2"><div>{l.nom}<span>{l.description}</span></div><b>{mt(l.montant)}</b></div>)}
+          {(a.lignes || []).map(l => <div key={l.nom} className="r2"><div>{l.nom}<span>{l.description}</span></div><b>{mt(l.montant)}</b></div>)}
           <div className="tot2"><span>Total HT</span><b>{mt(a.total)}</b></div>
           {tva > 0 && <div className="r2 fin"><span>TVA {tva} % · {mt(a.total * tva / 100)}</span><span className="ttc">TTC {mt(a.total * (1 + tva / 100))}</span></div>}
         </div>

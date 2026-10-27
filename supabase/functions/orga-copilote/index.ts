@@ -404,7 +404,7 @@ ${(cat || []).filter((c: any) => !deja.has(c.id)).map((c: any) => `${c.id} | ${c
 - Pas d'animation, de fleurs, de papeterie ni de décoration de prestige si le cadrage n'en parle pas.
 - Toujours le socle d'un pro : staff adapté, glace, eau, plonge, transport, talkies, sacs poubelle, repas du staff, tenues, rallonges et éclairage du back-office quand c'est pertinent.
 - Ce que le client, le lieu ou l'agence fournit : perimetre Tiers avec « par ». Ce qui dépend d'une réponse « ? » ou d'un risque (sol, éclairage, énergie) : À clarifier.
-- Quantité (qte) seulement quand le cadrage la fixe ; sinon 0, elle se calcule depuis la base et le nombre d'invités.
+- Quantité (qte) seulement quand le cadrage la fixe ; sinon 0, elle se calcule depuis la base et le nombre d'invités. Exception : pour la zone Staff, donne TOUJOURS l'effectif (qte) avec les ratios d'un pro : dîner assis 1 serveur ou chef de rang pour 10 à 12 invités, buffet ou cocktail 1 pour 20 à 25 ; 2 à 3 bartenders par bar plus 1 pour 60 à 80 invités ; 1 runner pour 40 à 50 invités ; 1 plongeur pour 80 à 100 invités ; 1 maître d'hôtel pour 80 à 100 invités ; en cuisine, 1 cuisinier ou commis pour 25 à 30 couverts assis.
 - Entre 30 et 110 articles. Ids exacts uniquement. Appelle l'outil « liste ».`
       : mode === 'placer'
       ? `Voici une note dictée ou écrite par ${data.moi} :\n« ${note} »\nTraduis-la en changements concrets sur l'organisation (souvent un seul). Appelle l'outil « proposer ».`
