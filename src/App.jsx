@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
 import { ElementSheet, sendWa } from './element'
-import { Decider, Deleguer, Notes, Plan, Zone } from './screens'
+import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
@@ -100,6 +100,8 @@ export default function App() {
   const [newName, setNewName] = useState('')
   const [draft, setDraft] = useState('')
   const [listening, setListening] = useState(false)
+  const [mine, setMineState] = useState(() => { try { return localStorage.getItem('orga_mine') === '1' } catch { return false } })
+  const setMine = v => { setMineState(v); try { localStorage.setItem('orga_mine', v ? '1' : '0') } catch {} }
   const rec = useRef(null)
 
   const load = useCallback(async (evt) => {
@@ -136,13 +138,15 @@ export default function App() {
   }
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
-  const tab = route.startsWith('zone') || route === '' ? 'plan' : route
+  const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
+  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === '' ? 'plan' : route
   let screen
-  if (route.startsWith('zone/')) screen = <Zone key={route} data={data} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
-  else if (route === 'decider') screen = <Decider data={data} open={setOpenEl} />
-  else if (route === 'deleguer') screen = <Deleguer data={data} setData={setData} />
+  if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
+  else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
+  else if (route === 'decider') screen = <Decider data={view} open={setOpenEl} />
+  else if (route === 'deleguer') screen = <Deleguer data={view} setData={setData} />
   else if (route === 'notes') screen = <Notes data={data} setData={setData} listening={listening} toggleMic={toggleMic} draft={draft} setDraft={setDraft} />
-  else screen = <Plan data={data} go={go} openEvt={() => setEvtSheet(true)} />
+  else screen = <Plan data={view} go={go} openEvt={() => setEvtSheet(true)} mine={mine} setMine={setMine} />
 
   return (
     <div className="app">

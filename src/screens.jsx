@@ -14,8 +14,78 @@ export function zoneStats(data, z) {
   return { els, ouverts, alertes, cout, env }
 }
 
+export const CONFIRMES = ['Confirmé', 'Avance versée', 'Payé', 'Livré / reçu']
+export function camp(e) {
+  if (e.perimetre === 'Tiers') return 'autres'
+  if (e.perimetre === 'Pas besoin') return 'aucun'
+  if (!e.perimetre || e.perimetre === 'À clarifier') return 'flou'
+  return 'nous'
+}
+const estAutres = e => camp(e) === 'autres' || e.perimetre === 'En partie'
+
+/* ---------- Bornage : à nous, aux autres, personne ---------- */
+function Camps({ data, go, mine, setMine }) {
+  const nous = data.elements.filter(e => camp(e) === 'nous')
+  const autres = data.elements.filter(estAutres)
+  const flou = data.elements.filter(e => camp(e) === 'flou')
+  const nousOk = nous.filter(e => !OUVERT.includes(e.etat) && !ALERTE.includes(e.etat)).length
+  const autresOk = autres.filter(e => CONFIRMES.includes(e.engagement)).length
+  return (
+    <>
+      <div className="scope">
+        <button className={!mine ? 'on' : ''} onClick={() => setMine(false)}>Tout l'événement</button>
+        <button className={mine ? 'on' : ''} onClick={() => setMine(true)}>Ma part · {data.moi}</button>
+      </div>
+      <div className="camps">
+        <motion.button whileTap={{ scale: .96 }} className="camp" onClick={() => document.getElementById('plan')?.scrollIntoView({ behavior: 'smooth' })}>
+          <b>{nous.length}</b><span className="t">À nous</span><span className="s">{nousOk} bouclés</span>
+        </motion.button>
+        <motion.button whileTap={{ scale: .96 }} className="camp" onClick={() => go('perimetre/autres')}>
+          <b>{autres.length}</b><span className="t">Aux autres</span><span className={`s ${autres.length - autresOk ? 'warn' : ''}`}>{autres.length - autresOk ? `${autres.length - autresOk} à vérifier` : 'tout confirmé'}</span>
+        </motion.button>
+        <motion.button whileTap={{ scale: .96 }} className={`camp ${flou.length ? 'danger' : ''}`} onClick={() => go('perimetre/flou')}>
+          <b>{flou.length}</b><span className="t">Personne ne sait</span><span className="s">{flou.length ? 'à attribuer' : 'rien d\'oublié'}</span>
+        </motion.button>
+      </div>
+    </>
+  )
+}
+
+/* ---------- Liste « aux autres » ou « personne ne sait » ---------- */
+export function Perimetre({ data, kind, go, open }) {
+  const autres = kind === 'autres'
+  const els = data.elements.filter(autres ? estAutres : e => camp(e) === 'flou')
+  const groups = {}
+  els.forEach(e => { const k = autres ? (e.fourni_par || 'Fournisseur à préciser') : e.zone; (groups[k] = groups[k] || []).push(e) })
+  return (
+    <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
+      <div className="head">
+        <button className="back" onClick={() => go('')}>‹ Accueil</button>
+        <h1 style={{ fontSize: 38 }}>{autres ? 'Aux autres' : 'Personne ne sait'}</h1>
+        <div className="meta">{autres ? 'Ce que fournissent l\'agence, le lieu ou le client. À faire confirmer, rien à payer.' : 'Personne ne l\'a pris en charge. Décidez qui s\'en occupe.'}</div>
+      </div>
+      {!els.length && <div className="empty">{autres ? 'Rien n\'est confié à un tiers pour l\'instant.' : 'Tout a un responsable. Rien d\'oublié.'}</div>}
+      {Object.entries(groups).map(([g, l]) => (
+        <div key={g}>
+          <div className="group">{g} · {l.length}</div>
+          <div className="list">{l.map(e => {
+            const ok = CONFIRMES.includes(e.engagement)
+            return (
+              <button key={e.id} className="row" onClick={() => open(e)}>
+                <div className="top"><span className="name">{e.element}</span>
+                  {autres ? <span className={`pill ${ok ? 'ok' : 'gold'}`}>{ok ? 'Confirmé' : 'À vérifier'}</span> : <span className="pill red">À attribuer</span>}</div>
+                <div className="info">{[autres ? e.zone : e.sous_zone, e.perimetre === 'En partie' ? 'partagé avec nous' : null, e.description].filter(Boolean).join(' · ')}</div>
+              </button>
+            )
+          })}</div>
+        </div>
+      ))}
+    </motion.div>
+  )
+}
+
 /* ---------- Plan de salle (accueil) ---------- */
-export function Plan({ data, go, openEvt }) {
+export function Plan({ data, go, openEvt, mine, setMine }) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const cout = data.elements.reduce((s, e) => s + n(e.cout), 0)
   const env = data.zones.reduce((s, z) => s + n(z.enveloppe) * n(ev.invites), 0)
@@ -32,18 +102,19 @@ export function Plan({ data, go, openEvt }) {
       <div className="head" onClick={openEvt}>
         <div className="when">{dateLongue(ev.date)}{ev.date ? ` · ${dans(ev.date, data.aujourdhui)}` : ''}</div>
         <h1>{ev.nom}</h1>
-        <div className="meta">{ev.invites ? `${ev.invites} invités` : 'Invités à fixer'} · {data.elements.length} éléments suivis</div>
+        <div className="meta">{ev.invites ? `${ev.invites} invités` : 'Invités à fixer'} · {data.elements.length} éléments {mine ? 'à ta charge' : 'suivis'}</div>
       </div>
+      <Camps data={data} go={go} mine={mine} setMine={setMine} />
       <div className="budget">
-        <div className="v">{mad(cout)}<small>engagés sur {mad(budget)} MAD</small></div>
+        <div className="v">{mad(cout)}<small>{mine ? `sous ta responsabilité, sur ${mad(budget)} MAD` : `engagés sur ${mad(budget)} MAD`}</small></div>
         <div className="track"><i style={{ width: `${Math.min(100, budget ? (cout / budget) * 100 : 0)}%`, background: cout > budget ? 'var(--red)' : undefined }} />{n(ev.budget) > 0 && env > 0 && <em style={{ left: `${Math.min(100, (env / budget) * 100)}%` }} />}</div>
         <div className="legend"><span>{budget ? Math.round((cout / budget) * 100) : 0} % du budget</span><span>enveloppes de zone {mad(env)} <Info text="Le trait marque la somme des enveloppes par zone (MAD par invité × invités). Le budget est celui de l'événement." /></span></div>
       </div>
       {nudge && <motion.button className="nudge" style={{ width: 'calc(100% - 32px)', textAlign: 'left' }} whileTap={{ scale: .98 }} onClick={() => go(nudge.to)}><span className="d" /><p>{nudge.t}</p><span className="go">Voir</span></motion.button>}
-      <div className="plan">
+      <div className="plan" id="plan">
         {data.zones.map((z, i) => {
           const s = zoneStats(data, z)
-          const st = !s.els.length ? 'vide' : s.alertes ? `${s.alertes} alerte${s.alertes > 1 ? 's' : ''}` : s.ouverts ? `${s.ouverts} à couvrir` : 'bouclée'
+          const st = !s.els.length ? (mine ? 'rien pour toi' : 'vide') : s.alertes ? `${s.alertes} alerte${s.alertes > 1 ? 's' : ''}` : s.ouverts ? `${s.ouverts} à couvrir` : 'bouclée'
           return (
             <motion.button key={z.nom} className="table-btn" whileTap={{ scale: .94 }} onClick={() => go(`zone/${i}`)}>
               <Table els={s.els} />
