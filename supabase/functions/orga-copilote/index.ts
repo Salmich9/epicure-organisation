@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
       const c = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
       const cx = c.data || {}
       const cat = (cx.catalogue || []).map((x: any) => `${x.id} | ${x.zone} | ${x.el} | base=${x.base ?? ''} q/base=${x.qpb ?? ''} | ${x.mode ?? ''} | achat=${x.pa ?? ''} loc=${x.pl ?? ''} prod=${x.pp ?? ''}`).join('\n')
-      const refs = (cx.references || []).map((r: any) => `${r.nom} (${r.invites} invités, ${(r.prestations || []).join('+')}, ${r.format ?? ''}) — totaux : ${JSON.stringify(r.zones)}\n  ${(r.lignes || []).join('\n  ')}`).join('\n')
+      const refs = (cx.references || []).map((r: any) => `${r.nom} (${r.invites} invités, ${(r.prestations || []).join('+')}, ${r.format ?? ''}) — totaux : ${JSON.stringify(r.zones)}\n  ${(r.lignes || []).map((x: string) => [x, Number(x.split(' | ').pop()) || 0] as [string, number]).sort((a: any, b: any) => b[1] - a[1]).slice(0, 35).map((x: any) => x[0]).join('\n  ')}`).join('\n')
       const actu = (lignes && lignes.length ? lignes : cx.chiffrage?.lignes || []).map((l: any) => `${l.zone} | ${l.element} | ${l.mode} | ${l.quantite} × ${l.prix}`).join('\n')
       chiffrageTxt = `Prestations : ${(ev.prestations || []).join(' + ') || '?'}, format ${ev.format ?? '?'}, ${ev.invites ?? '?'} invités, facturé par ${ev.entite ?? '?'}.
 Zones : ${data.zones.map((z: any) => z.nom).join(', ')}.
@@ -297,7 +297,7 @@ ${actu ? `Chiffrage actuel :\n${actu}` : ''}`
     const demande = mode === 'bulles'
       ? `Donne au plus 4 bulles pour le tableau de bord de ${data.moi} aujourd'hui : 2 ou 3 conseils concrets (ce qu'il faut faire maintenant, avec les chiffres réels) et 1 réflexion de pro (un risque moins évident, une idée qui fait la différence le jour J). Ne répète pas les alertes évidentes (retards, éléments sans responsable) : elles sont déjà affichées. Appelle l'outil « bulles ».`
       : mode === 'chiffrer'
-      ? `${chiffrageTxt}\n\n${note ? `Consigne de ${data.moi} : « ${note} »\n` : ''}Chiffre cet événement zone par zone, en coût de revient (pas en prix de vente). Pars des quantités du catalogue (qte par base × invités), corrige avec les événements passés de taille proche, n'oublie aucune zone utile pour ces prestations (staff, logistique, art de table, bar si prévu). ${actu0(lignes)}Prix : uniquement ceux du catalogue ou des références, jamais inventés (0 si inconnu, et dis-le dans la note). Appelle l'outil « chiffrage ».`
+      ? `${chiffrageTxt}\n\n${note ? `Consigne de ${data.moi} : « ${note} »\n` : ''}Chiffre cet événement zone par zone, en coût de revient (pas en prix de vente). Pars des quantités du catalogue (qte par base × invités), corrige avec les événements passés de taille proche, n'oublie aucune zone utile pour ces prestations (staff, logistique, art de table, bar si prévu). ${actu0(lignes)}Prix : uniquement ceux du catalogue ou des références, jamais inventés (0 si inconnu, et dis-le dans la note). Au plus 40 lignes : regroupe les petites fournitures d'une même zone. Note : 5 mots au plus, seulement si utile. Appelle l'outil « chiffrage ».`
       : mode === 'planning'
       ? `${planningTxt}\n\nInspecte ce planning de J-30 à J+5 : repère ce qui manque dans le temps (livraisons non planifiées pour ce qui est loué ou acheté, confirmations des tiers, arrivée et repas du staff, montage, démontage et retour des locations à J+1, paiements). Ne propose pas ce qui existe déjà. Appelle l'outil « creneaux ».`
       : mode === 'placer'
@@ -309,7 +309,7 @@ ${actu ? `Chiffrage actuel :\n${actu}` : ''}`
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === 'chiffrer' ? 8000 : 3000,
+        max_tokens: mode === 'chiffrer' ? 16000 : 3000,
         system: SYSTEME,
         tools: [TOOLS[mode]],
         tool_choice: { type: 'auto' },
@@ -318,6 +318,7 @@ ${actu ? `Chiffrage actuel :\n${actu}` : ''}`
     })
     const out = await r.json()
     if (!r.ok) return json({ error: out?.error?.message || 'Erreur Claude' }, 502)
+    if (out.stop_reason === 'max_tokens') return json({ error: 'Réponse du copilote coupée (trop longue), réessaie.' }, 502)
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
     if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     const res: any = { ...use.input }
