@@ -43,6 +43,7 @@ export const api = {
   lienResponsable: (nom, evt) => rpc('lien_responsable', { p_token: store.token, p_nom: nom, p_evt: evt }),
   changerPin: (pin) => rpc('changer_pin', { p_token: store.token, p_pin: pin }),
   rangerNote: (id, statut, placement) => rpc('ranger_note', { p_token: store.token, p_id: id, p_statut: statut, p_placement: placement ?? null }),
+  cadrageMaj: (evt, p) => rpc('cadrage_maj', { p_token: store.token, p_evt: evt, p }),
   copilote: async (mode, extra = {}) => {
     const r = await fetch(`${URL}/functions/v1/orga-copilote`, {
       method: 'POST',

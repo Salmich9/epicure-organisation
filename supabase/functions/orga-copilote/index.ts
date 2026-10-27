@@ -153,6 +153,34 @@ const TOOLS: Record<string, any> = {
       required: ['pourquoi', 'lecons'],
     },
   },
+  cadrage: {
+    name: 'liste',
+    description: 'Les articles de la bibliothèque dont cet événement a besoin, d\'après le cadrage.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: 'Id CAT-xxxx exact de la bibliothèque' },
+              perimetre: { type: 'string', enum: ['À notre charge', 'Tiers', 'À clarifier'] },
+              par: { type: 'string', description: 'Pour Tiers : qui le fournit (Le client, Le lieu, L\'agence)' },
+              qte: { type: 'number', description: 'Seulement si le cadrage fixe la quantité (nombre de bars, talkies…), sinon 0' },
+              note: { type: 'string', description: 'Facultatif, 6 mots au plus' },
+            },
+            required: ['id', 'perimetre'],
+          },
+        },
+        resume: { type: 'string', description: 'Les 3 à 5 faits du cadrage qui ont décidé la liste, séparés par « · » (ex : Pas de cuisine sur place · groupe électrogène · 2 bars extérieurs)' },
+        nous_txt: { type: 'string', description: '4 ou 5 exemples de ce qui est à notre charge, séparés par des virgules' },
+        tiers_txt: { type: 'string', description: 'Ce qui est chez un tiers, format « alcool → client · bar → agence »' },
+        clarifier_txt: { type: 'string', description: 'Ce qui reste à trancher, 2 ou 3 éléments séparés par « · », ou vide' },
+      },
+      required: ['items', 'resume'],
+    },
+  },
   challenge: {
     name: 'questions',
     description: 'Pose exactement 3 questions d\'inspection, de la plus risquée à la moins risquée.',
@@ -276,8 +304,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
-    const { token, evt, mode, note, theme, lignes } = await req.json()
-    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier', 'bilan'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
+    const { token, evt, mode, note, theme, lignes, reponses } = await req.json()
+    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier', 'bilan', 'cadrage'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
 
     // Le jeton de session de l'appli est vérifié par la base elle-même.
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
@@ -339,6 +367,18 @@ ${actu ? `Chiffrage actuel :\n${actu}` : ''}
 ${leconsTxt}`
     }
 
+    let cadrageTxt = ''
+    if (mode === 'cadrage') {
+      const rep = reponses || ev.cadrage?.reponses || {}
+      const { data: cat } = await sb.rpc('catalogue_liste', { p_token: token })
+      const deja = new Set(data.elements.map((e: any) => e.catalogue_id).filter(Boolean))
+      cadrageTxt = `Cadrage de l'événement (questions → réponses ; « ? » = pas encore su) :
+${Object.entries(rep).map(([k, v]) => `- ${k} : ${Array.isArray(v) ? v.join(', ') : v}`).join('\n')}
+${ev.invites ?? '?'} invités, format ${ev.format ?? '?'}, lieu ${ev.lieu ?? '?'}.
+Bibliothèque (id | zone | sous-famille | article | base de calcul), sans ce qui est déjà dans l'événement :
+${(cat || []).filter((c: any) => !deja.has(c.id)).map((c: any) => `${c.id} | ${c.zone} | ${c.sous_zone ?? ''} | ${c.element} | ${c.base ?? ''}`).join('\n')}`
+    }
+
     let planningTxt = ''
     if (mode === 'planning') {
       const pl = await sb.rpc('planning_liste', { p_token: token, p_evt: data.evt })
@@ -357,6 +397,15 @@ ${leconsTxt}`
       ? `${planningTxt}\n\nInspecte ce planning de J-30 à J+5 : repère ce qui manque dans le temps (livraisons non planifiées pour ce qui est loué ou acheté, confirmations des tiers, arrivée et repas du staff, montage, démontage et retour des locations à J+1, paiements). Ne propose pas ce qui existe déjà. Appelle l'outil « creneaux ».`
       : mode === 'bilan'
       ? `${bilanTxt}\n\nL'événement est passé. Fais le bilan : pour chaque zone dont le facturé s'écarte du prévu de plus de 10 % ou de 3 000 MAD, dis pourquoi en citant les éléments responsables. Une zone sans facture n'est pas un écart : dis seulement que les pièces manquent. Puis au plus 5 leçons utiles pour les prochains chiffrages. Corrige le catalogue (catalogue_id, champ, valeur) seulement quand le réel le prouve clairement ; sinon laisse vide. Ne répète pas une leçon déjà retenue. Les leçons portent sur le chiffrage et l'organisation des prochains événements (quantités, prix, ratios, oublis), jamais sur la saisie des pièces ou la clôture : la check-list s'en charge. Une seule facture ne suffit pas à changer un prix du catalogue : propose une valeur prudente entre l'ancien prix et le réel. Appelle l'outil « bilan ».`
+      : mode === 'cadrage'
+      ? `${cadrageTxt}\n\nChoisis dans la bibliothèque la liste de ce dont CET événement a besoin, pour que rien ne soit oublié sans encombrer la revue :
+- Seulement ce que les réponses rendent utile. Rien pour une prestation absente (pas de traiteur → ni Menu, ni Cuisine, ni Art de table de repas).
+- Parmi des articles qui se remplacent (types de chaises, de verres, de nappes), un seul : le plus courant pour ce format.
+- Pas d'animation, de fleurs, de papeterie ni de décoration de prestige si le cadrage n'en parle pas.
+- Toujours le socle d'un pro : staff adapté, glace, eau, plonge, transport, talkies, sacs poubelle, repas du staff, tenues, rallonges et éclairage du back-office quand c'est pertinent.
+- Ce que le client, le lieu ou l'agence fournit : perimetre Tiers avec « par ». Ce qui dépend d'une réponse « ? » ou d'un risque (sol, éclairage, énergie) : À clarifier.
+- Quantité (qte) seulement quand le cadrage la fixe ; sinon 0, elle se calcule depuis la base et le nombre d'invités.
+- Entre 30 et 110 articles. Ids exacts uniquement. Appelle l'outil « liste ».`
       : mode === 'placer'
       ? `Voici une note dictée ou écrite par ${data.moi} :\n« ${note} »\nTraduis-la en changements concrets sur l'organisation (souvent un seul). Appelle l'outil « proposer ».`
       : `Challenge ${data.moi} sur cet événement${theme ? `, thème : ${theme}` : ''}. Cherche ce qui risque d'être oublié, mal dimensionné, non délégué ou hors budget, du général au particulier. Évite ce qui est déjà bouclé. Pour chaque question, 2 à 4 réponses dont « Plus tard », avec leurs effets. Appelle l'outil « questions ».`
@@ -366,7 +415,7 @@ ${leconsTxt}`
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === 'chiffrer' ? 16000 : mode === 'challenge' || mode === 'bilan' ? 8000 : 4000,
+        max_tokens: mode === 'chiffrer' || mode === 'cadrage' ? 16000 : mode === 'challenge' || mode === 'bilan' ? 8000 : 4000,
         system: SYSTEME,
         tools: [TOOLS[mode]],
         tool_choice: { type: 'auto' },
@@ -379,7 +428,7 @@ ${leconsTxt}`
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
     if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     const res: any = { ...use.input }
-    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
+    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons', 'items']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
     if (Array.isArray(res.questions)) res.questions = res.questions.filter((q: any) => q?.question && Array.isArray(q.options) && q.options.length)
     if (mode === 'bulles') {
       res.bulles = (res.bulles || []).filter((b: any) => b?.texte).slice(0, 4)
@@ -395,6 +444,13 @@ ${leconsTxt}`
       const l = await sb.rpc('lecons_enregistrer', { p_token: token, p_evt: data.evt, p: res.lecons })
       if (l.error) return json({ error: `Leçons : ${l.error.message}` }, 500)
       res.lecons = l.data
+    }
+    if (mode === 'cadrage') {
+      if (reponses) await sb.rpc('cadrage_maj', { p_token: token, p_evt: data.evt, p: { reponses } })
+      const items = (Array.isArray(res.items) ? res.items : []).filter((x: any) => x?.id)
+      const a = await sb.rpc('cadrage_appliquer', { p_token: token, p_evt: data.evt, p: { ...res, items } })
+      if (a.error) return json({ error: `Cadrage : ${a.error.message}` }, 500)
+      return json({ cadrage: a.data, usage: out.usage })
     }
     if (mode === 'chiffrer') {
       res.lignes = (res.lignes || []).filter((l: any) => l?.element && l?.zone).map((l: any) => ({ ...l, quantite: Number(l.quantite) || 0, prix: Number(l.prix) || 0 }))
