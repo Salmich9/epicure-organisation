@@ -24,7 +24,11 @@ export function regles(data) {
     const els = data.elements.filter(e => e.zone === z.nom)
     const cout = els.reduce((s, e) => s + n(e.cout), 0)
     const env = envZone(z, ev)
-    if (env && cout > env * 1.05) out.push({ type: 'avertissement', zone: z.nom, titre: `${z.nom} au-dessus de l'enveloppe`, texte: `${Math.round(cout / 1000)} k engagés pour ${Math.round(env / 1000)} k prévus.`, action: { label: 'Ouvrir', to: `zone/${zoneIdx(z.nom)}` } })
+    const fac = els.reduce((s, e) => s + n(e.facture), 0)
+    if (env && fac > env * 1.05) {
+      const pire = els.filter(e => n(e.cout) > 0 && n(e.facture) > n(e.cout) * 1.05).sort((a, b) => (n(b.facture) - n(b.cout)) - (n(a.facture) - n(a.cout)))[0]
+      out.push({ type: 'avertissement', zone: z.nom, titre: `${z.nom} : +${Math.round((fac / env - 1) * 100)} % sur le prévu`, texte: `Facturé ${Math.round(fac).toLocaleString('fr-FR')} pour ${Math.round(env).toLocaleString('fr-FR')} prévus.${pire ? ` Le plus gros écart : ${pire.element}, facturé ${Math.round(pire.facture).toLocaleString('fr-FR')} pour ${Math.round(pire.cout).toLocaleString('fr-FR')} engagés.` : ''}`, action: { label: `Ouvrir ${z.nom}`, to: `zone/${zoneIdx(z.nom)}` } })
+    } else if (env && cout > env * 1.05) out.push({ type: 'avertissement', zone: z.nom, titre: `${z.nom} au-dessus de l'enveloppe`, texte: `${Math.round(cout / 1000)} k engagés pour ${Math.round(env / 1000)} k prévus.`, action: { label: 'Ouvrir', to: `zone/${zoneIdx(z.nom)}` } })
     const urgent = els.filter(e => OUVERT.includes(e.etat) && e.echeance && e.echeance <= auj)
     if (urgent.length) out.push({ type: 'avertissement', zone: z.nom, titre: `${z.nom} : ${urgent.length} élément${urgent.length > 1 ? 's' : ''} à couvrir aujourd'hui`, texte: urgent.slice(0, 4).map(e => e.element).join(', ') + (urgent.length > 4 ? '…' : '.'), action: { label: 'Ouvrir', to: `zone/${zoneIdx(z.nom)}` } })
   })
@@ -37,7 +41,9 @@ export function regles(data) {
 
   const tiersKo = data.elements.filter(e => e.perimetre === 'Tiers' && !['Confirmé', 'Avance versée', 'Payé', 'Livré / reçu'].includes(e.engagement))
   if (tiersKo.length && jJ !== null && jJ <= 7) out.push({ type: 'avertissement', titre: `${tiersKo.length} fourniture${tiersKo.length > 1 ? 's' : ''} de tiers non confirmée${tiersKo.length > 1 ? 's' : ''}`, texte: `À J-${jJ}, fais confirmer par écrit : ${tiersKo.slice(0, 4).map(e => e.element).join(', ')}${tiersKo.length > 4 ? '…' : '.'}`, action: { label: 'Demander', to: 'perimetre/autres' } })
-  ;(data.pieces || []).filter(x => x.statut === 'a_revoir').slice(0, 3).forEach(x => out.unshift({ type: 'avertissement', titre: `Pièce à revoir · ${x.fournisseur || 'fournisseur ?'}`,
+  const imp = (data.pieces || []).filter(x => !x.facture_id && !x.ignoree)
+  // (les pièces à imputer ont leur propre bouton sur le Plan)
+  ;(data.pieces || []).filter(x => x.statut === 'a_revoir' && !x.facture_id && !x.ignoree).slice(0, 3).forEach(x => out.unshift({ type: 'avertissement', titre: `Pièce à revoir · ${x.fournisseur || 'fournisseur ?'}`,
     texte: `${x.raison || 'À vérifier'}. Déposée par ${x.depose_par || '?'}${x.montant ? `, ${Math.round(x.montant)} MAD` : ''}.`, action: x.drive_url ? { label: 'Voir la pièce', url: x.drive_url } : null }))
   return out
 }

@@ -4,6 +4,7 @@ import { api } from './api'
 import { sendWa } from './element'
 import { ALERTE, ETATS, Info, envZone, OUVERT, Seg, Sheet, Table, dans, dateLongue, ddmm, jours, mad, n, useUI } from './ui'
 import { Bulles, regles, useBulles } from './bulles'
+import { aImputer } from './pieces'
 
 export function zoneStats(data, z) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
@@ -11,8 +12,9 @@ export function zoneStats(data, z) {
   const ouverts = els.filter(e => OUVERT.includes(e.etat)).length
   const alertes = els.filter(e => ALERTE.includes(e.etat)).length
   const cout = els.reduce((s, e) => s + n(e.cout), 0)
+  const facture = els.reduce((s, e) => s + n(e.facture), 0)
   const env = envZone(z, ev)
-  return { els, ouverts, alertes, cout, env }
+  return { els, ouverts, alertes, cout, env, facture }
 }
 
 export const CONFIRMES = ['Confirmé', 'Avance versée', 'Payé', 'Livré / reçu']
@@ -101,6 +103,9 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
   const cout = data.elements.reduce((s, e) => s + n(e.cout), 0)
   const env = data.zones.reduce((s, z) => s + envZone(z, ev), 0)
   const budget = n(ev.budget) || env
+  const facture = data.elements.reduce((s, e) => s + n(e.facture), 0)
+  const nbImp = mine ? 0 : aImputer(data).length
+  const ecarts = data.zones.map((z, i) => { const s = zoneStats(data, z); return { z, i, s, p: s.env ? (s.facture / s.env) * 100 : 0 } }).filter(x => x.s.facture > 0 && x.s.env).sort((a, b) => b.p - a.p).slice(0, 5)
   const ia = useBulles(data)
   const bulles = [...regles(data), ...ia]
   const marque = z => bulles.some(b => b.type === 'avertissement' && b.zone === z) ? 'warn' : bulles.some(b => b.zone === z) ? 'idea' : null
@@ -112,11 +117,21 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
         <div className="meta">{ev.invites ? `${ev.invites} invités` : 'Invités à fixer'} · {data.elements.length} éléments {mine ? 'à ta charge' : 'suivis'}</div>
       </div>
       <Camps data={data} go={go} mine={mine} setMine={setMine} />
-      <div className="budget">
-        <div className="v">{mad(cout)}<small>{mine ? `sous ta responsabilité, sur ${mad(budget)} MAD` : `engagés sur ${mad(budget)} MAD`}</small></div>
-        <div className="track"><i style={{ width: `${Math.min(100, budget ? (cout / budget) * 100 : 0)}%`, background: cout > budget ? 'var(--red)' : undefined }} />{n(ev.budget) > 0 && env > 0 && <em style={{ left: `${Math.min(100, (env / budget) * 100)}%` }} />}</div>
-        <div className="legend"><span>{budget ? Math.round((cout / budget) * 100) : 0} % du budget</span><span>enveloppes de zone {mad(env)} <Info text="Le trait marque la somme des enveloppes par zone (MAD par invité × invités). Le budget est celui de l'événement." /></span></div>
+      <div className="couts">
+        <div className="trio">
+          <div><b>{mad(budget)}</b>prévu</div>
+          <div><b>{mad(cout)}</b>{mine ? 'à ta charge' : 'engagé'}</div>
+          <div className={facture > budget ? 'rouge' : ''}><b>{mad(facture)}</b>facturé</div>
+        </div>
+        <div className="pile"><i className="eng" style={{ width: `${Math.min(100, budget ? (cout / budget) * 100 : 0)}%` }} /><i className="fac" style={{ width: `${Math.min(100, budget ? (facture / budget) * 100 : 0)}%`, background: facture > budget ? 'var(--red)' : undefined }} /></div>
+        <div className="leg"><span className="fac">facturé · pièces reçues</span><span className="eng">engagé</span><Info text="Prévu : le budget retenu. Engagé : le coût de ce qui est commandé dans l'organisation. Facturé : les pièces des fournisseurs imputées sur l'événement." /></div>
       </div>
+      {nbImp > 0 && <motion.button className="imp" whileTap={{ scale: .98 }} onClick={() => go('pieces')}><span className="n">{nbImp}</span>pièce{nbImp > 1 ? 's' : ''} à imputer<span className="go">›</span></motion.button>}
+      {ecarts.length > 0 && <div className="ecarts">{ecarts.map(x => (
+        <button key={x.z.nom} className="zr" onClick={() => go(`zone/${x.i}`)}><span className="n">{x.z.nom}</span>
+          <span className="mb"><i style={{ width: `${Math.min(100, x.p)}%`, background: x.p > 100 ? 'var(--red)' : undefined }} /></span>
+          <span className={`ecart ${x.p > 105 ? 'up' : x.p >= 95 ? 'ok' : 'mu'}`}>{x.p > 100 ? `+${Math.round(x.p - 100)} %` : `${Math.round(x.p)} %`}</span></button>
+      ))}</div>}
       {(() => { const k = data.elements.filter(e => OUVERT.includes(e.etat) || ALERTE.includes(e.etat)).length; return k > 0 && <motion.button className="decide-link" whileTap={{ scale: .98 }} onClick={() => go('decider')}><span>À décider</span><span className="pill red">{k}</span></motion.button> })()}
       <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>
       <Bulles items={bulles} go={go} />
@@ -140,7 +155,7 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
 }
 
 /* ---------- Ligne d'élément qu'on peut faire glisser ---------- */
-function SwipeRow({ e, onOpen, onConfirm, onDelegate }) {
+function SwipeRow({ e, onOpen, onConfirm, onDelegate, nbPieces }) {
   const x = useMotionValue(0)
   const bgOpacity = useTransform(x, [-80, -20, 0, 20, 80], [1, .2, 0, .2, 1])
   const etat = ETATS[e.etat] || { l: e.etat, c: '' }
@@ -155,6 +170,7 @@ function SwipeRow({ e, onOpen, onConfirm, onDelegate }) {
         <div className="top"><span className="name">{e.element}{e.qte_forcee !== null && e.qte_forcee !== undefined && e.qte_calc !== null && n(e.qte_forcee) !== n(e.qte_calc) && n(e.qte_calc) > 1 ? ' ✎' : ''}</span><span className={`pill ${etat.c}`}>{etat.l}</span></div>
         <Seg e={e} />
         <div className="info">{qte}{e.article_id ? ' · dépôt' : ''}{e.resp ? ` · ${e.resp}` : ''}{e.echeance ? ` · ${ddmm(e.echeance)}` : ''}</div>
+        {n(e.facture) > 0 && <div className="info fac">facturé {mad(e.facture)}{n(e.cout) > 0 && Math.abs(n(e.facture) / n(e.cout) - 1) >= 0.05 && <b className={n(e.facture) > n(e.cout) ? 'up' : 'ok'}> {n(e.facture) > n(e.cout) ? '+' : ''}{Math.round((n(e.facture) / n(e.cout) - 1) * 100)} %</b>}{nbPieces ? ` · 📎 ${nbPieces}` : ''}</div>}
       </motion.button>
     </div>
   )
@@ -179,14 +195,14 @@ export function Zone({ data, idx, go, open, patch, delegate, addEl }) {
       <div className="head">
         <button className="back" onClick={() => go('')}>‹ Plan de salle</button>
         <h1 style={{ fontSize: 38 }}>{z.nom}</h1>
-        <div className="meta">{s.els.length - s.ouverts - s.alertes}/{s.els.length} bouclés · {mad(s.cout)}{s.env ? ` sur ${mad(s.env)}` : ''} MAD{s.env && s.cout > s.env ? ' · au-dessus de l\'enveloppe' : ''}</div>
+        <div className="meta">{s.els.length - s.ouverts - s.alertes}/{s.els.length} bouclés{s.env ? ` · prévu ${mad(s.env)}` : ''} · engagé {mad(s.cout)}{s.facture > 0 && <> · <b style={{ color: s.env && s.facture > s.env ? 'var(--red)' : 'var(--ink)' }}>facturé {mad(s.facture)}</b></>}</div>
       </div>
       <ZoneBulles data={data} zone={z.nom} go={go} />
       {!s.els.length && <div className="empty">Aucun élément dans cette zone. Ajoutez le premier.</div>}
       {Object.entries(groups).map(([g, els]) => (
         <div key={g}>
           <div className="group">{g}</div>
-          <div className="list">{els.map(e => <SwipeRow key={e.id} e={e} onOpen={open}
+          <div className="list">{els.map(e => <SwipeRow key={e.id} e={e} nbPieces={(data.factures || []).filter(f => f.element_id === e.id).length} onOpen={open}
             onConfirm={async el => { await patch(el.id, { engagement: 'Confirmé' }); ui.toast(`${el.element} confirmé`) }}
             onDelegate={delegate} />)}</div>
         </div>

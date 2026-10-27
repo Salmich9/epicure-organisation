@@ -161,6 +161,10 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
           {m.p && <div className="price">Prix unitaire <input inputMode="decimal" value={e[m.p] ?? ''} placeholder="—" onChange={ev => set(m.p, ev.target.value === '' ? null : Number(ev.target.value.replace(',', '.')))} /> MAD
             <button className={`chip ${e.statut_prix === 'Confirmé' ? 'on' : 'ghost'}`} style={{ padding: '6px 10px' }} onClick={() => set('statut_prix', e.statut_prix === 'Confirmé' ? 'Estimé' : 'Confirmé')}>{e.statut_prix === 'Confirmé' ? 'confirmé' : 'estimé'}</button></div>}
           {cout > 0 && <div className="price" style={{ marginTop: 6 }}>Coût engagé <b style={{ color: 'var(--ink)' }}>{mad(cout)} MAD</b></div>}
+          {(() => { const fs = (data.factures || []).filter(f => f.element_id === e.id); const t = fs.reduce((s, f) => s + n(f.montant), 0); return fs.length > 0 && <>
+            <div className="price" style={{ marginTop: 6 }}>Facturé <b style={{ color: cout && t > cout * 1.05 ? 'var(--red)' : 'var(--ink)' }}>{mad(t)} MAD</b>{cout > 0 && ` · ${t > cout ? '+' : ''}${Math.round((t / cout - 1) * 100)} % sur l'engagé`}</div>
+            <div className="chips" style={{ marginTop: 8 }}>{fs.map(f => f.lien ? <a key={f.id} className="chip" href={f.lien} target="_blank" rel="noreferrer">📎 {f.fournisseur || 'Pièce'} · {mad(f.montant)}</a> : <span key={f.id} className="chip ghost">{f.fournisseur || 'Pièce'} · {mad(f.montant)}</span>)}</div>
+          </> })()}
 
           {(mode === 'stock' || art) && (
             <button className={`depot ${art && n(e.stock) > dispoNet ? 'bad' : ''}`} onClick={() => setPicker('depot')}>

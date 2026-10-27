@@ -335,3 +335,42 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .budget-gros .small { margin-top: 8px; }
 .row.env input[type=range] { width: 100%; margin-top: 10px; padding: 0; border: 0; background: transparent; accent-color: var(--accent); }
 .btn:disabled { opacity: .5; }
+
+/* ---------- Prévu, engagé, facturé · pièces à imputer ---------- */
+.couts { margin: 16px 14px 0; background: var(--surface); border-radius: 22px; padding: 14px 16px; }
+.couts .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.couts .trio div { font-size: 11.5px; color: var(--mute); font-weight: 600; }
+.couts .trio b { display: block; font-family: var(--display); font-weight: 400; font-size: 27px; line-height: 1.1; color: var(--ink); }
+.couts .trio .rouge b { color: var(--red); }
+.couts .pile { height: 10px; border-radius: 5px; background: var(--surface2); margin-top: 12px; position: relative; overflow: hidden; }
+.couts .pile i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+.couts .pile .eng { background: color-mix(in srgb, var(--accent) 30%, var(--surface2)); }
+.couts .pile .fac { background: var(--accent); }
+.couts .leg { display: flex; gap: 12px; align-items: center; font-size: 11px; color: var(--mute); margin-top: 8px; }
+.couts .leg span:before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+.couts .leg .fac:before { background: var(--accent); } .couts .leg .eng:before { background: color-mix(in srgb, var(--accent) 30%, var(--surface2)); }
+.imp { display: flex; align-items: center; gap: 10px; width: calc(100% - 28px); margin: 10px 14px 0; padding: 13px 16px; border-radius: 18px; background: var(--ink); color: var(--bg); font-size: 14.5px; font-weight: 700; text-align: left; }
+.imp .n { width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: #1D2B24; display: grid; place-items: center; font-size: 13px; font-weight: 900; }
+.imp .go { margin-left: auto; opacity: .7; }
+.ecarts { margin: 10px 14px 0; background: var(--surface); border-radius: 20px; overflow: hidden; }
+.zr { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 16px; border-bottom: 1px solid var(--line); font-size: 13.5px; font-weight: 650; text-align: left; }
+.zr:last-child { border: 0; } .zr .n { flex: 1; }
+.zr .mb { width: 90px; height: 6px; border-radius: 3px; background: var(--surface2); position: relative; overflow: hidden; }
+.zr .mb i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+.ecart { font-size: 11.5px; font-weight: 800; min-width: 44px; text-align: right; }
+.ecart.up, .info.fac b.up { color: var(--red); } .ecart.ok, .info.fac b.ok { color: var(--ok); } .ecart.mu { color: var(--mute); }
+.info.fac { color: var(--ink); font-weight: 600; }
+.pc { background: var(--surface); border-radius: 22px; margin: 10px 14px 0; padding: 12px; display: flex; gap: 12px; }
+.pc .th { width: 60px; height: 78px; border-radius: 10px; flex: none; background: linear-gradient(160deg, #fbfaf7, #e9e4da); border: 1px solid var(--line); display: grid; place-items: end center; padding-bottom: 6px; font-size: 10px; font-weight: 800; color: #8a8170; text-decoration: none; }
+.pc .x { flex: 1; min-width: 0; }
+.pc .t { display: flex; justify-content: space-between; gap: 8px; font-size: 14.5px; font-weight: 750; }
+.pc .t b { font-family: var(--display); font-weight: 400; font-size: 21px; white-space: nowrap; }
+.pc .s { font-size: 11.5px; color: var(--mute); margin-top: 2px; }
+.pc .tag { display: inline-block; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 2px 7px; background: var(--red-bg); color: var(--red); margin-left: 6px; }
+.pc .tag.gold { background: var(--surface2); color: var(--gold); }
+.pc .sug { margin-top: 8px; border-radius: 12px; background: var(--surface2); padding: 7px 10px; font-size: 12.5px; font-weight: 650; }
+.pc .sug small { display: block; font-size: 10px; font-weight: 800; letter-spacing: .3px; color: var(--accent); margin-bottom: 1px; }
+.pc .sug.vide small { color: var(--gold); }
+.pc .btns { display: flex; gap: 6px; margin-top: 8px; }
+.pc .btns button { border-radius: 999px; padding: 8px 13px; font-size: 12.5px; font-weight: 750; background: var(--surface2); }
+.pc .btns button.p { background: var(--ink); color: var(--bg); }

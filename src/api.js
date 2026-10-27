@@ -62,6 +62,11 @@ export const api = {
     if (!r.ok || d.error) throw new Error(d.error || 'Zoho ne répond pas.')
     return d
   },
+  pieceImputer: (id, element) => rpc('piece_imputer', { p_token: store.token, p_id: id, p_element: element }),
+  suggestionsPieces: async (pieces) => {
+    const r = await fetch(`${URL}/functions/v1/orga-imputer`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt: store.evt, pieces }) })
+    const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Le copilote ne répond pas.'); return d
+  },
   planningListe: (evt) => rpc('planning_liste', { p_token: store.token, p_evt: evt }),
   planningEnregistrer: (evt, id, p) => rpc('planning_enregistrer', { p_token: store.token, p_evt: evt, p_id: id, p }),
   planningSupprimer: (id) => rpc('planning_supprimer', { p_token: store.token, p_id: id }),
