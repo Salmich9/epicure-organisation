@@ -37,6 +37,8 @@ export function regles(data) {
 
   const tiersKo = data.elements.filter(e => e.perimetre === 'Tiers' && !['Confirmé', 'Avance versée', 'Payé', 'Livré / reçu'].includes(e.engagement))
   if (tiersKo.length && jJ !== null && jJ <= 7) out.push({ type: 'avertissement', titre: `${tiersKo.length} fourniture${tiersKo.length > 1 ? 's' : ''} de tiers non confirmée${tiersKo.length > 1 ? 's' : ''}`, texte: `À J-${jJ}, fais confirmer par écrit : ${tiersKo.slice(0, 4).map(e => e.element).join(', ')}${tiersKo.length > 4 ? '…' : '.'}`, action: { label: 'Demander', to: 'perimetre/autres' } })
+  ;(data.pieces || []).filter(x => x.statut === 'a_revoir').slice(0, 3).forEach(x => out.unshift({ type: 'avertissement', titre: `Pièce à revoir · ${x.fournisseur || 'fournisseur ?'}`,
+    texte: `${x.raison || 'À vérifier'}. Déposée par ${x.depose_par || '?'}${x.montant ? `, ${Math.round(x.montant)} MAD` : ''}.`, action: x.drive_url ? { label: 'Voir la pièce', url: x.drive_url } : null }))
   return out
 }
 
@@ -97,7 +99,7 @@ export function Bulles({ items, go, compact }) {
             <div className="k">{NOM[ouverte.type] || 'Copilote'}{ouverte.zone ? ` · ${ouverte.zone}` : ''}</div>
             {ouverte.titre && <div className="t">{ouverte.titre}</div>}
             <div className="x">{ouverte.texte}</div>
-            {ouverte.action && <div className="a"><button onClick={e => { e.stopPropagation(); setOuverte(null); go(ouverte.action.to) }}>{ouverte.action.label}</button><button className="g">Fermer</button></div>}
+            {ouverte.action && <div className="a"><button onClick={e => { e.stopPropagation(); setOuverte(null); ouverte.action.url ? window.open(ouverte.action.url, '_blank') : go(ouverte.action.to) }}>{ouverte.action.label}</button><button className="g">Fermer</button></div>}
           </motion.div>
         )}
       </AnimatePresence>
