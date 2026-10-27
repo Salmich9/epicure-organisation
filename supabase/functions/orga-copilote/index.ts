@@ -210,6 +210,34 @@ Comment tu poses tes questions :
 Règles des effets : pour modifier un élément existant, son id exact. Sinon « ajouter » dans une zone existante. Une quantité dite va dans qte_forcee. Un nouveau nombre d'invités passe par le type « invites ». N'invente jamais de prix. Échéances AAAA-MM-JJ, avant la date de l'événement.
 ${CHAMPS}`
 
+// ---------- Google Drive (compte de service, jeton signé ici) ----------
+const b64url = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
+async function jetonGoogle(): Promise<string> {
+  const sa = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON')!)
+  const t = Math.floor(Date.now() / 1000), enc = new TextEncoder()
+  const corps = `${b64url(enc.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })))}.${b64url(enc.encode(JSON.stringify({ iss: sa.client_email, scope: 'https://www.googleapis.com/auth/drive', aud: 'https://oauth2.googleapis.com/token', iat: t, exp: t + 3600 })))}`
+  const der = Uint8Array.from(atob(String(sa.private_key).replace(/-----[^-]+-----/g, '').replace(/\s/g, '')), c => c.charCodeAt(0))
+  const cle = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
+  const sig = new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cle, enc.encode(corps)))
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${corps}.${b64url(sig)}` }) })
+  const o = await r.json()
+  if (!o.access_token) throw new Error(`Google refuse le compte de service : ${o.error_description || o.error || r.status}`)
+  return o.access_token
+}
+// Retrouve ou crée un dossier (jamais de doublon si on relance)
+async function dossierDrive(tok: string, parent: string, nom: string): Promise<{ id: string; url: string }> {
+  const h = { authorization: `Bearer ${tok}` }, opt = 'supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id,webViewLink)'
+  const q = encodeURIComponent(`'${parent}' in parents and name = '${nom.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`)
+  const l = await (await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&${opt}`, { headers: h })).json()
+  if (l.files?.length) return { id: l.files[0].id, url: l.files[0].webViewLink }
+  const r = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,webViewLink', { method: 'POST', headers: { ...h, 'content-type': 'application/json' },
+    body: JSON.stringify({ name: nom, mimeType: 'application/vnd.google-apps.folder', parents: [parent] }) })
+  const o = await r.json()
+  if (!o.id) throw new Error(`Drive : ${o.error?.message || r.status}`)
+  return { id: o.id, url: o.webViewLink }
+}
+
 const actu0 = (l: any) => l && l.length ? 'Garde les lignes du chiffrage actuel sauf si la consigne les change. ' : ''
 
 Deno.serve(async (req) => {
@@ -225,20 +253,19 @@ Deno.serve(async (req) => {
     if (error) return json({ error: 'Session expirée, reconnecte-toi.' }, 401)
     const ev = data.evenements.find((x: any) => x.id === data.evt) || {}
 
-    // Dossier Drive de l'événement : créé par l'Apps Script de la trésorerie (seul à pouvoir écrire dans le Drive).
+    // Dossier Drive de l'événement : écrit directement par le compte de service (Gestionnaire de contenu du Drive partagé).
     if (mode === 'dossier') {
-      const url = Deno.env.get('APPS_SCRIPT_URL'), secret = Deno.env.get('APPS_SCRIPT_SECRET')
-      if (!url || !secret) return json({ error: 'Création du dossier pas encore branchée (APPS_SCRIPT_URL et APPS_SCRIPT_SECRET à ajouter dans les secrets Supabase).' }, 501)
+      if (!Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON')) return json({ error: 'Création du dossier pas encore branchée (GOOGLE_SERVICE_ACCOUNT_JSON absent des secrets Supabase).' }, 501)
       const adm = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'orga' } })
       const { data: par } = await adm.from('parametres').select('valeur').eq('cle', 'drive').single()
       const parent = par?.valeur?.[ev.entite || 'Epicure']
       if (!parent) return json({ error: 'Dossier société introuvable' }, 500)
-      const nom = `${ev.date || 'date à fixer'} · ${ev.nom}`
-      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ secret, action: 'evtDossier', parent, nom }), redirect: 'follow' })
-      const o = await r.json().catch(() => ({ ok: false, erreur: 'réponse illisible' }))
-      if (!o.ok) return json({ error: o.erreur || 'Création du dossier impossible' }, 502)
-      await adm.from('evenements').update({ drive_id: o.id, drive_url: o.url, drive_sous: o.sous }).eq('id', ev.id)
-      return json({ id: o.id, url: o.url, sous: o.sous })
+      const tok = await jetonGoogle()
+      const d = await dossierDrive(tok, parent, `${ev.date || 'date à fixer'} · ${ev.nom}`)
+      const sous: Record<string, string> = {}
+      for (const n of ['Pièces fournisseurs', 'Organisation', 'À revoir']) sous[n] = (await dossierDrive(tok, d.id, n)).id
+      await adm.from('evenements').update({ drive_id: d.id, drive_url: d.url, drive_sous: sous }).eq('id', ev.id)
+      return json({ id: d.id, url: d.url, sous })
     }
     const key = Deno.env.get('ANTHROPIC_API_KEY')
     if (!key) return json({ error: 'Clé Claude absente : ajoute ANTHROPIC_API_KEY dans les secrets Supabase.' }, 500)
