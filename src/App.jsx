@@ -6,6 +6,7 @@ import { Chiffrer, Nouveau } from './creation'
 import { Pieces } from './pieces'
 import { Especes } from './especes'
 import { Bilan } from './bilan'
+import { Bibliotheque, Revue, RevueZone } from './revue'
 import { DevisClient, Vente, estVente } from './cycle'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { Copilote, Proposition, prechargerChallenge } from './copilote'
@@ -156,10 +157,13 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === 'especes' || route === 'budget' || route === 'devis' || route.startsWith('bilan') || route === '' ? 'plan' : route
+  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === 'especes' || route === 'budget' || route === 'devis' || route.startsWith('bilan') || route.startsWith('revue') || route.startsWith('biblio') || route === '' ? 'plan' : route
   let screen
   if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
+  else if (route === 'revue') screen = <Revue data={data} go={go} />
+  else if (route.startsWith('revue/')) screen = <RevueZone key={route} data={data} go={go} idx={Number(route.split('/')[1])} elId={route.split('/')[2]} putEl={fresh => putEl(fresh)} />
+  else if (route.startsWith('biblio')) screen = <Bibliotheque data={data} go={go} zoneIdx={route.split('/')[1] !== undefined ? Number(route.split('/')[1]) : undefined} reload={() => load(data.evt)} />
   else if (route.startsWith('bilan')) screen = <Bilan key={route} data={data} go={go} sous={route.split('/')[1] || ''} reload={() => load(data.evt)} />
   else if (route === 'especes') screen = <Especes data={data} go={go} />
   else if (route === 'pieces') screen = <Pieces data={data} go={go} reload={() => load(data.evt)} />

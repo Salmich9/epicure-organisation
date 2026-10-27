@@ -1,0 +1,3 @@
+-- Appliqué via migrations orga_19_revue_bibliotheque et orga_20_vue_base :
+-- elements.revu_le / revu_par, v_elements expose revu_le, revu_par, a_revoir_revue, base, qte_par_base, marge ;
+-- RPC element_revoir, catalogue_liste, element_depuis_catalogue, catalogue_creer.
