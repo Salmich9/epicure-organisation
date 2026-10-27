@@ -4,6 +4,7 @@ import { api, store } from './api'
 import { ElementSheet, sendWa } from './element'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { Copilote, Proposition, prechargerChallenge } from './copilote'
+import { Planning } from './planning'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
@@ -146,10 +147,11 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === '' ? 'plan' : route
+  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === '' ? 'plan' : route
   let screen
   if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
+  else if (route === 'planning') screen = <Planning data={data} reload={() => load(data.evt)} open={setOpenEl} go={go} />
   else if (route === 'copilote') screen = <Copilote data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'decider') screen = <Decider data={view} open={setOpenEl} />
   else if (route === 'deleguer') screen = <Deleguer data={view} setData={setData} />
@@ -162,7 +164,7 @@ export default function App() {
 
       <nav className="tabs">
         <button className={tab === 'plan' ? 'on' : ''} onClick={() => go('')}>{Icon.plan}Plan</button>
-        <button className={tab === 'decider' ? 'on' : ''} onClick={() => go('decider')}>{Icon.decider}Décider</button>
+        <button className={tab === 'planning' ? 'on' : ''} onClick={() => go('planning')}>{Icon.planning}Planning</button>
         <motion.button whileTap={{ scale: .9 }} className={`mic ${listening ? 'rec' : ''}`} onClick={toggleMic} aria-label="Dicter une note">{Icon.mic}</motion.button>
         <button className={tab === 'deleguer' ? 'on' : ''} onClick={() => go('deleguer')}>{Icon.deleguer}Déléguer</button>
         <button className={tab === 'notes' ? 'on' : ''} onClick={() => go('notes')}>{Icon.notes}Notes</button>

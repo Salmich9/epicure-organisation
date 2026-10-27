@@ -120,6 +120,7 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
         <div className="track"><i style={{ width: `${Math.min(100, budget ? (cout / budget) * 100 : 0)}%`, background: cout > budget ? 'var(--red)' : undefined }} />{n(ev.budget) > 0 && env > 0 && <em style={{ left: `${Math.min(100, (env / budget) * 100)}%` }} />}</div>
         <div className="legend"><span>{budget ? Math.round((cout / budget) * 100) : 0} % du budget</span><span>enveloppes de zone {mad(env)} <Info text="Le trait marque la somme des enveloppes par zone (MAD par invité × invités). Le budget est celui de l'événement." /></span></div>
       </div>
+      {(() => { const k = data.elements.filter(e => OUVERT.includes(e.etat) || ALERTE.includes(e.etat)).length; return k > 0 && <motion.button className="decide-link" whileTap={{ scale: .98 }} onClick={() => go('decider')}><span>À décider</span><span className="pill red">{k}</span></motion.button> })()}
       <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>
       {nudge && <motion.button className="nudge" style={{ width: 'calc(100% - 32px)', textAlign: 'left' }} whileTap={{ scale: .98 }} onClick={() => go(nudge.to)}><span className="d" /><p>{nudge.t}</p><span className="go">Voir</span></motion.button>}
       <div className="plan" id="plan">

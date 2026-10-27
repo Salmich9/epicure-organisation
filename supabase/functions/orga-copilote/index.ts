@@ -47,6 +47,30 @@ const TOOLS: Record<string, any> = {
       required: ['resume', 'changements'],
     },
   },
+  planning: {
+    name: 'creneaux',
+    description: 'Propose au plus 3 créneaux manquants dans le planning, du plus risqué au moins risqué.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        creneaux: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              constat: { type: 'string', description: 'Le trou repéré, en une phrase courte avec les chiffres réels' },
+              titre: { type: 'string', description: 'Titre court du créneau à ajouter' },
+              date: { type: 'string', description: 'AAAA-MM-JJ, entre J-30 et J+5' },
+              heure: { type: 'string', description: 'HH:MM, ou vide' },
+              qui: { type: 'string', description: 'Prénom du responsable' },
+            },
+            required: ['constat', 'titre', 'date'],
+          },
+        },
+      },
+      required: ['creneaux'],
+    },
+  },
   challenge: {
     name: 'questions',
     description: 'Pose exactement 3 questions d'inspection, de la plus risquée à la moins risquée.',
@@ -140,7 +164,7 @@ Deno.serve(async (req) => {
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
     const { token, evt, mode, note, theme } = await req.json()
-    if (!['placer', 'challenge'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
+    if (!['placer', 'challenge', 'planning'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
     const key = Deno.env.get('ANTHROPIC_API_KEY')
     if (!key) return json({ error: 'Clé Claude absente : ajoute ANTHROPIC_API_KEY dans les secrets Supabase.' }, 500)
 
@@ -149,7 +173,19 @@ Deno.serve(async (req) => {
     const { data, error } = await sb.rpc('donnees', { p_token: token, p_evt: evt || null })
     if (error) return json({ error: 'Session expirée, reconnecte-toi.' }, 401)
 
-    const demande = mode === 'placer'
+    let planningTxt = ''
+    if (mode === 'planning') {
+      const pl = await sb.rpc('planning_liste', { p_token: token, p_evt: data.evt })
+      const rows = pl.data?.planning || []
+      const acts = data.actions.map((a: any) => `${a.echeance ?? '?'} action : ${a.quoi} (${a.resp}) ${a.statut}`)
+      const liv = data.elements.filter((e: any) => e.livraison).map((e: any) => `${e.livraison} livraison : ${e.element}`)
+      const der = data.deroule.map((x: any) => `jour J ${x.debut ?? ''} ${x.moment}`)
+      planningTxt = `Planning actuel (créneaux, actions, livraisons, déroulé) :\n` +
+        [...rows.map((x: any) => `${x.date} ${x.heure ?? ''} ${x.titre} (${x.qui ?? '?'})`), ...acts, ...liv, ...der].sort().join('\n')
+    }
+    const demande = mode === 'planning'
+      ? `${planningTxt}\n\nInspecte ce planning de J-30 à J+5 : repère ce qui manque dans le temps (livraisons non planifiées pour ce qui est loué ou acheté, confirmations des tiers, arrivée et repas du staff, montage, démontage et retour des locations à J+1, paiements). Ne propose pas ce qui existe déjà. Appelle l'outil « creneaux ».`
+      : mode === 'placer'
       ? `Voici une note dictée ou écrite par ${data.moi} :\n« ${note} »\nTraduis-la en changements concrets sur l'organisation (souvent un seul). Appelle l'outil « proposer ».`
       : `Challenge ${data.moi} sur cet événement${theme ? `, thème : ${theme}` : ''}. Cherche ce qui risque d'être oublié, mal dimensionné, non délégué ou hors budget, du général au particulier. Évite ce qui est déjà bouclé. Pour chaque question, 2 à 4 réponses dont « Plus tard », avec leurs effets. Appelle l'outil « questions ».`
 
@@ -170,7 +206,7 @@ Deno.serve(async (req) => {
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
     if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     const res: any = { ...use.input }
-    for (const k of ['questions', 'changements']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
+    for (const k of ['questions', 'changements', 'creneaux']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
     if (Array.isArray(res.questions)) res.questions = res.questions.filter((q: any) => q?.question && Array.isArray(q.options) && q.options.length)
     return json({ ...res, usage: out.usage })
   } catch (e) {
