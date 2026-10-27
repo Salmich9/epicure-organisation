@@ -122,6 +122,37 @@ const TOOLS: Record<string, any> = {
       required: ['creneaux'],
     },
   },
+  bilan: {
+    name: 'bilan',
+    description: 'Bilan de clôture : pourquoi les grands écarts prévu / réel, et les leçons à retenir pour les prochains chiffrages.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pourquoi: {
+          type: 'array',
+          description: 'Une entrée par zone dont l\'écart dépasse 10 % ou 3 000 MAD',
+          items: { type: 'object', properties: { zone: { type: 'string' }, texte: { type: 'string', description: 'Deux phrases au plus : la cause probable, avec les chiffres réels (élément, quantité, prix)' } }, required: ['zone', 'texte'] },
+        },
+        lecons: {
+          type: 'array',
+          description: 'Au plus 5 leçons, de la plus chère à la moins chère',
+          items: {
+            type: 'object',
+            properties: {
+              zone: { type: 'string' },
+              texte: { type: 'string', description: 'La leçon en une phrase, tutoiement (« Compte 1,4 kg de glace par invité en été »)' },
+              detail: { type: 'string', description: 'Le constat chiffré qui la justifie, une phrase' },
+              catalogue_id: { type: 'string', description: 'Id du catalogue à corriger si la leçon change une quantité ou un prix, sinon vide' },
+              champ: { type: 'string', enum: ['', 'qte_par_base', 'prix_achat', 'prix_location', 'prix_production'] },
+              valeur: { type: 'number', description: 'Nouvelle valeur du champ (par invité pour qte_par_base, MAD l\'unité pour un prix)' },
+            },
+            required: ['zone', 'texte', 'detail'],
+          },
+        },
+      },
+      required: ['pourquoi', 'lecons'],
+    },
+  },
   challenge: {
     name: 'questions',
     description: 'Pose exactement 3 questions d\'inspection, de la plus risquée à la moins risquée.',
@@ -246,7 +277,7 @@ Deno.serve(async (req) => {
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
     const { token, evt, mode, note, theme, lignes } = await req.json()
-    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
+    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier', 'bilan'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
 
     // Le jeton de session de l'appli est vérifié par la base elle-même.
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
@@ -271,7 +302,29 @@ Deno.serve(async (req) => {
     const key = Deno.env.get('ANTHROPIC_API_KEY')
     if (!key) return json({ error: 'Clé Claude absente : ajoute ANTHROPIC_API_KEY dans les secrets Supabase.' }, 500)
 
-    let chiffrageTxt = ''
+    // Leçons retenues des événements passés : elles nourrissent les prochains chiffrages
+    const adm = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'orga' } })
+    const lecons = mode === 'chiffrer' || mode === 'bilan'
+      ? ((await adm.from('lecons').select('zone, texte, detail, evenement_id').eq('statut', 'retenue').order('id', { ascending: false }).limit(40)).data || [])
+      : []
+    const leconsTxt = lecons.length ? `Leçons retenues des événements passés (à appliquer) :\n${lecons.map((l: any) => `- ${l.zone ?? ''} : ${l.texte} (${l.detail ?? ''})`).join('\n')}` : ''
+
+    let chiffrageTxt = '', bilanTxt = ''
+    if (mode === 'bilan') {
+      const c = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
+      const cat: Record<string, any> = {}
+      for (const x of (c.data?.catalogue || [])) cat[x.id] = x
+      const env = (z: any) => ev.budget_zones && ev.budget_zones[z.nom] != null ? Number(ev.budget_zones[z.nom]) : Number(z.enveloppe || 0) * Number(ev.invites || 0)
+      bilanTxt = `Prix signé HT : ${ev.prix_signe ?? '?'} MAD, budget retenu ${ev.budget ?? '?'} MAD, ${ev.invites ?? '?'} invités, ${(ev.prestations || []).join(' + ')}, ${ev.format ?? ''}.
+Par zone (prévu | engagé | facturé réel) puis éléments (quantité | coût engagé | facturé | catalogue) :
+${data.zones.map((z: any) => {
+  const els = data.elements.filter((e: any) => e.zone === z.nom)
+  const f = els.reduce((s: number, e: any) => s + Number(e.facture || 0), 0), g = els.reduce((s: number, e: any) => s + Number(e.cout || 0), 0)
+  return `## ${z.nom} : prévu ${Math.round(env(z))} | engagé ${Math.round(g)} | facturé ${Math.round(f)}\n` + els.map((e: any) => { const k = cat[e.catalogue_id]; return `  ${e.element} | qte ${e.qte_forcee ?? e.besoin ?? '?'} | engagé ${Math.round(Number(e.cout || 0))} | facturé ${Math.round(Number(e.facture || 0))}${k ? ` | cat ${k.id} q/base=${k.qpb ?? ''} achat=${k.pa ?? ''} loc=${k.pl ?? ''} prod=${k.pp ?? ''}` : ''}` }).join('\n')
+}).join('\n')}
+${note ? `Ce que ${data.moi} a noté après l'événement : « ${note} »` : ''}
+${leconsTxt}`
+    }
     if (mode === 'chiffrer') {
       const c = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
       const cx = c.data || {}
@@ -282,7 +335,8 @@ Deno.serve(async (req) => {
 Zones : ${data.zones.map((z: any) => z.nom).join(', ')}.
 Catalogue (id | zone | élément | base | mode | prix MAD) :\n${cat}
 Événements passés (références de coûts réels) :\n${refs || '(aucun)'}
-${actu ? `Chiffrage actuel :\n${actu}` : ''}`
+${actu ? `Chiffrage actuel :\n${actu}` : ''}
+${leconsTxt}`
     }
 
     let planningTxt = ''
@@ -301,6 +355,8 @@ ${actu ? `Chiffrage actuel :\n${actu}` : ''}`
       ? `${chiffrageTxt}\n\n${note ? `Consigne de ${data.moi} : « ${note} »\n` : ''}Chiffre cet événement zone par zone, en coût de revient (pas en prix de vente). Pars des quantités du catalogue (qte par base × invités), corrige avec les événements passés de taille proche, n'oublie aucune zone utile pour ces prestations (staff, logistique, art de table, bar si prévu). ${actu0(lignes)}Prix : uniquement ceux du catalogue ou des références, jamais inventés (0 si inconnu, et dis-le dans la note). Au plus 40 lignes : regroupe les petites fournitures d'une même zone. Note : 5 mots au plus, seulement si utile. Appelle l'outil « chiffrage ».`
       : mode === 'planning'
       ? `${planningTxt}\n\nInspecte ce planning de J-30 à J+5 : repère ce qui manque dans le temps (livraisons non planifiées pour ce qui est loué ou acheté, confirmations des tiers, arrivée et repas du staff, montage, démontage et retour des locations à J+1, paiements). Ne propose pas ce qui existe déjà. Appelle l'outil « creneaux ».`
+      : mode === 'bilan'
+      ? `${bilanTxt}\n\nL'événement est passé. Fais le bilan : pour chaque zone dont le facturé s'écarte du prévu de plus de 10 % ou de 3 000 MAD, dis pourquoi en citant les éléments responsables. Une zone sans facture n'est pas un écart : dis seulement que les pièces manquent. Puis au plus 5 leçons utiles pour les prochains chiffrages. Corrige le catalogue (catalogue_id, champ, valeur) seulement quand le réel le prouve clairement ; sinon laisse vide. Ne répète pas une leçon déjà retenue. Appelle l'outil « bilan ».`
       : mode === 'placer'
       ? `Voici une note dictée ou écrite par ${data.moi} :\n« ${note} »\nTraduis-la en changements concrets sur l'organisation (souvent un seul). Appelle l'outil « proposer ».`
       : `Challenge ${data.moi} sur cet événement${theme ? `, thème : ${theme}` : ''}. Cherche ce qui risque d'être oublié, mal dimensionné, non délégué ou hors budget, du général au particulier. Évite ce qui est déjà bouclé. Pour chaque question, 2 à 4 réponses dont « Plus tard », avec leurs effets. Appelle l'outil « questions ».`
@@ -310,7 +366,7 @@ ${actu ? `Chiffrage actuel :\n${actu}` : ''}`
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === 'chiffrer' ? 16000 : mode === 'challenge' ? 8000 : 4000,
+        max_tokens: mode === 'chiffrer' ? 16000 : mode === 'challenge' || mode === 'bilan' ? 8000 : 4000,
         system: SYSTEME,
         tools: [TOOLS[mode]],
         tool_choice: { type: 'auto' },
@@ -323,11 +379,22 @@ ${actu ? `Chiffrage actuel :\n${actu}` : ''}`
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
     if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     const res: any = { ...use.input }
-    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
+    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
     if (Array.isArray(res.questions)) res.questions = res.questions.filter((q: any) => q?.question && Array.isArray(q.options) && q.options.length)
     if (mode === 'bulles') {
       res.bulles = (res.bulles || []).filter((b: any) => b?.texte).slice(0, 4)
       await sb.rpc('bulles_enregistrer', { p_token: token, p_evt: data.evt, p: res.bulles })
+    }
+    if (mode === 'bilan') {
+      res.pourquoi = (Array.isArray(res.pourquoi) ? res.pourquoi : []).filter((x: any) => x?.zone && x?.texte)
+      res.lecons = (Array.isArray(res.lecons) ? res.lecons : []).filter((x: any) => x?.texte).slice(0, 5)
+        .map((x: any) => Number(x.valeur) > 0 && x.catalogue_id && x.champ ? x : { ...x, catalogue_id: '', champ: '', valeur: null })
+      const pq: Record<string, string> = {}
+      for (const x of res.pourquoi) pq[x.zone] = x.texte
+      await sb.rpc('bilan_maj', { p_token: token, p_evt: data.evt, p: { pourquoi: pq, analyse_le: new Date().toISOString() } })
+      const l = await sb.rpc('lecons_enregistrer', { p_token: token, p_evt: data.evt, p: res.lecons })
+      if (l.error) return json({ error: `Leçons : ${l.error.message}` }, 500)
+      res.lecons = l.data
     }
     if (mode === 'chiffrer') {
       res.lignes = (res.lignes || []).filter((l: any) => l?.element && l?.zone).map((l: any) => ({ ...l, quantite: Number(l.quantite) || 0, prix: Number(l.prix) || 0 }))

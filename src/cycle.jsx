@@ -148,7 +148,7 @@ export function Argent({ data, go, reload }) {
         <div><b>{enc === null ? '…' : mt(Math.max(0, ttc - encaisse))}</b>reste à encaisser{TVA[ev.entite] ? ' TTC' : ''}</div>
       </div>
       {ev.statut === 'Confirmé' && passe && <motion.button whileTap={{ scale: .98 }} className="cta2 g" onClick={() => etape('Réalisé')}>L'événement a eu lieu : marquer réalisé</motion.button>}
-      {ev.statut === 'Réalisé' && <motion.button whileTap={{ scale: .98 }} className="cta2 g" onClick={() => etape('Clôturé')}>Tout est payé et encaissé : clôturer</motion.button>}
+      {(ev.statut === 'Réalisé' || ev.statut === 'Clôturé') && <motion.button whileTap={{ scale: .98 }} className={`cta2 ${ev.statut === 'Réalisé' ? '' : 'g'}`} onClick={() => go('bilan')}>{ev.statut === 'Réalisé' ? 'Faire le bilan et clôturer ›' : 'Voir le bilan ›'}</motion.button>}
     </>
   )
 }

@@ -424,3 +424,53 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .kpi > * { background: var(--surface); border-radius: 18px; padding: 12px 14px; font-size: 11.5px; color: var(--mute); font-weight: 600; text-align: left; }
 .kpi b { display: block; font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; color: var(--ink); }
 .kpi .ok b { color: var(--accent); } .kpi .ko b { color: var(--red); }
+
+/* ---------- Bilan de clôture ---------- */
+.lien { color: var(--accent); font-weight: 700; text-decoration: underline; font-size: inherit; }
+.cta2.off { background: var(--surface2); color: var(--mute); }
+.marge { background: var(--ink); color: var(--bg); border-radius: 24px; margin: 14px 14px 0; padding: 14px 18px 6px; }
+.marge .k { font-size: 12.5px; font-weight: 600; opacity: .8; display: flex; gap: 8px; align-items: center; }
+.marge .prov { font-size: 10px; font-weight: 800; background: var(--gold); color: #1D2B24; border-radius: 999px; padding: 2px 7px; }
+.marge .big { display: flex; align-items: baseline; gap: 8px; margin: 2px 0 6px; }
+.marge .big b { font-family: var(--display); font-weight: 400; font-size: 50px; line-height: 1.05; }
+.marge .big b.neg { color: #F08A98; }
+.marge .big span { color: color-mix(in srgb, var(--accent) 50%, var(--bg)); font-weight: 750; font-size: 14px; }
+.marge .r { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid color-mix(in srgb, var(--bg) 14%, transparent); font-size: 13.5px; }
+.marge .r span { opacity: .85; display: flex; gap: 6px; align-items: center; } .marge .r b { font-weight: 700; }
+.kpi .ok-c { color: var(--accent); }
+.etapes { background: var(--surface); border-radius: 22px; margin: 12px 14px 0; overflow: hidden; }
+.etapes button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.etapes button:last-child { border: 0; }
+.etapes button > div { flex: 1; } .etapes button > div span { display: block; font-size: 11.5px; color: var(--mute); font-weight: 500; margin-top: 2px; }
+.etapes i { width: 26px; height: 26px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 12px; font-weight: 800; flex: none; }
+.etapes i.ok { background: var(--accent); color: var(--accent-ink); }
+.etapes em { font-style: normal; background: var(--red); color: #fff; border-radius: 999px; font-size: 11px; font-weight: 800; padding: 2px 8px; }
+.pr { background: var(--surface); border-radius: 22px; margin: 12px 14px 0; overflow: hidden; }
+.pr .z { display: block; width: 100%; text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--ink); }
+.pr .z:last-child { border: 0; }
+.pr .t { display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; }
+.pr .t b { font-size: 12.5px; font-weight: 800; } .pr .t b.up { color: var(--red); } .pr .t b.dn { color: var(--accent); } .pr .t b.mu { color: var(--mute); font-weight: 600; }
+.pr .s { font-size: 12px; color: var(--mute); margin-top: 3px; }
+.pr .bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface2); margin-top: 9px; }
+.pr .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+.pr .bar u { position: absolute; top: -4px; width: 2px; height: 14px; background: var(--ink); margin-left: -1px; }
+.pr .pq { background: var(--surface2); border-radius: 12px; padding: 9px 12px; margin-top: 10px; font-size: 13px; line-height: 1.4; }
+.pr .pq small { display: block; font-size: 10px; font-weight: 800; color: var(--mute); letter-spacing: .4px; margin-bottom: 2px; }
+.pr .pq.vide { color: var(--mute); font-size: 12px; }
+.chk { background: var(--surface); border-radius: 22px; margin: 12px 14px 0; overflow: hidden; }
+.chk button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14.5px; font-weight: 650; color: var(--ink); }
+.chk button:last-child { border: 0; }
+.chk button > div { flex: 1; } .chk button > div span { display: block; font-size: 11.5px; color: var(--mute); font-weight: 500; margin-top: 2px; }
+.chk i { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 13px; font-weight: 800; flex: none; }
+.chk i.ok { background: var(--accent); color: var(--accent-ink); } .chk i.ko { background: var(--red-bg); color: var(--red); } .chk i.vide { border: 2px solid var(--line); }
+.chk em { font-style: normal; color: var(--accent); font-weight: 800; }
+.lecon { background: var(--surface); border-radius: 22px; margin: 12px 14px 0; padding: 13px 16px; }
+.lecon small { font-size: 10.5px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: .4px; }
+.lecon .t { font-size: 15px; font-weight: 700; margin-top: 3px; line-height: 1.35; }
+.lecon .s { font-size: 12px; color: var(--mute); margin-top: 4px; }
+.lecon .cat { font-size: 12px; margin-top: 6px; background: var(--surface2); border-radius: 10px; padding: 6px 10px; display: inline-block; }
+.lecon .bt { display: flex; gap: 8px; margin-top: 10px; }
+.lecon .bt button { border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 750; background: var(--surface2); color: var(--ink); }
+.lecon .bt button.p { background: var(--ink); color: var(--bg); }
+.lecon .st { font-size: 12.5px; font-weight: 750; color: var(--accent); margin-top: 10px; }
+.lecon.ignoree { opacity: .55; } .lecon.ignoree .st { color: var(--mute); }
