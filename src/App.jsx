@@ -8,6 +8,7 @@ import { Especes } from './especes'
 import { Bilan } from './bilan'
 import { Bibliotheque, Revue, RevueZone } from './revue'
 import { Cadrage } from './cadrage'
+import { Equipe } from './equipe'
 import { Accueil, Voix } from './accueil'
 import { DevisClient, Vente, estVente } from './cycle'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
@@ -132,7 +133,7 @@ export default function App() {
   if (!logged) return <Login onIn={() => setLogged(true)} />
   if (!data) return <div className="login"><p className="mute">Chargement de l'événement…</p></div>
 
-  const putEl = (fresh, action) => setData(d => ({ ...d, elements: d.elements.map(x => x.id === fresh.id ? fresh : x), actions: action ? [...d.actions, action] : d.actions }))
+  const putEl = (fresh, action) => setData(d => ({ ...d, elements: fresh._supprime ? d.elements.filter(x => x.id !== fresh.id) : d.elements.map(x => x.id === fresh.id ? fresh : x), actions: action ? [...d.actions, action] : d.actions }))
   const patch = async (id, p) => { try { putEl(await api.majElement(id, p)) } catch (e) { ui.toast(e.message) } }
   async function delegate(e) {
     if (!e.resp) { setOpenEl(e); ui.bubble('Choisissez qui s\'en occupe dans « Suivi et délégation ».'); return }
@@ -161,13 +162,14 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === 'especes' || route === 'budget' || route === 'devis' || route.startsWith('bilan') || route.startsWith('revue') || route.startsWith('cadrage') || route.startsWith('biblio') || route === '' || route === 'accueil' || route === 'voix' ? 'plan' : route
+  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === 'especes' || route === 'budget' || route === 'devis' || route.startsWith('bilan') || route.startsWith('revue') || route.startsWith('cadrage') || route === 'equipe' || route.startsWith('biblio') || route === '' || route === 'accueil' || route === 'voix' ? 'plan' : route
   let screen
   const ouvrir = id => { go(''); load(id) }
   if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
   else if (route === 'voix') screen = <Voix data={data} go={go} ouvrir={ouvrir} />
   else if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
+  else if (route === 'equipe') screen = <Equipe data={data} go={go} reload={() => load(data.evt)} />
   else if (route.startsWith('cadrage')) screen = <Cadrage key={route} data={data} go={go} fin={route === 'cadrage/fin'} reload={() => load(data.evt)} />
   else if (route === 'revue') screen = <Revue data={data} go={go} />
   else if (route.startsWith('revue/')) screen = <RevueZone key={route} data={data} go={go} idx={Number(route.split('/')[1])} elId={route.split('/')[2]} putEl={fresh => putEl(fresh)} />

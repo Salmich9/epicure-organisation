@@ -10,6 +10,7 @@ const MESSAGES = {
   code_incorrect: 'Code incorrect.',
   lien_invalide: 'Ce lien n\'est plus valide.',
   manque_obligatoire: 'Notez ce qui manque.',
+  element_facture: 'Une facture est déjà rangée sur cet élément : retire-la d\'abord.',
 }
 
 async function rpc(fn, args) {
@@ -43,6 +44,10 @@ export const api = {
   lienResponsable: (nom, evt) => rpc('lien_responsable', { p_token: store.token, p_nom: nom, p_evt: evt }),
   changerPin: (pin) => rpc('changer_pin', { p_token: store.token, p_pin: pin }),
   rangerNote: (id, statut, placement) => rpc('ranger_note', { p_token: store.token, p_id: id, p_statut: statut, p_placement: placement ?? null }),
+  equipeListe: (evt) => rpc('equipe_liste', { p_token: store.token, p_evt: evt }),
+  equipeMaj: (evt, role, nom, defaut) => rpc('equipe_maj', { p_token: store.token, p_evt: evt, p_role: role, p_nom: nom, p_defaut: !!defaut }),
+  elementRespAuto: (id) => rpc('element_resp_auto', { p_token: store.token, p_id: id }),
+  elementSupprimer: (id) => rpc('element_supprimer', { p_token: store.token, p_id: id }),
   cadrageMaj: (evt, p) => rpc('cadrage_maj', { p_token: store.token, p_evt: evt, p }),
   copilote: async (mode, extra = {}) => {
     const r = await fetch(`${URL}/functions/v1/orga-copilote`, {

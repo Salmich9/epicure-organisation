@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { api } from './api'
 import { Info, Sheet, n, useUI } from './ui'
 import { Picker } from './element'
+import { nomRole } from './equipe'
 
 /* Revue : on passe chaque chose en revue, zone par zone. Bibliothèque : on pioche ou on crée. */
 const QUI = [['À notre charge', 'Nous'], ['En partie', 'Partiel'], ['Tiers', 'Tiers'], ['Pas besoin', 'Pas besoin']]
@@ -17,6 +18,13 @@ const dec = v => Number(n(v)).toLocaleString('fr-FR', { maximumFractionDigits: 2
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 const slide = { initial: { x: 40, opacity: 0 }, animate: { x: 0, opacity: 1 }, transition: { type: 'spring', damping: 30, stiffness: 300 } }
 
+// Mode proposé par la bibliothèque, quand rien n'est encore choisi
+const propose = e => {
+  if (['Tiers', 'Pas besoin'].includes(e.perimetre) || MODES.some(m => n(e[m.k]) > 0)) return {}
+  const m = MODES.find(x => x.cat === e.mode_defaut)
+  const b = e.qte_forcee !== null && e.qte_forcee !== undefined && e.qte_forcee !== '' ? n(e.qte_forcee) : n(e.qte_calc)
+  return m && b > 0 ? { [m.k]: b } : {}
+}
 export const etatRevue = e => (!e.revu_le ? 'pas_vu' : e.a_revoir_revue ? 'a_revoir' : 'revu')
 const ordre = data => {
   const z = {}; data.zones.forEach((x, i) => { z[x.nom] = i })
@@ -83,7 +91,9 @@ export function RevueZone({ data, go, idx, elId, putEl }) {
   const [chg, setChg] = useState({})
   const [busy, setBusy] = useState(false)
   const [picker, setPicker] = useState(null)
-  useEffect(() => { setE(liste[i]); setChg({}) }, [i, liste[i]?.id])
+  const [prop, setProp] = useState({})
+  const [suppr, setSuppr] = useState(false)
+  useEffect(() => { const x = liste[i]; const p = x && etatRevue(x) !== 'revu' ? propose(x) : {}; setE(x && { ...x, ...p }); setChg(p); setProp(p); setSuppr(false) }, [i, liste[i]?.id])
   if (!z) return null
   if (!el) return (
     <motion.div {...slide}>
@@ -92,7 +102,7 @@ export function RevueZone({ data, go, idx, elId, putEl }) {
       <button className="rv-add" onClick={() => go(`biblio/${idx}`)}>+ Ajouter depuis la bibliothèque</button>
     </motion.div>
   )
-  const set = (k, v) => { setE(x => ({ ...x, [k]: v })); setChg(c => ({ ...c, [k]: v })) }
+  const set = (k, v) => { setE(x => ({ ...x, [k]: v })); setChg(c => ({ ...c, [k]: v })); if (MODES.some(m => m.k === k)) setProp({}) }
   const besoin = e.qte_forcee !== null && e.qte_forcee !== undefined && e.qte_forcee !== '' ? n(e.qte_forcee) : n(e.qte_calc)
   const couvert = MODES.reduce((s, m) => s + n(e[m.k]), 0)
   const total = MODES.reduce((s, m) => s + (m.p ? n(e[m.k]) * n(e[m.p]) : 0), 0)
@@ -124,11 +134,28 @@ export function RevueZone({ data, go, idx, elId, putEl }) {
   async function toutValider() {
     setBusy(true)
     try {
-      for (const x of liste.slice(i)) if (etatRevue(x) !== 'revu') putEl(await api.elementRevoir(x.id, x.id === e.id ? chg : {}))
+      for (const x of liste.slice(i)) if (etatRevue(x) !== 'revu') putEl(await api.elementRevoir(x.id, x.id === e.id ? chg : propose(x)))
       ui.toast(`${z.nom} validée telle quelle`); go('revue')
     } catch (err) { ui.toast(err.message) }
     setBusy(false)
   }
+  async function supprimer() {
+    if (!suppr) return setSuppr(true)
+    setBusy(true)
+    try {
+      await api.elementSupprimer(e.id)
+      putEl({ id: e.id, _supprime: true })
+      ui.toast(`${e.element} retiré`)
+      if (liste.length <= 1) go('revue')
+      else if (i >= liste.length - 1) setI(i - 1)
+    } catch (err) { ui.toast(err.message) }
+    setBusy(false); setSuppr(false)
+  }
+  async function respAuto() {
+    try { const fresh = await api.elementRespAuto(e.id); putEl(fresh); setE(x => ({ ...x, resp: fresh.resp, resp_main: false })); setChg(c => { const d = { ...c }; delete d.resp; return d }) } catch (err) { ui.toast(err.message) }
+  }
+  const eqEvt = data.evenements.find(x => x.id === data.evt)?.equipe || {}
+  const respMain = chg.resp !== undefined || e.resp_main
   const suivantNom = liste[i + 1]?.element || data.zones[idx + 1]?.nom
   return (
     <motion.div {...slide} key={z.nom}>
@@ -148,7 +175,7 @@ export function RevueZone({ data, go, idx, elId, putEl }) {
         </>}
 
         {!tiers && <>
-          <div className="q">Comment ? <span className="rv-mut">{couvert < besoin ? `${mt(besoin - couvert)} à couvrir` : couvert > besoin ? `${mt(couvert - besoin)} de plus que le besoin` : 'tout est couvert'}</span></div>
+          <div className="q">Comment ? {Object.keys(prop).length > 0 && <em className="rv-tag">proposé</em>}<span className="rv-mut">{couvert < besoin ? `${mt(besoin - couvert)} à couvrir` : couvert > besoin ? `${mt(couvert - besoin)} de plus que le besoin` : 'tout est couvert'}</span></div>
           <div className="rv-mx">{MODES.map(m => {
             const on = n(e[m.k]) > 0
             return (
@@ -165,15 +192,16 @@ export function RevueZone({ data, go, idx, elId, putEl }) {
           {actifs.some(m => m.p) && <div className="rv-px"><span>Fournisseur</span><input value={e.fournisseur || ''} placeholder="facultatif" onChange={x => set('fournisseur', x.target.value)} /></div>}
         </>}
 
-        <div className="q">Qui s'en occupe ?</div>
-        <div className="rv-who">{[...new Set([...equipe, ...(e.resp && !equipe.includes(e.resp) ? [e.resp] : [])])].map(nm => <button key={nm} className={e.resp === nm ? 'on p' : ''} onClick={() => set('resp', e.resp === nm ? null : nm)}>{nm}</button>)}
+        <div className="q">Qui s'en occupe ? {e.role && (respMain ? <button className="rv-tag b" onClick={respAuto}>↺ remettre auto</button> : <em className="rv-tag">auto · {nomRole(e.role).toLowerCase()}</em>)}</div>
+        <div className="rv-who">{[...new Set([...Object.values(eqEvt).filter(Boolean), ...equipe, ...(e.resp && !equipe.includes(e.resp) ? [e.resp] : [])])].map(nm => <button key={nm} className={e.resp === nm ? 'on p' : ''} onClick={() => set('resp', e.resp === nm ? null : nm)}>{nm}</button>)}
           <button onClick={() => setPicker('resp')}>+</button></div>
         {!tiers && total > 0 && <div className="bs" style={{ marginTop: 12 }}>Total <b>{mt(total)} MAD</b></div>}
       </motion.div>
       <button className="rv-add" onClick={() => go(`biblio/${idx}`)}>+ Ajouter ce qui manque dans {z.nom}</button>
       <div className="rv-nav">
         <button disabled={busy || i === 0} onClick={() => enregistrer(-1)}>‹</button>
-        <button className="p" disabled={busy} onClick={() => enregistrer(1)}>{busy ? '…' : i < liste.length - 1 ? `Suivant · ${suivantNom}` : `Terminer ${z.nom}`}</button>
+        <button className={suppr ? 'rouge' : ''} disabled={busy} onClick={supprimer} onBlur={() => setSuppr(false)}>{suppr ? 'Sûr ?' : 'Supprimer'}</button>
+        <button className="p" disabled={busy} onClick={() => enregistrer(1)}>{busy ? '…' : i < liste.length - 1 ? 'Valider ›' : `Valider · fin ${z.nom}`}</button>
       </div>
       {liste.slice(i).some(x => etatRevue(x) !== 'revu') && <button className="lien-perdu" onClick={toutValider}>Valider le reste de la zone tel quel</button>}
       <Picker open={picker === 'resp'} onClose={() => setPicker(null)} title="Qui s'en occupe" items={data.intervenants.map(x => x.nom)} value={e.resp} onPick={v => set('resp', v)} />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api } from './api'
 import { useUI } from './ui'
+import { Delegues } from './equipe'
 
 /* Cadrage : une question par écran ; à la fin, le copilote remplit la revue depuis la bibliothèque */
 const has = (v, x) => Array.isArray(v) && v.includes(x)
@@ -88,6 +89,7 @@ export function Cadrage({ data, go, fin, reload }) {
         <div><i style={{ background: 'var(--mute)' }} /><p>Tiers<span>{res?.tiers_txt || 'rien chez un tiers'}</span></p><b>{res?.tiers ?? 0}</b></div>
         <div><i style={{ background: 'var(--gold)' }} /><p>À trancher<span>{res?.clarifier_txt || 'rien'}</span></p><b>{res?.clarifier ?? 0}</b></div>
       </div>
+      <Delegues data={data} go={go} />
       <div className="cd-pied"><motion.button whileTap={{ scale: .97 }} className="p" onClick={() => go('revue')}>Passer en revue</motion.button></div>
     </motion.div>
   )
@@ -122,12 +124,12 @@ export function CadrageBarre({ data, go, reload }) {
   const c = ev.cadrage || {}
   const ui = useUI()
   if (['Réalisé', 'Clôturé', 'Perdu'].includes(ev.statut)) return null
-  if (c.fait_le || c.passe) return c.fait_le ? <div className="cd-ok">Cadrage ✓ · <button onClick={() => go('cadrage')}>modifier</button></div> : null
+  if (c.fait_le || c.passe) return <div className="cd-ok">{c.fait_le && <>Cadrage ✓ · <button onClick={() => go('cadrage')}>modifier</button> · </>}<button onClick={() => go('equipe')}>Équipe ›</button></div>
   const nb = Object.keys(c.reponses || {}).length
   return <>
     <motion.button className="rv-entree cd-entree" whileTap={{ scale: .98 }} onClick={() => go('cadrage')}>
       <div><b>Cadrage</b><span>{nb ? 'à terminer · ' : ''}une dizaine de questions, puis ta liste se remplit</span></div><strong>{nb ? 'Reprendre' : 'Commencer'}</strong>›
     </motion.button>
-    <div className="cd-ok"><button onClick={() => api.cadrageMaj(data.evt, { passe: true }).then(reload).catch(e => ui.toast(e.message))}>passer, je remplis à la main</button></div>
+    <div className="cd-ok"><button onClick={() => go('equipe')}>Équipe ›</button> · <button onClick={() => api.cadrageMaj(data.evt, { passe: true }).then(reload).catch(e => ui.toast(e.message))}>passer, je remplis à la main</button></div>
   </>
 }
