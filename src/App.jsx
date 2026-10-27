@@ -34,8 +34,10 @@ function Login({ onIn }) {
   }
   return (
     <div className="login">
-      <div className="mute small" style={{ fontWeight: 600 }}>Epicure Catering</div>
-      <h1>Organisation des événements</h1>
+      <div className="marque">
+        <svg viewBox="0 0 96 96" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.8"><circle cx="48" cy="25" r="3.4" fill="var(--gold)" stroke="none" /><path d="M20 62a28 28 0 0 1 56 0M14 68h68" stroke="var(--gold)" /><path d="M38 47l7 7 13-14" stroke="var(--ink)" /></svg>
+        <b>Epicure</b><span>Organisation</span>
+      </div>
       {!nom ? <>
         <p className="mute" style={{ margin: '26px 0 12px' }}>Qui êtes-vous ?</p>
         <div className="chips">{['Salmane', 'Hamza', 'Ghali'].map(x => <button key={x} className="chip" onClick={() => setNom(x)}>{x}</button>)}</div>
