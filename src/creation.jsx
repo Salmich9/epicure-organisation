@@ -114,6 +114,17 @@ export function Chiffrer({ data, go, reload }) {
   const [consigne, setConsigne] = useState('')
   const [dicte, dicter] = useDictee(setConsigne)
   const sauve = useRef(null)
+  const [devis, setDevis] = useState(ev.zoho_devis?.numero || null)
+  async function faireDevis() {
+    // Le brouillon part du chiffrage tel qu'il est à l'écran : on l'enregistre d'abord
+    clearTimeout(sauve.current); setDevis('…')
+    try {
+      await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef)
+      const d = await api.zoho('devis')
+      setDevis(d.numero); ui.toast(`Brouillon ${d.numero} ${d.mis_a_jour ? 'mis à jour' : 'créé'} dans Zoho`)
+      window.open(d.url, '_blank')
+    } catch (e) { setDevis(ev.zoho_devis?.numero || null); ui.toast(e.message) }
+  }
 
   const coefPalier = (ps, inv) => (ps.find(p => n(inv) <= n(p.jusqua)) || ps[ps.length - 1] || { coef: 2.4 }).coef
 
@@ -213,7 +224,7 @@ export function Chiffrer({ data, go, reload }) {
           {tva > 0 && <div className="t-l"><span>TTC (TVA {tva} %)</span><b>{mad(prixHT * (1 + tva / 100))}</b></div>}
         </div>
         <div className="px" style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          {ev.entite !== 'Espèce' && <button className="btn" onClick={() => ui.bubble('Le brouillon de devis Zoho arrive à l\'étape suivante.')}>Devis Zoho</button>}
+          {ev.entite !== 'Espèce' && <button className="btn" disabled={devis === '…'} onClick={faireDevis}>{devis === '…' ? 'Devis…' : devis ? `Devis ${devis}` : 'Devis Zoho'}</button>}
           <button className="btn primary" onClick={() => { clearTimeout(sauve.current); api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); setEtape('budget') }}>Retenir le budget</button>
         </div>
       </>}
