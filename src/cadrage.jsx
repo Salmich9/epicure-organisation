@@ -39,6 +39,8 @@ export function Cadrage({ data, go, fin, reload }) {
   const [etat, setEtat] = useState(fin ? 'fin' : 'questions')
   const [res, setRes] = useState(ev.cadrage?.resultat || null)
   const qs = useMemo(() => QUESTIONS.filter(q => !q.si || q.si(rep)), [rep])
+  // Total stable : les questions encore incertaines sont comptées tant que leur réponse n'est pas donnée
+  const total = useMemo(() => QUESTIONS.filter(x => !x.si || x.si({ prestations: ['Boissons', 'Traiteur'], alcool: 'Nous', emplacement: 'Extérieur', ...rep })).length, [rep])
   const q = qs[Math.min(i, qs.length - 1)]
   const v = rep[q?.k]
   const sauver = r => api.cadrageMaj(data.evt, { reponses: r }).catch(() => {})
@@ -93,8 +95,8 @@ export function Cadrage({ data, go, fin, reload }) {
   const trail = qs.slice(0, i).map((x, j) => [j, court(x.k, rep[x.k])]).filter(x => x[1])
   return (
     <div className="cd">
-      <div className="cd-top"><button onClick={() => (i ? setI(i - 1) : go(''))}>‹ {i ? 'Retour' : 'Plan'}</button><span>{i + 1} / {qs.length}</span></div>
-      <div className="cd-dots">{qs.map((_, j) => <i key={j} className={j <= i ? 'on' : ''} />)}</div>
+      <div className="cd-top"><button onClick={() => (i ? setI(i - 1) : go(''))}>‹ {i ? 'Retour' : 'Plan'}</button><span>{i + 1} / {Math.max(total, qs.length)}</span></div>
+      <div className="cd-dots">{Array.from({ length: Math.max(total, qs.length) }, (_, j) => <i key={j} className={j <= i ? 'on' : ''} />)}</div>
       {trail.length > 0 && <div className="cd-trail">{trail.map(([j, t]) => <button key={j} onClick={() => setI(j)}>{t}</button>)}</div>}
       <AnimatePresence mode="wait">
         <motion.div key={q.k} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: .18 }}>
