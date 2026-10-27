@@ -22,7 +22,9 @@ export function calculBilan(data, b) {
   }).filter(z => z.prevu > 0 || z.reel > 0 || z.engage > 0)
   const reel = zones.reduce((s, z) => s + z.reel, 0)
   const budget = n(ev.budget) || zones.reduce((s, z) => s + z.prevu, 0)
-  const sansPiece = zones.filter(z => !z.reel && z.engage > 0)
+  // Zone sans aucune pièce : on compte son prévu (ou l'engagé s'il est plus haut) pour ne pas gonfler la marge
+  const sansPiece = zones.filter(z => !z.reel && (z.prevu > 0 || z.engage > 0))
+  const estime = sansPiece.reduce((s, z) => s + Math.max(z.prevu, z.engage), 0)
   const encaisse = n(b?.encaissements)
   const reste = Math.max(0, Math.round(ttc - encaisse))
   const env = (b?.enveloppes || []).filter(x => Math.round(n(x.reste)) !== 0 || x.attente)
@@ -34,7 +36,7 @@ export function calculBilan(data, b) {
     { k: 'retours', manuel: true, ok: !!coche.retours?.ok, t: 'Retours de location comptés', s: coche.retours?.note || 'casse et manquants notés' },
     { k: 'fournisseurs', manuel: true, ok: !!coche.fournisseurs?.ok, t: 'Fournisseurs payés', s: coche.fournisseurs?.note || 'tous les devis signés sont soldés' },
   ]
-  return { ev, prix, ttc, zones, reel, budget, sansPiece, encaisse, reste, checks, margeReelle: prix - reel, margePrevue: prix - budget }
+  return { ev, prix, ttc, zones, reel, budget, sansPiece, encaisse, reste, checks, margeReelle: prix - reel - estime, estime, margePrevue: prix - budget }
 }
 
 export function Bilan({ data, go, reload, sous }) {
@@ -72,7 +74,8 @@ function Resultat({ r, data, go, b, recharger }) {
         <div className="big"><b className={r.margeReelle < 0 ? 'neg' : ''}>{mt(r.margeReelle)}</b><span>{pc(r.margeReelle, r.prix)} %</span></div>
         <div className="r"><span>Prévue</span><b>{mt(r.margePrevue)} · {pc(r.margePrevue, r.prix)} %</b></div>
         <div className="r"><span>Prix signé HT</span><b>{mt(r.prix)}</b></div>
-        <div className="r"><span>Coût réel (pièces) <Info text="Somme des pièces fournisseurs imputées. Tant qu'une zone n'a pas de pièce, la marge est provisoire." /></span><b>{mt(r.reel)}</b></div>
+        <div className="r"><span>Coût réel (pièces) <Info text="Somme des pièces fournisseurs imputées. Une zone sans aucune pièce compte pour son prévu : la marge reste provisoire tant qu'elles manquent." /></span><b>{mt(r.reel)}</b></div>
+        {r.estime > 0 && <div className="r"><span>Sans pièce, compté au prévu · {r.sansPiece.map(z => z.nom).join(', ')}</span><b>{mt(r.estime)}</b></div>}
       </div>
       <div className="kpi">
         <button onClick={() => go('especes')}><b className={r.reste ? '' : 'ok-c'}>{mt(r.encaisse)}</b>encaissé{TVA[ev.entite] ? ' TTC' : ''}{r.reste ? '' : ' ✓'}</button>

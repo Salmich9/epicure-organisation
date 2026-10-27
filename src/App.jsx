@@ -113,7 +113,11 @@ export default function App() {
   const [prop, setProp] = useState(null)
 
   const load = useCallback(async (evt) => {
-    try { const d = await api.donnees(evt || store.evt); setData(d); store.evt = d.evt; prechargerChallenge(d.evt) }
+    try {
+      let d = await api.donnees(evt || store.evt)
+      // Événement mémorisé supprimé entre-temps : on retombe sur le prochain événement
+      if (!d.evenements.some(x => x.id === d.evt)) d = await api.donnees(null)
+      setData(d); store.evt = d.evt; prechargerChallenge(d.evt) }
     catch (e) { if (e.code === 'session_expiree') { store.token = null; setLogged(false) } else ui.toast(e.message) }
   }, [])
   useEffect(() => { if (logged && !lien) load() }, [logged])

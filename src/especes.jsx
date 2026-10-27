@@ -72,7 +72,7 @@ export function Especes({ data, go }) {
         <h1 style={{ fontSize: 34 }}>Espèces</h1>
       </div>
       <div className="esp-k">
-        <div><b>{mad(encaisse)}</b>encaissé du client</div>
+        <div><b>{mad(encaisse)}</b>encaissé en espèces</div>
         <div><b>{mad(depense)}</b>dépensé</div>
         <div><b>{mad(enEnv - depense)}</b>chez les porteurs</div>
         <div className="main"><b>{mad(e.chez_salmane)}</b>reste chez toi <Info text="Encaissé = dépensé + chez les porteurs + chez toi. Chez toi : l'encaissé, moins les enveloppes remises, plus ce qu'on t'a rendu." /></div>
