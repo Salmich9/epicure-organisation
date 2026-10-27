@@ -124,7 +124,7 @@ export function Plan({ data, go, openEvt, mine, setMine }) {
           <div className={facture > budget ? 'rouge' : ''}><b>{mad(facture)}</b>facturé</div>
         </div>
         <div className="pile"><i className="eng" style={{ width: `${Math.min(100, budget ? (cout / budget) * 100 : 0)}%` }} /><i className="fac" style={{ width: `${Math.min(100, budget ? (facture / budget) * 100 : 0)}%`, background: facture > budget ? 'var(--red)' : undefined }} /></div>
-        <div className="leg"><span className="fac">facturé · pièces reçues</span><span className="eng">engagé</span><Info text="Prévu : le budget retenu. Engagé : le coût de ce qui est commandé dans l'organisation. Facturé : les pièces des fournisseurs imputées sur l'événement." /></div>
+        <div className="leg"><span className="fac">facturé · pièces reçues</span><span className="eng">engagé</span><button className="esp-lien" onClick={() => go('especes')}>💵 Espèces ›</button><Info text="Prévu : le budget retenu. Engagé : le coût de ce qui est commandé dans l'organisation. Facturé : les pièces des fournisseurs imputées sur l'événement." /></div>
       </div>
       {nbImp > 0 && <motion.button className="imp" whileTap={{ scale: .98 }} onClick={() => go('pieces')}><span className="n">{nbImp}</span>pièce{nbImp > 1 ? 's' : ''} à imputer<span className="go">›</span></motion.button>}
       {ecarts.length > 0 && <div className="ecarts">{ecarts.map(x => (

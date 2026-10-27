@@ -67,6 +67,13 @@ export const api = {
     const r = await fetch(`${URL}/functions/v1/orga-imputer`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt: store.evt, pieces }) })
     const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Le copilote ne répond pas.'); return d
   },
+  especesListe: (evt) => rpc('especes_liste', { p_token: store.token, p_evt: evt }),
+  encaissementAjouter: (evt, montant, date, note) => rpc('encaissement_ajouter', { p_token: store.token, p_evt: evt, p_montant: montant, p_date: date, p_note: note }),
+  porteurAjouter: (nom) => rpc('porteur_ajouter', { p_token: store.token, p_nom: nom }),
+  enveloppeRemettre: async (evt, nom, montant) => {
+    const r = await fetch(`${URL}/functions/v1/orga-especes`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt, nom, montant }) })
+    const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Remise impossible.'); return d
+  },
   planningListe: (evt) => rpc('planning_liste', { p_token: store.token, p_evt: evt }),
   planningEnregistrer: (evt, id, p) => rpc('planning_enregistrer', { p_token: store.token, p_evt: evt, p_id: id, p }),
   planningSupprimer: (id) => rpc('planning_supprimer', { p_token: store.token, p_id: id }),

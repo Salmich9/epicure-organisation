@@ -58,7 +58,7 @@ export function Pieces({ data, go, reload }) {
         const s = sug[p.id], e = s && parId[s.element_id]
         return (
           <div key={p.id} className="pc">
-            <a className="th" href={p.drive_url || undefined} target="_blank" rel="noreferrer"><span>{p.type === 'BL' ? 'BL' : p.type ? 'FACT' : 'PDF'}</span></a>
+            <a className="th" href={p.drive_url || undefined} target="_blank" rel="noreferrer"><span>{p.source === 'especes' ? 'ESP' : p.type === 'BL' ? 'BL' : p.type ? 'FACT' : 'PDF'}</span></a>
             <div className="x">
               <div className="t"><span>{p.fournisseur || 'Fournisseur ?'}</span><b>{p.montant ? mad(p.montant) : '?'}</b></div>
               <div className="s">{p.depose_par?.split(' ')[0] || '?'} · {depuis(p.cree_le, data.aujourdhui)}{p.statut === 'a_revoir' && <span className="tag">À REVOIR</span>}{p.statut === 'investissement' && <span className="tag gold">INVESTISSEMENT</span>}</div>

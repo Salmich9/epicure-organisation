@@ -374,3 +374,21 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .pc .btns { display: flex; gap: 6px; margin-top: 8px; }
 .pc .btns button { border-radius: 999px; padding: 8px 13px; font-size: 12.5px; font-weight: 750; background: var(--surface2); }
 .pc .btns button.p { background: var(--ink); color: var(--bg); }
+
+/* ---------- Espèces : encaissements et enveloppes ---------- */
+.esp-lien { margin-left: auto; font-size: 12px; font-weight: 750; color: var(--accent); }
+.esp-k { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 14px 0; }
+.esp-k div { background: var(--surface); border-radius: 18px; padding: 12px 14px; font-size: 11.5px; color: var(--mute); font-weight: 600; }
+.esp-k b { display: block; font-family: var(--display); font-weight: 400; font-size: 27px; line-height: 1.1; color: var(--ink); }
+.esp-k .main { background: var(--ink); color: var(--bg); } .esp-k .main b { color: var(--bg); }
+.who { display: block; width: calc(100% - 28px); text-align: left; background: var(--surface); border-radius: 20px; margin: 8px 14px 0; padding: 12px 14px; }
+.who .t { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14.5px; font-weight: 750; }
+.who .t b { font-family: var(--display); font-weight: 400; font-size: 22px; }
+.who .s { font-size: 11.5px; color: var(--mute); margin-top: 3px; }
+.who .bar { height: 6px; border-radius: 3px; background: var(--surface2); margin-top: 8px; overflow: hidden; }
+.who .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.pend { display: inline-block; font-size: 10px; font-weight: 800; border-radius: 999px; padding: 2px 7px; background: var(--surface2); color: var(--gold); margin-left: 6px; vertical-align: 2px; }
+.neg, .neg-s { color: var(--red); font-weight: 700; }
+.two { display: flex; gap: 8px; margin: 12px 14px 0; }
+.two button { flex: 1; text-align: center; border-radius: 16px; padding: 14px; font-weight: 800; font-size: 14px; background: var(--surface); border: 1px solid var(--line); }
+.two button.p { background: var(--ink); color: var(--bg); border-color: var(--ink); }

@@ -4,6 +4,7 @@ import { api, store } from './api'
 import { ElementSheet, sendWa } from './element'
 import { Chiffrer, Nouveau } from './creation'
 import { Pieces } from './pieces'
+import { Especes } from './especes'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { Copilote, Proposition, prechargerChallenge } from './copilote'
 import { Planning } from './planning'
@@ -149,10 +150,11 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === '' ? 'plan' : route
+  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === 'especes' || route === '' ? 'plan' : route
   let screen
   if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
+  else if (route === 'especes') screen = <Especes data={data} go={go} />
   else if (route === 'pieces') screen = <Pieces data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'nouveau') screen = <Nouveau data={data} go={go} onCreated={id => load(id)} />
   else if (route === 'chiffrer') screen = <Chiffrer key={data.evt} data={data} go={go} reload={() => load(data.evt)} />
