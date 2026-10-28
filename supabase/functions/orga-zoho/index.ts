@@ -10,8 +10,8 @@ const TVA: Record<string, number> = { Epicure: 20, 'Business Boys': 10 }
 const IMPREVUS = 0.03
 // Conditions maison, reprises telles quelles sur chaque devis (sauf autres conditions dictées)
 const CONDITIONS = "Devis H.T /Le bon pour accord de ce devis moyennant une avance de 50% vient acter la phase de prestation.\nLe solde de 50% est dû à J-7 avant l'événement.\nLorsque le devis est validé, sa totalité est due.\nDevis valable 15 jours.\nZone de 5x5m mise à disposition en back office + arrivée d'eau et éléctricité."
-// Zoho limite la description d'une ligne : au-delà, la suite part sur des lignes à 0 MAD juste en dessous
-const MAXDESC = 1900
+// Une seule ligne de devis : Zoho accepte au moins 4 865 caractères (testé le 28/10). Au-delà, la suite part sur une ligne à 0 MAD juste en dessous
+const MAXDESC = 4800
 const decouper = (t: string) => { const out: string[] = []; let cur = ''; for (const l of t.split('\n')) { if (cur && (cur + '\n' + l).length > MAXDESC) { out.push(cur); cur = l } else cur = cur ? cur + '\n' + l : l } if (cur) out.push(cur); return out.length ? out : [''] }
 
 // Le client voit des prestations, jamais la structure de coûts : les zones sont regroupées,
