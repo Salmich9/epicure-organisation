@@ -74,3 +74,7 @@ end $$;
 select zone, count(*) from orga.catalogue group by 1 order by 1;
 -- 2e passe (validée) : cuillère moka → café, coupe → flûte, verre à jus → verre à eau, glacière → conteneur isotherme,
 -- tente de service → tente cuisine et office, 6 chaises → chaise standard, tables rondes 8/12 → table ronde. Bibliothèque : 585 articles.
+
+-- 3e passe (validée) : plus de plats dans la bibliothèque. Menu = 5 lignes « Matière … (par couvert) »
+-- (accueil 15, cocktail 38,5, dîner 150, desserts à chiffrer, late snack 40 MAD, référentiel du classeur),
+-- + régimes, repas annexes, pièce montée, pain et table. Les plats cochés sont regroupés sur leur moment.

@@ -53,6 +53,12 @@ export const api = {
   equipeListe: (evt) => rpc('equipe_liste', { p_token: store.token, p_evt: evt }),
   equipeMaj: (evt, role, nom, defaut) => rpc('equipe_maj', { p_token: store.token, p_evt: evt, p_role: role, p_nom: nom, p_defaut: !!defaut }),
   elementRespAuto: (id) => rpc('element_resp_auto', { p_token: store.token, p_id: id }),
+  menuMaj: (evt, p) => rpc('menu_maj', { p_token: store.token, p_evt: evt, p }),
+  menuFichier: async (nom, type, base64) => {
+    const r = await fetch(`${URL}/functions/v1/orga-fichier`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY },
+      body: JSON.stringify({ token: store.token, evt: store.evt, nom, type, base64 }) })
+    const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Envoi impossible.'); return d
+  },
   elementSupprimer: (id) => rpc('element_supprimer', { p_token: store.token, p_id: id }),
   cadrageMaj: (evt, p) => rpc('cadrage_maj', { p_token: store.token, p_evt: evt, p }),
   copilote: async (mode, extra = {}) => {

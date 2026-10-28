@@ -714,3 +714,14 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .va-sz { font-size: 11.5px; color: var(--mute); text-align: right; margin-top: 2px; font-weight: 600; }
 .va-src { margin-top: 10px; font-size: 12px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px; }
 .va-deja { margin-top: 6px; font-size: 12.5px; color: var(--mute); font-weight: 650; }
+
+/* Menu de l'événement */
+.mn-txt { width: 100%; min-height: 220px; font-size: 15px; line-height: 1.5; }
+.mn-f { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.mn-row { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; }
+.mn-row a { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 14px; }
+.mn-row a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-row a i { font-style: normal; font-size: 10.5px; font-weight: 800; background: var(--accent); color: var(--accent-ink); border-radius: 6px; padding: 4px 6px; flex: none; }
+.mn-row button { height: 30px; min-width: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid var(--line); background: var(--bg); font-weight: 800; font-size: 12.5px; }
+.mn-row button.on { background: var(--red); color: #fff; border-color: var(--red); }
+.mn-up { width: 100%; margin: 12px 0 0; }
