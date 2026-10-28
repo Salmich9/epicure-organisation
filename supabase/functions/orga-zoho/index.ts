@@ -8,6 +8,11 @@ const COMPTES = 'https://accounts.zoho.com'
 const NOMS: Record<string, RegExp> = { Epicure: /epicure/i, 'Business Boys': /business\s*boys|barom/i }
 const TVA: Record<string, number> = { Epicure: 20, 'Business Boys': 10 }
 const IMPREVUS = 0.03
+// Conditions maison, reprises telles quelles sur chaque devis (sauf autres conditions dictées)
+const CONDITIONS = "Devis H.T /Le bon pour accord de ce devis moyennant une avance de 50% vient acter la phase de prestation.\nLe solde de 50% est dû à J-7 avant l'événement.\nLorsque le devis est validé, sa totalité est due.\nDevis valable 15 jours.\nZone de 5x5m mise à disposition en back office + arrivée d'eau et éléctricité."
+// Zoho limite la description d'une ligne : au-delà, la suite part sur des lignes à 0 MAD juste en dessous
+const MAXDESC = 1900
+const decouper = (t: string) => { const out: string[] = []; let cur = ''; for (const l of t.split('\n')) { if (cur && (cur + '\n' + l).length > MAXDESC) { out.push(cur); cur = l } else cur = cur ? cur + '\n' + l : l } if (cur) out.push(cur); return out.length ? out : [''] }
 
 // Le client voit des prestations, jamais la structure de coûts : les zones sont regroupées,
 // la logistique et le lieu répartis au prorata. Le total vaut le prix signé (ou proposé tant que rien n'est signé).
@@ -72,13 +77,14 @@ Deno.serve(async (req) => {
     const lignes: any[] = ch?.lignes || []
     if (!parle && !lignes.length) return json({ error: 'Chiffre d\'abord l\'événement.' }, 400)
     const prest = parle ? { total: parle.reduce((a: number, l: any) => a + l.montant, 0), lignes: parle } : prestations(ev, lignes, Number(ch?.coef || ev.coef) || 2.4, presentation)
-    if (mode === 'apercu') return json({ presentation, lignes: prest.lignes, total: prest.total, tva: TVA[ev.entite] ?? 0 })
-    if (!TVA[ev.entite]) return json({ error: 'Pas de devis Zoho pour un événement en espèces.' }, 400)
+    // Sans facture (espèces) : le devis est quand même fait chez Epicure, TVA affichée
+    const soc = TVA[ev.entite] ? ev.entite : 'Epicure'
+    if (mode === 'apercu') return json({ presentation, lignes: prest.lignes, total: prest.total, tva: TVA[soc] })
     const { data: par } = await adm.from('parametres').select('valeur').eq('cle', 'zoho').single()
     const z = par?.valeur as Zoho | undefined
     if (!z?.refresh) return json({ error: 'Zoho pas encore branché : le code du Self Client reste à échanger.' }, 501)
-    const org = z.orgs?.[ev.entite]
-    if (!org) return json({ error: `Organisation Zoho « ${ev.entite} » introuvable.` }, 500)
+    const org = z.orgs?.[soc]
+    if (!org) return json({ error: `Organisation Zoho « ${soc} » introuvable.` }, 500)
     const t = await (await fetch(`${COMPTES}/oauth/v2/token`, { method: 'POST', body: new URLSearchParams({ grant_type: 'refresh_token', client_id: id, client_secret: secret, refresh_token: z.refresh }) })).json()
     if (!t.access_token) return json({ error: `Zoho : ${t.error || 'jeton refusé'}` }, 502)
     const zo = async (chemin: string, init: RequestInit = {}) => {
@@ -88,23 +94,26 @@ Deno.serve(async (req) => {
 
     // TVA de la société, client (créé s'il n'existe pas)
     const taxes = (await zo('settings/taxes')).taxes || []
-    const tax = taxes.find((x: any) => Number(x.tax_percentage) === TVA[ev.entite])
+    const tax = taxes.find((x: any) => Number(x.tax_percentage) === TVA[soc])
     const nomClient = (ev.client || ev.nom).trim()
     const cs = (await zo(`contacts?contact_name_contains=${encodeURIComponent(nomClient)}&contact_type=customer`)).contacts || []
     const client = cs.find((c: any) => c.contact_name.toLowerCase() === nomClient.toLowerCase()) || (await zo('contacts', { method: 'POST', body: JSON.stringify({ contact_name: nomClient, contact_type: 'customer' }) })).contact
 
     const inv = Number(ev.invites) || 1
-    const lignesDevis = prest.lignes.map((l: any) => ({ name: l.nom, description: l.description, rate: l.unite ? l.montant : Math.round((l.montant / inv) * 100) / 100, quantity: l.unite ? 1 : inv, ...(tax ? { tax_id: tax.tax_id } : {}) }))
+    const lignesDevis = prest.lignes.flatMap((l: any) => decouper(String(l.description || '')).map((d, i) => ({ name: i ? `${l.nom} (suite)` : l.nom, description: d,
+      rate: i ? 0 : l.unite ? l.montant : Math.round((l.montant / inv) * 100) / 100, quantity: i || l.unite ? 1 : inv, ...(tax ? { tax_id: tax.tax_id } : {}) })))
+    const dateFr = ev.date ? String(ev.date).split('-').reverse().join('/') : ''
+    const sujet = String(objet || '').trim() || [`${ev.nom || 'Événement'}${ev.invites ? ` ${ev.invites} pax` : ''}`, nomClient, dateFr, ev.lieu].filter(Boolean).join(' / ')
     const corps = { customer_id: client.contact_id, date: data.aujourdhui, reference_number: ev.id, line_items: lignesDevis,
       notes: `${(ev.prestations || []).join(' + ')}${ev.format ? ` · ${ev.format}` : ''}${ev.lieu ? ` · ${ev.lieu}` : ''}${ev.date ? ` · le ${ev.date.split('-').reverse().join('/')}` : ''}`,
-      ...(ev.date ? { expiry_date: ev.date } : {}), ...(conditions ? { terms: String(conditions) } : {}) }
+      expiry_date: new Date(new Date(data.aujourdhui).getTime() + 15 * 864e5).toISOString().slice(0, 10), terms: String(conditions || '').trim() || CONDITIONS, subject_content: sujet.slice(0, 250) }
     // Un seul devis par événement : remis à jour s'il existe déjà en brouillon
     const deja = ev.zoho_devis?.id
     const o = deja ? await zo(`estimates/${deja}`, { method: 'PUT', body: JSON.stringify(corps) }).catch(() => null) : null
     const d = (o || await zo('estimates', { method: 'POST', body: JSON.stringify(corps) })).estimate
     const url = `https://books.zoho.com/app/${org}#/quotes/${d.estimate_id}`
     await adm.from('evenements').update({ zoho_devis: { id: d.estimate_id, numero: d.estimate_number, total: d.total, url, le: new Date().toISOString() }, presentation, ...(['Demande', null, ''].includes(ev.statut) ? { statut: 'Devis envoyé' } : {}) }).eq('id', ev.id)
-    return json({ numero: d.estimate_number, total: d.total, url, tva: tax ? TVA[ev.entite] : null, mis_a_jour: !!o })
+    return json({ numero: d.estimate_number, total: d.total, url, tva: tax ? TVA[soc] : null, mis_a_jour: !!o })
   } catch (e) {
     return json({ error: String(e?.message || e) }, 500)
   }

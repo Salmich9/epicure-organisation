@@ -16,6 +16,13 @@ Deno.serve(async (req) => {
     if (!/^[0-9a-f-]{36}$/i.test(token)) return json({ ok: false, message: "Pas de session de l'appli : ouvre l'agent depuis l'appli Organisation (bouton Chiffrer à la voix) pour créer l'événement." })
     const URL = Deno.env.get('SUPABASE_URL')!, ANON = Deno.env.get('SUPABASE_ANON_KEY')!
     const sb = createClient(URL, ANON, { db: { schema: 'orga' } })
+    // Pendant l'appel : autres événements le même jour, historique du lieu, taille proche, leçons, prix de la bibliothèque
+    if (p.action === 'contexte') {
+      const r = await sb.rpc('voix_contexte', { p_token: token, p_date: /^\d{4}-\d{2}-\d{2}$/.test(p.date || '') ? p.date : null,
+        p_lieu: p.lieu || null, p_pax: Number(p.pax) || null, p_cherche: p.cherche || null })
+      if (r.error) return json({ ok: false, message: 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
+      return json({ ok: true, ...r.data })
+    }
     const d0 = await sb.rpc('donnees', { p_token: token, p_evt: null })
     if (d0.error) return json({ ok: false, message: 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
 
@@ -36,11 +43,11 @@ Deno.serve(async (req) => {
     const c = await sb.rpc('evenement_creer', { p_token: token, p: {
       nom: p.evenement || p.client || 'Événement', date: /^\d{4}-\d{2}-\d{2}$/.test(p.date || '') ? p.date : null, lieu: p.lieu || '',
       invites: Number(p.pax) || null, client: p.client || '', prestations: PRESTA[p.format] || ['Traiteur'], format: '',
-      entite: p.societe === 'Business Boys' ? 'Business Boys' : 'Epicure', intermediaire: Number(p.agence_pct) > 0 ? 'Agence' : '', note,
+      entite: p.societe === 'Business Boys' ? 'Business Boys' : p.societe === 'Sans facture' ? 'Espèce' : 'Epicure', intermediaire: Number(p.agence_pct) > 0 ? 'Agence' : '', note,
     } })
     if (c.error) return json({ ok: false, message: `Création refusée : ${c.error.message}` })
     const evt = c.data.id
-    await sb.rpc('evenement_maj', { p_token: token, p_evt: evt, p: { prix, ...(cout > 0 && prix > 0 ? { coef: Math.round((prix / (cout * 1.03)) * 100) / 100 } : {}) } })
+    await sb.rpc('evenement_maj', { p_token: token, p_evt: evt, p: { prix, ...(cout > 0 && prix > 0 ? { coef: Math.round((prix / (cout * 1.05)) * 100) / 100 } : {}) } })
 
     // Devis Zoho brouillon avec les lignes validées pendant l'appel
     let devis: any = null

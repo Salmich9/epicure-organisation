@@ -21,8 +21,8 @@ export const QUESTIONS = [
   { k: 'cuisine', q: 'Une cuisine sur place ?', si: traiteur, o: ['Oui, équipée', 'Incomplète', 'Aucune'] },
   { k: 'energie', q: "L'électricité ?", o: ['Le lieu suffit', 'Groupe électrogène'] },
   { k: 'plonge', q: 'Une plonge sur place ?', o: ['Oui, fournie', 'Un espace vide', 'Rien'] },
-  { k: 'fourni', q: 'Déjà fourni par le lieu ou l\'agence', multi: true, o: ['Tables', 'Chaises', 'Nappes', 'Vaisselle', 'Éclairage', 'Sono', 'Rien de tout ça'] },
-  { k: 'invites', q: 'Parmi les invités…', multi: true, o: ['Des enfants', 'Des régimes particuliers', 'Rien de spécial'] },
+  { k: 'fourni', q: 'Déjà fourni par le lieu ou l\'agence', multi: true, o: ['Tables', 'Chaises', 'Nappes', 'Vaisselle', 'Rien de tout ça'] },
+  { k: 'invites', q: 'Parmi les invités…', multi: true, si: traiteur, o: ['Des enfants', 'Des régimes particuliers', 'Rien de spécial'] },
   { k: 'particularite', q: "Quelque chose de différent d'habitude ?", texte: true },
 ]
 const SEUL = ['Rien de tout ça', 'Rien de spécial', 'Softs seulement']

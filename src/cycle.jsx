@@ -53,7 +53,7 @@ export function Vente({ data, go, reload, openEvt }) {
       {lignes.length > 0 && <motion.button whileTap={{ scale: .98 }} className="cta2" onClick={() => setSigne(true)}>Le client a signé</motion.button>}
       <div className="two">
         <motion.button whileTap={{ scale: .97 }} onClick={() => go('chiffrer')}>{lignes.length ? 'Rechiffrer' : 'Chiffrer'}</motion.button>
-        {lignes.length > 0 && ev.entite !== 'Espèce' && <motion.button whileTap={{ scale: .97 }} onClick={() => go('devis')}>Devis client</motion.button>}
+        {lignes.length > 0 && <motion.button whileTap={{ scale: .97 }} onClick={() => go('devis')}>Devis client</motion.button>}
       </div>
       <div className="lock"><b>🔒 Organisation</b>S'ouvre quand le client signe : pas d'effort sur un événement non confirmé.</div>
       <button className="lien-perdu" onClick={perdu}>Le client a dit non</button>
@@ -108,7 +108,7 @@ export function DevisClient({ data, go, reload }) {
     try { const d = await api.zoho('devis', { presentation: pres }); ui.toast(`${d.numero} ${d.mis_a_jour ? 'mis à jour' : 'créé'} dans Zoho`); window.open(d.url, '_blank'); await reload() } catch (e) { ui.toast(e.message) }
     setBusy(false)
   }
-  const tva = TVA[ev.entite] || 0
+  const tva = a?.tva ?? TVA[ev.entite] ?? 0
   return (
     <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
       <div className="head"><button className="back" onClick={() => go('')}>‹ {ev.nom}</button><h1 style={{ fontSize: 32 }}>Devis client</h1></div>
@@ -122,7 +122,7 @@ export function DevisClient({ data, go, reload }) {
         </div>
       )}
       <p className="small mute px" style={{ marginTop: 10 }}>Staff, logistique, lieu et technique sont répartis dans les prestations <Info text="Le client ne voit jamais ta structure de coûts. La logistique et le lieu sont répartis au prorata des prestations." /></p>
-      {ev.entite !== 'Espèce' && <div className="px"><button className="btn primary block" style={{ marginTop: 14 }} disabled={busy || !a?.lignes?.length} onClick={envoyer}>{busy ? '…' : ev.zoho_devis ? `Mettre à jour ${ev.zoho_devis.numero} dans Zoho` : 'Créer le devis dans Zoho'}</button></div>}
+      {<div className="px"><button className="btn primary block" style={{ marginTop: 14 }} disabled={busy || !a?.lignes?.length} onClick={envoyer}>{busy ? '…' : ev.zoho_devis ? `Mettre à jour ${ev.zoho_devis.numero} dans Zoho` : 'Créer le devis dans Zoho'}</button></div>}
     </motion.div>
   )
 }

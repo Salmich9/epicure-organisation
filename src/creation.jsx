@@ -231,7 +231,7 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
           </>}
         </div>
         <div className="px" style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          {ev.entite !== 'Espèce' && <button className={`btn ${vente ? 'primary' : ''}`} onClick={async () => { clearTimeout(sauve.current); await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); go('devis') }}>{devis ? `Devis ${devis}` : 'Devis client'}</button>}
+          {<button className={`btn ${vente ? 'primary' : ''}`} onClick={async () => { clearTimeout(sauve.current); await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); go('devis') }}>{devis ? `Devis ${devis}` : 'Devis client'}</button>}
           {vente ? <button className="btn" onClick={async () => { clearTimeout(sauve.current); await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); await reload(); go('') }}>Terminer</button>
             : <button className="btn primary" onClick={() => { clearTimeout(sauve.current); api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); setEtape('budget') }}>{data.elements.length ? 'Mettre à jour le budget' : 'Retenir le budget'}</button>}
         </div>
