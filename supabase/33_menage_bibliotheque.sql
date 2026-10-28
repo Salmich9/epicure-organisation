@@ -72,3 +72,5 @@ begin
   raise notice 'paquets % ajouts % fusions %', n_paq, n_add, n_fus;
 end $$;
 select zone, count(*) from orga.catalogue group by 1 order by 1;
+-- 2e passe (validée) : cuillère moka → café, coupe → flûte, verre à jus → verre à eau, glacière → conteneur isotherme,
+-- tente de service → tente cuisine et office, 6 chaises → chaise standard, tables rondes 8/12 → table ronde. Bibliothèque : 585 articles.
