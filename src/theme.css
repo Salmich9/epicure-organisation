@@ -694,3 +694,23 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .sf-rate { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--line); }
 .sf-rate:last-child { border: 0; } .sf-rate > div:nth-child(2) { flex: 1; min-width: 0; } .sf-rate b { display: block; font-size: 13.5px; } .sf-rate span { font-size: 11px; color: var(--mute); font-weight: 600; }
 .sf-stars { display: flex; } .sf-stars button { font-size: 22px; padding: 2px 2px; color: var(--surface2); } .sf-stars button.on { color: var(--gold); }
+
+/* Revue : ajout à l'oral, retrait d'un article coché */
+.rv-adds { display: flex; gap: 8px; margin: 12px 14px 0; }
+.rv-adds .rv-add { flex: 1; width: auto; margin: 0; }
+.rv-moins { height: 34px; padding: 0 12px; border-radius: 17px; background: var(--red); color: #fff; font-size: 12.5px; font-weight: 800; flex: none; }
+.va-dicte { display: flex; gap: 10px; align-items: flex-start; }
+.va-dicte textarea { flex: 1; min-height: 70px; font-size: 15px; }
+.va-cherche { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 13.5px; font-weight: 700; color: var(--mute); }
+.va-cherche i { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); display: block; }
+.va-art { border: 1px solid var(--line); border-radius: 18px; padding: 12px; margin-top: 10px; background: var(--surface); }
+.va-art.off { opacity: .45; }
+.va-h { display: flex; gap: 8px; align-items: center; }
+.va-h input { flex: 1; font-size: 16px; font-weight: 800; border: 0; background: transparent; padding: 4px 0; }
+.va-h button { width: 30px; height: 30px; border-radius: 50%; background: var(--bg); border: 1px solid var(--line); font-weight: 800; flex: none; }
+.va-l { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; font-size: 13px; }
+.va-l span { color: var(--mute); font-weight: 650; }
+.va-l input, .va-l select { width: 150px; text-align: right; padding: 8px 10px; font-size: 14px; }
+.va-sz { font-size: 11.5px; color: var(--mute); text-align: right; margin-top: 2px; font-weight: 600; }
+.va-src { margin-top: 10px; font-size: 12px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px; }
+.va-deja { margin-top: 6px; font-size: 12.5px; color: var(--mute); font-weight: 650; }

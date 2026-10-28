@@ -181,6 +181,37 @@ const TOOLS: Record<string, any> = {
       required: ['items', 'resume'],
     },
   },
+  article: {
+    name: 'articles',
+    description: 'Les articles dictés, chacun rangé dans sa famille avec un prix.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        articles: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              catalogue_id: { type: 'string', description: 'Id CAT-xxxx si l\'article existe déjà dans la bibliothèque (même chose, même usage), sinon vide' },
+              element: { type: 'string', description: 'Nom court et propre de l\'article, comme dans la bibliothèque' },
+              zone: { type: 'string', description: 'Famille : une zone existante exacte' },
+              sous_zone: { type: 'string', description: 'Sous-famille existante de cette zone si elle convient, sinon une nouvelle courte' },
+              mode: { type: 'string', enum: ['Location', 'Achat', 'Production / sous-traitance', 'Stock'] },
+              prix: { type: 'number', description: 'Coût unitaire MAD HT (0 si vraiment inconnu)' },
+              source: { type: 'string', enum: ['bibliotheque', 'evenements', 'estimation'], description: 'D\'où vient le prix' },
+              base: { type: 'string', enum: ['Fixe', 'Invités', 'Tables', 'Nb staff'], description: 'Sur quoi se calcule la quantité' },
+              qte_par_base: { type: 'number', description: 'Quantité par unité de base (Fixe : la quantité totale)' },
+              quantite: { type: 'number', description: 'Quantité dite à l\'oral pour cet événement, sinon 0' },
+              unite: { type: 'string', description: 'pièce, kg, litre, forfait, personne…' },
+              pourquoi: { type: 'string', description: 'Une phrase : pourquoi cette famille et ce prix (ex. « prix de la bibliothèque », « 2 événements passés à 45 MAD »)' },
+            },
+            required: ['element', 'zone', 'mode', 'prix', 'source', 'base', 'qte_par_base', 'pourquoi'],
+          },
+        },
+      },
+      required: ['articles'],
+    },
+  },
   challenge: {
     name: 'questions',
     description: 'Pose exactement 3 questions d\'inspection, de la plus risquée à la moins risquée.',
@@ -305,7 +336,7 @@ Deno.serve(async (req) => {
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
     const { token, evt, mode, note, theme, lignes, reponses } = await req.json()
-    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier', 'bilan', 'cadrage'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
+    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier', 'bilan', 'cadrage', 'article'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
 
     // Le jeton de session de l'appli est vérifié par la base elle-même.
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
@@ -379,6 +410,19 @@ Bibliothèque (id | zone | sous-famille | article | base de calcul), sans ce qui
 ${(cat || []).filter((c: any) => !deja.has(c.id)).map((c: any) => `${c.id} | ${c.zone} | ${c.sous_zone ?? ''} | ${c.element} | ${c.base ?? ''}`).join('\n')}`
     }
 
+    let articleTxt = ''
+    if (mode === 'article') {
+      const c = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
+      const cx = c.data || {}
+      const { data: cat } = await sb.rpc('catalogue_liste', { p_token: token })
+      const sous: Record<string, Set<string>> = {}
+      for (const x of (cat || [])) (sous[x.zone] = sous[x.zone] || new Set()).add(x.sous_zone || 'Divers')
+      articleTxt = `Familles et sous-familles :\n${data.zones.map((z: any) => `${z.nom} : ${[...(sous[z.nom] || [])].join(', ')}`).join('\n')}
+Bibliothèque (id | zone | sous-famille | article | base q/base | mode | achat | location | production) :
+${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.element} | ${x.base ?? ''} ${x.qte_par_base ?? ''} | ${x.mode ?? ''} | ${x.prix_achat ?? ''} | ${x.prix_location ?? ''} | ${x.prix_production ?? ''}`).join('\n')}
+Événements passés (références de coûts réels) :\n${(cx.references || []).map((r: any) => `${r.nom} : ${(r.lignes || []).slice(0, 60).join(' ; ')}`).join('\n') || '(aucun)'}`
+    }
+
     let planningTxt = ''
     if (mode === 'planning') {
       const pl = await sb.rpc('planning_liste', { p_token: token, p_evt: data.evt })
@@ -406,6 +450,8 @@ ${(cat || []).filter((c: any) => !deja.has(c.id)).map((c: any) => `${c.id} | ${c
 - Ce que le client, le lieu ou l'agence fournit : perimetre Tiers avec « par ». Ce qui dépend d'une réponse « ? » ou d'un risque (sol, éclairage, énergie) : À clarifier.
 - Quantité (qte) seulement quand le cadrage la fixe ; sinon 0, elle se calcule depuis la base et le nombre d'invités. Exception : pour la zone Staff, donne TOUJOURS l'effectif (qte) avec les ratios d'un pro : dîner assis 1 chef de rang par table de 10 ; buffet ou cocktail 1 serveur pour 20 invités ; 1 runner pour 2 chefs de rang ; 1 bartender pour 50 invités ; 1 plongeur pour 50 invités ; 1 maître d'hôtel pour 150 invités ; en cuisine, 1 personne pour 30 couverts ; 2 manutentionnaires pour 100 invités et 1 coursier. Glace : 1,5 kg par invité (2 kg en été). Premix cocktails : 0,4 L par invité. Shots : 1 L pour 50 invités. Eau : 0,6 bouteille par invité. Talkies dès 100 invités.
 - Entre 30 et 110 articles. Ids exacts uniquement. Appelle l'outil « liste ».`
+      : mode === 'article'
+      ? `${articleTxt}\n\n${data.moi} vient de dicter, pendant la revue : « ${note} »\nPour chaque article dicté : s'il existe déjà dans la bibliothèque (même chose), donne son catalogue_id, son nom, sa famille et son prix. Sinon range-le dans la famille et la sous-famille qui conviennent le mieux, et propose un coût unitaire HT réaliste au Maroc (Marrakech) : d'abord celui d'un article proche de la bibliothèque, sinon des événements passés, sinon ta meilleure estimation de professionnel (source « estimation »). Mode le plus courant pour cet article. Quantité dite à l'oral dans « quantite ». Appelle l'outil « articles ».`
       : mode === 'placer'
       ? `Voici une note dictée ou écrite par ${data.moi} :\n« ${note} »\nTraduis-la en changements concrets sur l'organisation (souvent un seul). Appelle l'outil « proposer ».`
       : `Challenge ${data.moi} sur cet événement${theme ? `, thème : ${theme}` : ''}. Cherche ce qui risque d'être oublié, mal dimensionné, non délégué ou hors budget, du général au particulier. Évite ce qui est déjà bouclé. Pour chaque question, 2 à 4 réponses dont « Plus tard », avec leurs effets. Appelle l'outil « questions ».`
@@ -428,7 +474,7 @@ ${(cat || []).filter((c: any) => !deja.has(c.id)).map((c: any) => `${c.id} | ${c
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
     if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     const res: any = { ...use.input }
-    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons', 'items']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
+    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons', 'items', 'articles']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
     if (Array.isArray(res.questions)) res.questions = res.questions.filter((q: any) => q?.question && Array.isArray(q.options) && q.options.length)
     if (mode === 'bulles') {
       res.bulles = (res.bulles || []).filter((b: any) => b?.texte).slice(0, 4)
@@ -451,6 +497,10 @@ ${(cat || []).filter((c: any) => !deja.has(c.id)).map((c: any) => `${c.id} | ${c
       const a = await sb.rpc('cadrage_appliquer', { p_token: token, p_evt: data.evt, p: { ...res, items } })
       if (a.error) return json({ error: `Cadrage : ${a.error.message}` }, 500)
       return json({ cadrage: a.data, usage: out.usage })
+    }
+    if (mode === 'article') {
+      const zs = new Set(data.zones.map((z: any) => z.nom))
+      res.articles = (Array.isArray(res.articles) ? res.articles : []).filter((x: any) => x?.element).map((x: any) => ({ ...x, zone: zs.has(x.zone) ? x.zone : data.zones[0]?.nom, prix: Number(x.prix) || 0, quantite: Number(x.quantite) || 0, qte_par_base: Number(x.qte_par_base) || 1 }))
     }
     if (mode === 'chiffrer') {
       res.lignes = (res.lignes || []).filter((l: any) => l?.element && l?.zone).map((l: any) => ({ ...l, quantite: Number(l.quantite) || 0, prix: Number(l.prix) || 0 }))

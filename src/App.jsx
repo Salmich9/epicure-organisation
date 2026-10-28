@@ -176,8 +176,8 @@ export default function App() {
   else if (route === 'staff-evt/noter') screen = <StaffNoter data={data} go={go} />
   else if (route === 'equipe') screen = <Equipe data={data} go={go} reload={() => load(data.evt)} />
   else if (route.startsWith('cadrage')) screen = <Cadrage key={route} data={data} go={go} fin={route === 'cadrage/fin'} reload={() => load(data.evt)} />
-  else if (route === 'revue') screen = <Revue data={data} go={go} />
-  else if (route.startsWith('revue/')) screen = <RevueZone key={route} data={data} go={go} idx={Number(route.split('/')[1])} elId={route.split('/')[2]} putEl={fresh => putEl(fresh)} />
+  else if (route === 'revue') screen = <Revue data={data} go={go} putEl={fresh => putEl(fresh)} reload={() => load(data.evt)} />
+  else if (route.startsWith('revue/')) screen = <RevueZone key={route} data={data} go={go} idx={Number(route.split('/')[1])} elId={route.split('/')[2]} putEl={fresh => putEl(fresh)} reload={() => load(data.evt)} />
   else if (route.startsWith('biblio')) screen = <Bibliotheque data={data} go={go} zoneIdx={route.split('/')[1] !== undefined ? Number(route.split('/')[1]) : undefined} reload={() => load(data.evt)} />
   else if (route.startsWith('bilan')) screen = <Bilan key={route} data={data} go={go} sous={route.split('/')[1] || ''} reload={() => load(data.evt)} />
   else if (route === 'especes') screen = <Especes data={data} go={go} />

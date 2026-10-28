@@ -4,6 +4,7 @@ import { api } from './api'
 import { Info, Sheet, n, useUI } from './ui'
 import { Picker } from './element'
 import { nomRole } from './equipe'
+import { AjoutVoix } from './voixarticle'
 
 /* Revue : on passe chaque chose en revue, zone par zone. Bibliothèque : on pioche ou on crée. */
 const QUI = [['À notre charge', 'Nous'], ['En partie', 'Partiel'], ['Tiers', 'Tiers'], ['Pas besoin', 'Pas besoin']]
@@ -49,7 +50,8 @@ function regle(e, z) {
 }
 
 /* ---------- Vue d'ensemble : on reprend où on s'est arrêté ---------- */
-export function Revue({ data, go }) {
+export function Revue({ data, go, putEl, reload }) {
+  const [voix, setVoix] = useState(false)
   const els = ordre(data)
   const c = compteRevue(data)
   const suivant = els.find(e => etatRevue(e) !== 'revu')
@@ -74,14 +76,16 @@ export function Revue({ data, go }) {
           </motion.button>
         )
       })}</div>
-      <button className="rv-add" onClick={() => go('biblio')}>📚 Ouvrir la bibliothèque</button>
+      <div className="rv-adds"><button className="rv-add" onClick={() => setVoix(true)}>🎙 Dire un article</button><button className="rv-add" onClick={() => go('biblio')}>📚 Bibliothèque</button></div>
+      <AjoutVoix open={voix} onClose={() => setVoix(false)} data={data} putEl={putEl} reload={reload} />
     </motion.div>
   )
 }
 
 /* ---------- Une chose à la fois ---------- */
-export function RevueZone({ data, go, idx, elId, putEl }) {
+export function RevueZone({ data, go, idx, elId, putEl, reload }) {
   const ui = useUI()
+  const [voix, setVoix] = useState(false)
   const z = data.zones[idx] || data.zones[0]
   const liste = useMemo(() => ordre(data).filter(e => e.zone === z?.nom), [data.elements, z?.nom])
   const depart = Math.max(0, elId ? liste.findIndex(e => e.id === elId) : liste.findIndex(e => etatRevue(e) !== 'revu'))
@@ -99,7 +103,8 @@ export function RevueZone({ data, go, idx, elId, putEl }) {
     <motion.div {...slide}>
       <div className="head"><button className="back" onClick={() => go('revue')}>‹ Revue</button><h1 style={{ fontSize: 30 }}>{z.nom}</h1></div>
       <div className="empty">Rien dans cette zone pour l'instant.</div>
-      <button className="rv-add" onClick={() => go(`biblio/${idx}`)}>+ Ajouter depuis la bibliothèque</button>
+      <div className="rv-adds"><button className="rv-add" onClick={() => setVoix(true)}>🎙 Dire un article</button><button className="rv-add" onClick={() => go(`biblio/${idx}`)}>+ Bibliothèque</button></div>
+      <AjoutVoix open={voix} onClose={() => setVoix(false)} data={data} putEl={putEl} reload={reload} />
     </motion.div>
   )
   const set = (k, v) => { setE(x => ({ ...x, [k]: v })); setChg(c => ({ ...c, [k]: v })); if (MODES.some(m => m.k === k)) setProp({}) }
@@ -197,13 +202,14 @@ export function RevueZone({ data, go, idx, elId, putEl }) {
           <button onClick={() => setPicker('resp')}>+</button></div>
         {!tiers && total > 0 && <div className="bs" style={{ marginTop: 12 }}>Total <b>{mt(total)} MAD</b></div>}
       </motion.div>
-      <button className="rv-add" onClick={() => go(`biblio/${idx}`)}>+ Ajouter ce qui manque dans {z.nom}</button>
+      <div className="rv-adds"><button className="rv-add" onClick={() => setVoix(true)}>🎙 Dire un article</button><button className="rv-add" onClick={() => go(`biblio/${idx}`)}>+ Bibliothèque</button></div>
       <div className="rv-nav">
         <button disabled={busy || i === 0} onClick={() => enregistrer(-1)}>‹</button>
-        <button className={suppr ? 'rouge' : ''} disabled={busy} onClick={supprimer} onBlur={() => setSuppr(false)}>{suppr ? 'Sûr ?' : 'Supprimer'}</button>
+        <button className={suppr ? 'rouge' : ''} disabled={busy} onClick={supprimer} onBlur={() => setSuppr(false)}>{suppr ? 'Retirer ?' : 'Retirer'}</button>
         <button className="p" disabled={busy} onClick={() => enregistrer(1)}>{busy ? '…' : i < liste.length - 1 ? 'Valider ›' : `Valider · fin ${z.nom}`}</button>
       </div>
       {liste.slice(i).some(x => etatRevue(x) !== 'revu') && <button className="lien-perdu" onClick={toutValider}>Valider le reste de la zone tel quel</button>}
+      <AjoutVoix open={voix} onClose={() => setVoix(false)} data={data} putEl={putEl} reload={reload} />
       <Picker open={picker === 'resp'} onClose={() => setPicker(null)} title="Qui s'en occupe" items={data.intervenants.map(x => x.nom)} value={e.resp} onPick={v => set('resp', v)} />
     </motion.div>
   )
@@ -220,6 +226,8 @@ export function Bibliotheque({ data, go, zoneIdx, reload }) {
   const [ouverts, setOuverts] = useState(() => new Set(z0 ? [`z:${z0}`] : []))
   const [cree, setCree] = useState(false)
   const [busy, setBusy] = useState(null)
+  const [retire, setRetire] = useState(null)
+  const [voix, setVoix] = useState(false)
   useEffect(() => { api.catalogueListe().then(c => { cache = c; setCat(c) }).catch(err => ui.toast(err.message)) }, [])
   const dedans = c => data.elements.some(e => e.catalogue_id === c.id || norm(e.element) === norm(c.element))
   const cherche = norm(q).trim()
@@ -236,6 +244,14 @@ export function Bibliotheque({ data, go, zoneIdx, reload }) {
     setBusy(c.id)
     try { await api.elementDepuisCatalogue(data.evt, c.id); await reload(); ui.toast(`${c.element} ajouté · à voir dans la revue`) } catch (err) { ui.toast(err.message) }
     setBusy(null)
+  }
+  async function retirer(c) {
+    if (retire !== c.id) { setRetire(c.id); return }
+    const el = data.elements.find(e => e.catalogue_id === c.id) || data.elements.find(e => norm(e.element) === norm(c.element))
+    if (!el) return
+    setBusy(c.id)
+    try { await api.elementSupprimer(el.id); await reload(); ui.toast(`${c.element} retiré de l'événement`) } catch (err) { ui.toast(/facture/.test(err.message) ? 'Une facture est déjà liée : impossible de le retirer' : err.message) }
+    setBusy(null); setRetire(null)
   }
   const retour = zoneIdx !== undefined ? `revue/${zoneIdx}` : 'revue'
   return (
@@ -259,7 +275,7 @@ export function Bibliotheque({ data, go, zoneIdx, reload }) {
                   return (
                     <div key={c.id} className="row rv-it">
                       <div><div className="name">{c.element}</div><div className="info">{[m?.l.toLowerCase(), px ? `${dec(px)} MAD` : null, regle({ base: c.base, qte_par_base: c.qte_par_base }, null)].filter(Boolean).join(' · ')}</div></div>
-                      {ok ? <i className="rv-ok">✓</i> : <motion.button whileTap={{ scale: .9 }} className="rv-plus" disabled={busy === c.id} onClick={() => ajouter(c)}>{busy === c.id ? '…' : '+'}</motion.button>}
+                      {ok ? <motion.button whileTap={{ scale: .9 }} className={retire === c.id ? 'rv-moins' : 'rv-ok'} disabled={busy === c.id} onClick={() => retirer(c)} onBlur={() => setRetire(null)} aria-label="Retirer">{busy === c.id ? '…' : retire === c.id ? 'Retirer' : '✓'}</motion.button> : <motion.button whileTap={{ scale: .9 }} className="rv-plus" disabled={busy === c.id} onClick={() => ajouter(c)}>{busy === c.id ? '…' : '+'}</motion.button>}
                     </div>
                   )
                 })}</div>}
@@ -268,7 +284,8 @@ export function Bibliotheque({ data, go, zoneIdx, reload }) {
           })}
         </div>
       ))}</div>}
-      <div className="px"><button className="btn primary block rv-new" onClick={() => setCree(true)}>+ Créer un nouvel article</button></div>
+      <div className="px rv-adds" style={{ padding: 0 }}><button className="rv-add" onClick={() => setVoix(true)}>🎙 Dire un article</button><button className="rv-add" onClick={() => setCree(true)}>+ Créer à la main</button></div>
+      <AjoutVoix open={voix} onClose={() => setVoix(false)} data={data} putEl={() => {}} reload={reload} />
       <Creer open={cree} onClose={() => setCree(false)} data={data} zone={zone} nom={q} reload={reload} onCree={() => { setQ(''); api.catalogueListe().then(c => { cache = c; setCat(c) }) }} />
     </motion.div>
   )
