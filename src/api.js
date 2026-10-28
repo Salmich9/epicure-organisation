@@ -10,6 +10,7 @@ const MESSAGES = {
   code_incorrect: 'Code incorrect.',
   lien_invalide: 'Ce lien n\'est plus valide.',
   manque_obligatoire: 'Notez ce qui manque.',
+  reserve_admin: 'Seuls Salmane, Hamza et Ghali peuvent supprimer un événement.',
   element_facture: 'Une facture est déjà rangée sur cet élément : retire-la d\'abord.',
 }
 
@@ -110,6 +111,7 @@ export const api = {
   actionModifier: (id, p) => rpc('action_modifier', { p_token: store.token, p_id: id, p }),
   derouleModifier: (id, p) => rpc('deroule_modifier', { p_token: store.token, p_id: id, p }),
   evenementCreer: (p) => rpc('evenement_creer', { p_token: store.token, p }),
+  evenementSupprimer: (evt) => rpc('evenement_supprimer', { p_token: store.token, p_evt: evt }),
   evenementMaj: (evt, p) => rpc('evenement_maj', { p_token: store.token, p_evt: evt, p }),
   chiffrageContexte: (evt) => rpc('chiffrage_contexte', { p_token: store.token, p_evt: evt }),
   chiffrageEnregistrer: (evt, lignes, hyp, coef) => rpc('chiffrage_enregistrer', { p_token: store.token, p_evt: evt, p_lignes: lignes, p_hyp: hyp ?? '', p_coef: coef ?? null }),

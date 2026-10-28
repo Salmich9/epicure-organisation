@@ -725,3 +725,8 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .mn-row button { height: 30px; min-width: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid var(--line); background: var(--bg); font-weight: 800; font-size: 12.5px; }
 .mn-row button.on { background: var(--red); color: #fff; border-color: var(--red); }
 .mn-up { width: 100%; margin: 12px 0 0; }
+
+/* Supprimer un événement */
+.evt-suppr { display: block; width: calc(100% - 28px); margin: 28px 14px 0; padding: 13px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--red) 40%, transparent); color: var(--red); background: transparent; font-weight: 750; font-size: 13.5px; }
+.evt-suppr.on { background: var(--red); color: #fff; border-color: var(--red); }
+.sheet .evt-suppr { width: 100%; margin: 22px 0 0; }

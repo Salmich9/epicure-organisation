@@ -100,6 +100,20 @@ export function Perimetre({ data, kind, go, open }) {
   )
 }
 
+/* ---------- Supprimer un événement : deux touchers, une copie part à la corbeille ---------- */
+export function SupprimerEvt({ data, go, apres }) {
+  const ui = useUI()
+  const ev = data.evenements.find(x => x.id === data.evt) || {}
+  const [sur, setSur] = useState(false)
+  const [busy, setBusy] = useState(false)
+  async function supprimer() {
+    if (!sur) { setSur(true); return }
+    setBusy(true)
+    try { await api.evenementSupprimer(ev.id); ui.toast(`${ev.nom} supprimé`); apres?.(); go('accueil') } catch (e) { ui.toast(e.message); setBusy(false); setSur(false) }
+  }
+  return <button className={`evt-suppr ${sur ? 'on' : ''}`} disabled={busy} onClick={supprimer} onBlur={() => setSur(false)}>{busy ? '…' : sur ? `Sûr ? ${ev.nom} et tout son contenu seront effacés` : 'Supprimer l\'événement'}</button>
+}
+
 /* ---------- Plan de salle (accueil) ---------- */
 export function Plan({ data, go, openEvt, mine, setMine, reload }) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
@@ -161,6 +175,7 @@ export function Plan({ data, go, openEvt, mine, setMine, reload }) {
           )
         })}
       </div>
+      {!mine && <SupprimerEvt data={data} go={go} />}
     </motion.div>
   )
 }

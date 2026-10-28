@@ -13,7 +13,7 @@ import { Menu } from './menu'
 import { StaffEvt, StaffFiche, StaffListe, StaffNoter } from './staff'
 import { Accueil, Voix } from './accueil'
 import { DevisClient, Vente, estVente } from './cycle'
-import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
+import { Decider, Deleguer, Notes, Perimetre, Plan, SupprimerEvt, Zone } from './screens'
 import { Copilote, Proposition, prechargerChallenge } from './copilote'
 import { Planning } from './planning'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
@@ -235,6 +235,7 @@ export default function App() {
           <input inputMode="numeric" defaultValue={ev.invites || ''} id="inv" />
           <button className="btn primary" style={{ flex: 'none' }} onClick={async () => { const v = Number(document.getElementById('inv').value); if (!v) return; await api.majInvites(data.evt, v); setEvtSheet(false); ui.toast('Quantités recalculées'); load(data.evt) }}>Mettre à jour</button>
         </div>
+        <SupprimerEvt data={data} go={go} apres={() => setEvtSheet(false)} />
         <button className="btn block" style={{ marginTop: 22 }} onClick={() => { store.token = null; location.reload() }}>Se déconnecter ({data.moi})</button>
       </Sheet>
     </div>
