@@ -8,6 +8,7 @@ import { aImputer } from './pieces'
 import { Argent, Rail } from './cycle'
 import { compteRevue } from './revue'
 import { CadrageBarre } from './cadrage'
+import { Enveloppes } from './postes'
 
 export function zoneStats(data, z) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
@@ -117,49 +118,34 @@ export function SupprimerEvt({ data, go, apres }) {
 /* ---------- Plan de salle (accueil) ---------- */
 export function Plan({ data, go, openEvt, mine, setMine, reload }) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
-  const cout = data.elements.reduce((s, e) => s + n(e.cout), 0)
-  const env = data.zones.reduce((s, z) => s + envZone(z, ev), 0)
-  const budget = n(ev.budget) || env
-  const facture = data.elements.reduce((s, e) => s + n(e.facture), 0)
   const nbImp = mine ? 0 : aImputer(data).length
-  const ecarts = data.zones.map((z, i) => { const s = zoneStats(data, z); return { z, i, s, p: s.env ? (s.facture / s.env) * 100 : 0 } }).filter(x => x.s.facture > 0 && x.s.env).sort((a, b) => b.p - a.p).slice(0, 5)
   const ia = useBulles(data)
   const bulles = [...regles(data), ...ia]
+  const [zones, setZones] = useState(false)
   const marque = z => bulles.some(b => b.type === 'avertissement' && b.zone === z) ? 'warn' : bulles.some(b => b.zone === z) ? 'idea' : null
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head" onClick={openEvt}>
-        <button className="back" onClick={x => { x.stopPropagation(); go('accueil') }}>‹ Accueil</button>
+        <button className="back" onClick={x => { x.stopPropagation(); go('accueil') }}>‹ Événements</button>
         <div className="when">{dateLongue(ev.date)}{ev.date ? ` · ${dans(ev.date, data.aujourdhui)}` : ''}</div>
         <h1>{ev.nom}</h1>
-        <div className="meta">{ev.invites ? `${ev.invites} invités` : 'Invités à fixer'} · {data.elements.length} éléments {mine ? 'à ta charge' : 'suivis'}</div>
+        <div className="meta">{[ev.invites ? `${ev.invites} invités` : 'Invités à fixer', ev.entite, ev.lieu].filter(Boolean).join(' · ')}</div>
       </div>
       {!mine && <><Rail statut={ev.statut} /><Argent data={data} go={go} reload={reload} /></>}
       {!mine && <CadrageBarre data={data} go={go} reload={reload} />}
-      {!mine && (() => { const c = compteRevue(data), tot = c.revu + c.a_revoir + c.pas_vu, cd = ev.cadrage || {}; return (
-        <motion.button className={`rv-entree${!tot && !cd.fait_le && !cd.passe && !['Réalisé', 'Clôturé', 'Perdu'].includes(ev.statut) ? ' eteint' : ''}`} whileTap={{ scale: .98 }} onClick={() => go(tot ? 'revue' : 'biblio')}>
-          <div><b>Revue</b><span>{!tot ? 'rien encore : pars de la bibliothèque' : c.revu === tot ? 'tout est revu' : `${tot - c.revu} chose${tot - c.revu > 1 ? 's' : ''} à passer en revue${c.a_revoir ? ` · ${c.a_revoir} changée${c.a_revoir > 1 ? 's' : ''}` : ''}`}</span></div>
-          <i><em style={{ width: `${tot ? (c.revu / tot) * 100 : 0}%` }} /></i><strong>{c.revu}/{tot}</strong>›
-        </motion.button>) })()}
-      <Camps data={data} go={go} mine={mine} setMine={setMine} />
-      <div className="couts">
-        <div className="trio">
-          <div><b>{mad(budget)}</b>prévu</div>
-          <div><b>{mad(cout)}</b>{mine ? 'à ta charge' : 'engagé'}</div>
-          <div className={facture > budget ? 'rouge' : ''}><b>{mad(facture)}</b>facturé</div>
-        </div>
-        <div className="pile"><i className="eng" style={{ width: `${Math.min(100, budget ? (cout / budget) * 100 : 0)}%` }} /><i className="fac" style={{ width: `${Math.min(100, budget ? (facture / budget) * 100 : 0)}%`, background: facture > budget ? 'var(--red)' : undefined }} /></div>
-        <div className="leg"><span className="fac">facturé · pièces reçues</span><span className="eng">engagé</span><button className="esp-lien" onClick={() => go('especes')}>💵 Espèces ›</button><Info text="Prévu : le budget retenu. Engagé : le coût de ce qui est commandé dans l'organisation. Facturé : les pièces des fournisseurs imputées sur l'événement." /></div>
+      {!mine && <Enveloppes data={data} go={go} reload={reload} />}
+      <div className="pv-liens">
+        {nbImp > 0 && <motion.button className="imp" whileTap={{ scale: .98 }} onClick={() => go('pieces')}><span className="n">{nbImp}</span>pièce{nbImp > 1 ? 's' : ''} à imputer<span className="go">›</span></motion.button>}
+        <button className="esp-lien" onClick={() => go('especes')}>💵 Espèces ›</button> · <button className="esp-lien" onClick={() => go('planning')}>Planning ›</button> · <button className="esp-lien" onClick={() => setZones(!zones)}>Vue par zone {zones ? '▾' : '›'}</button>
       </div>
-      {nbImp > 0 && <motion.button className="imp" whileTap={{ scale: .98 }} onClick={() => go('pieces')}><span className="n">{nbImp}</span>pièce{nbImp > 1 ? 's' : ''} à imputer<span className="go">›</span></motion.button>}
-      {ecarts.length > 0 && <div className="ecarts">{ecarts.map(x => (
-        <button key={x.z.nom} className="zr" onClick={() => go(`zone/${x.i}`)}><span className="n">{x.z.nom}</span>
-          <span className="mb"><i style={{ width: `${Math.min(100, x.p)}%`, background: x.p > 100 ? 'var(--red)' : undefined }} /></span>
-          <span className={`ecart ${x.p > 105 ? 'up' : x.p >= 95 ? 'ok' : 'mu'}`}>{x.p > 100 ? `+${Math.round(x.p - 100)} %` : `${Math.round(x.p)} %`}</span></button>
-      ))}</div>}
-      {(() => { const k = data.elements.filter(e => OUVERT.includes(e.etat) || ALERTE.includes(e.etat)).length; return k > 0 && <motion.button className="decide-link" whileTap={{ scale: .98 }} onClick={() => go('decider')}><span>À décider</span><span className="pill red">{k}</span></motion.button> })()}
       <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>
       <Bulles items={bulles} go={go} />
+      {zones && <><Camps data={data} go={go} mine={mine} setMine={setMine} />
+      {!mine && (() => { const c = compteRevue(data), tot = c.revu + c.a_revoir + c.pas_vu; return tot > 0 && (
+        <motion.button className="rv-entree" whileTap={{ scale: .98 }} onClick={() => go('revue')}>
+          <div><b>Revue</b><span>{c.revu === tot ? 'tout est revu' : `${tot - c.revu} chose${tot - c.revu > 1 ? 's' : ''} à passer en revue`}</span></div>
+          <i><em style={{ width: `${(c.revu / tot) * 100}%` }} /></i><strong>{c.revu}/{tot}</strong>›
+        </motion.button>) })()}
       <div className="plan" id="plan">
         {data.zones.map((z, i) => {
           const s = zoneStats(data, z)
@@ -174,7 +160,7 @@ export function Plan({ data, go, openEvt, mine, setMine, reload }) {
             </motion.button>
           )
         })}
-      </div>
+      </div></>}
       {!mine && <SupprimerEvt data={data} go={go} />}
     </motion.div>
   )

@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { api } from './api'
 import { useUI } from './ui'
 import { Delegues } from './equipe'
+import { couleur, k } from './postes'
+import { n } from './ui'
 
 /* Cadrage : une question par écran ; à la fin, le copilote remplit la revue depuis la bibliothèque */
 const has = (v, x) => Array.isArray(v) && v.includes(x)
@@ -65,34 +67,31 @@ export function Cadrage({ data, go, fin, reload }) {
   async function preparer(r) {
     setEtat('prepare')
     try {
-      const d = await api.copilote('cadrage', { reponses: r })
-      setRes(d.cadrage?.resultat || null); setEtat('fin'); reload?.()
+      await api.cadrageMaj(data.evt, { reponses: r, fait_le: new Date().toISOString() })
+      await reload?.(); setEtat('fin')
     } catch (e) { setEtat('questions'); ui.bubble(e.message) }
   }
 
   if (etat === 'prepare') return (
     <div className="cd cd-prep">
       <motion.div className="cd-orbe" animate={{ scale: [1, 1.12, 1], opacity: [.7, 1, .7] }} transition={{ repeat: Infinity, duration: 1.6 }} />
-      <div className="cd-q" style={{ marginTop: 28, textAlign: 'center' }}>Je prépare ta liste…</div>
-      <div className="cd-s" style={{ textAlign: 'center' }}>Une minute environ.</div>
+      <div className="cd-q" style={{ marginTop: 28, textAlign: 'center' }}>Je pose les enveloppes…</div>
     </div>
   )
 
-  if (etat === 'fin') return (
+  if (etat === 'fin') {
+    const ps = data.postes || []
+    const tot = ps.reduce((s, p) => s + n(p.prevu), 0)
+    return (
     <motion.div className="cd" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="cd-top"><button onClick={() => go('')}>‹ Plan</button><button className="m" onClick={() => { setI(0); setEtat('questions') }}>modifier</button></div>
-      <div className="cd-big">{res?.ajoutes ?? 0}</div>
-      <div className="cd-bt">article{res?.ajoutes > 1 ? 's' : ''} ajouté{res?.ajoutes > 1 ? 's' : ''} à ta revue</div>
-      {res?.resume && <div className="cd-why"><small>PARCE QUE</small>{res.resume}</div>}
-      <div className="cd-lst">
-        <div><i style={{ background: 'var(--accent)' }} /><p>À nous<span>{res?.nous_txt || ' '}</span></p><b>{res?.nous ?? 0}</b></div>
-        <div><i style={{ background: 'var(--mute)' }} /><p>Tiers<span>{res?.tiers_txt || 'rien chez un tiers'}</span></p><b>{res?.tiers ?? 0}</b></div>
-        <div><i style={{ background: 'var(--gold)' }} /><p>À trancher<span>{res?.clarifier_txt || 'rien'}</span></p><b>{res?.clarifier ?? 0}</b></div>
-      </div>
+      <div className="cd-top"><button onClick={() => go('')}>‹ Événement</button><button className="m" onClick={() => { setI(0); setEtat('questions') }}>modifier</button></div>
+      <div className="cd-big">{ps.length}</div>
+      <div className="cd-bt">enveloppes posées · {k(tot)} MAD prévus</div>
+      <div className="cd-lst">{ps.map(p => <div key={p.cle}><i style={{ background: couleur(p.resp) }} /><p>{p.type === 'matiere' ? `Matière ${p.nom.toLowerCase()}` : p.nom}<span>{p.resp || 'à attribuer'}</span></p><b>{k(p.prevu)}</b></div>)}</div>
       <Delegues data={data} go={go} />
-      <div className="cd-pied"><motion.button whileTap={{ scale: .97 }} className="p" onClick={() => go('revue')}>Passer en revue</motion.button></div>
+      <div className="cd-pied"><motion.button whileTap={{ scale: .97 }} className="p" onClick={() => go('')}>Voir les enveloppes</motion.button></div>
     </motion.div>
-  )
+  ) }
 
   const trail = qs.slice(0, i).map((x, j) => [j, court(x.k, rep[x.k])]).filter(x => x[1])
   return (
@@ -113,7 +112,7 @@ export function Cadrage({ data, go, fin, reload }) {
           {!q.texte && <button className="cd-skip" onClick={() => { const r = { ...rep, [q.k]: '?' }; setRep(r); suivant(r) }}>Je ne sais pas encore</button>}
         </motion.div>
       </AnimatePresence>
-      {(q.multi || q.texte) && <div className="cd-pied"><motion.button whileTap={{ scale: .97 }} className="p" disabled={q.multi && !(Array.isArray(v) && v.length)} onClick={() => suivant()}>{i + 1 >= qs.length ? 'Préparer ma liste' : 'Suivant'}</motion.button></div>}
+      {(q.multi || q.texte) && <div className="cd-pied"><motion.button whileTap={{ scale: .97 }} className="p" disabled={q.multi && !(Array.isArray(v) && v.length)} onClick={() => suivant()}>{i + 1 >= qs.length ? 'Poser les enveloppes' : 'Suivant'}</motion.button></div>}
     </div>
   )
 }
@@ -128,7 +127,7 @@ export function CadrageBarre({ data, go, reload }) {
   const nb = Object.keys(c.reponses || {}).length
   return <>
     <motion.button className="rv-entree cd-entree" whileTap={{ scale: .98 }} onClick={() => go('cadrage')}>
-      <div><b>Cadrage</b><span>{nb ? 'à terminer · ' : ''}une dizaine de questions, puis ta liste se remplit</span></div><strong>{nb ? 'Reprendre' : 'Commencer'}</strong>›
+      <div><b>Cadrage</b><span>{nb ? 'à terminer · ' : ''}une dizaine de questions, puis les enveloppes se posent</span></div><strong>{nb ? 'Reprendre' : 'Commencer'}</strong>›
     </motion.button>
     <div className="cd-ok"><button onClick={() => go('menu')}>Menu ›</button> · <button onClick={() => go('equipe')}>Équipe ›</button> · <button onClick={() => go('staff-evt')}>Staff ›</button> · <button onClick={() => api.cadrageMaj(data.evt, { passe: true }).then(reload).catch(e => ui.toast(e.message))}>passer, je remplis à la main</button></div>
   </>

@@ -9,7 +9,7 @@ const MESSAGES = {
   session_expiree: 'Session expirée, reconnectez-vous.',
   code_incorrect: 'Code incorrect.',
   lien_invalide: 'Ce lien n\'est plus valide.',
-  manque_obligatoire: 'Notez ce qui manque.',
+  manque_obligatoire: 'Il manque quoi, coût, qui ou quand.',
   reserve_admin: 'Seuls Salmane, Hamza et Ghali peuvent supprimer un événement.',
   element_facture: 'Une facture est déjà rangée sur cet élément : retire-la d\'abord.',
 }
@@ -90,6 +90,15 @@ export const api = {
   encaissementAjouter: (evt, montant, date, note, mode) => rpc('encaissement_ajouter', { p_token: store.token, p_evt: evt, p_montant: montant, p_date: date, p_note: note, p_mode: mode || 'Espèces' }),
   evenementConfirmer: (evt, prix, avance, mode, date) => rpc('evenement_confirmer', { p_token: store.token, p_evt: evt, p_prix: prix, p_avance: avance || 0, p_mode: mode, p_date: date }),
   accueil: () => rpc('accueil', { p_token: store.token }),
+  aujourdhui: () => rpc('aujourdhui', { p_token: store.token }),
+  posteMaj: (evt, cle, p) => rpc('poste_maj', { p_token: store.token, p_evt: evt, p_cle: cle, p }),
+  ligneAjouter: (evt, p) => rpc('ligne_ajouter', { p_token: store.token, p_evt: evt, p }),
+  actionEnregistrer: (evt, id, p) => rpc('action_enregistrer', { p_token: store.token, p_evt: evt, p_id: id || null, p }),
+  actionSupprimer: (id) => rpc('action_supprimer', { p_token: store.token, p_id: id }),
+  dicter: async (texte, poste) => {
+    const r = await fetch(`${URL}/functions/v1/orga-dicter`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt: store.evt, texte, poste }) })
+    const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Dictée non comprise.'); return d
+  },
   elementRevoir: (id, p) => rpc('element_revoir', { p_token: store.token, p_id: id, p: p || {} }),
   catalogueListe: () => rpc('catalogue_liste', { p_token: store.token }),
   elementDepuisCatalogue: (evt, cat) => rpc('element_depuis_catalogue', { p_token: store.token, p_evt: evt, p_cat: cat }),

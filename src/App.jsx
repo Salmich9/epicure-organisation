@@ -16,10 +16,11 @@ import { DevisClient, Vente, estVente } from './cycle'
 import { Decider, Deleguer, Notes, Perimetre, Plan, SupprimerEvt, Zone } from './screens'
 import { Copilote, Proposition, prechargerChallenge } from './copilote'
 import { Planning } from './planning'
+import { Aujourdhui, Poste } from './postes'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
-  const [h, setH] = useState(location.hash ? location.hash.slice(2) : 'accueil')
+  const [h, setH] = useState(location.hash && location.hash.length > 2 ? location.hash.slice(2) : 'aujourdhui')
   useEffect(() => { const f = () => setH(location.hash.slice(2)); addEventListener('hashchange', f); return () => removeEventListener('hashchange', f) }, [])
   return [h, to => { location.hash = '/' + to; window.scrollTo(0, 0) }]
 }
@@ -122,6 +123,7 @@ export default function App() {
 
   const load = useCallback(async (evt) => {
     try {
+      if (evt) store.evt = evt
       let d = await api.donnees(evt || store.evt)
       // Événement mémorisé supprimé entre-temps : on retombe sur le prochain événement
       if (!d.evenements.some(x => x.id === d.evt)) d = await api.donnees(null)
@@ -164,10 +166,14 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route.startsWith('zone') || route.startsWith('perimetre') || route === 'copilote' || route === 'decider' || route === 'nouveau' || route === 'chiffrer' || route === 'pieces' || route === 'especes' || route === 'budget' || route === 'devis' || route.startsWith('bilan') || route.startsWith('revue') || route.startsWith('cadrage') || route === 'equipe' || route === 'menu' || route.startsWith('staff') || route.startsWith('biblio') || route === '' || route === 'accueil' || route === 'voix' ? 'plan' : route
+  const tab = route === 'aujourdhui' ? 'auj' : route === 'mapart' ? 'mapart' : route === 'notes' ? 'notes' : 'evts'
   let screen
   const ouvrir = id => { go(''); load(id) }
-  if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
+  const ouvrirPoste = async (id, cle) => { await load(id); go(cle ? `poste/${cle}` : '') }
+  if (route === 'aujourdhui') screen = <Aujourdhui key="auj" go={go} ouvrirPoste={ouvrirPoste} />
+  else if (route === 'mapart') screen = <Aujourdhui key="mp" mapart go={go} ouvrirPoste={ouvrirPoste} />
+  else if (route.startsWith('poste/')) screen = <Poste key={route} data={data} cle={route.split('/')[1]} go={go} openEl={setOpenEl} reload={() => load(data.evt)} />
+  else if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
   else if (route === 'voix') screen = <Voix data={data} go={go} ouvrir={ouvrir} />
   else if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
@@ -201,16 +207,16 @@ export default function App() {
       <AnimatePresence mode="wait">{screen}</AnimatePresence>
 
       <nav className="tabs">
-        <button className={tab === 'plan' ? 'on' : ''} onClick={() => go('accueil')}>{Icon.plan}Accueil</button>
-        <button className={tab === 'planning' ? 'on' : ''} onClick={() => go('planning')}>{Icon.planning}Planning</button>
+        <button className={tab === 'auj' ? 'on' : ''} onClick={() => go('aujourdhui')}>{Icon.planning}Aujourd'hui</button>
+        <button className={tab === 'evts' ? 'on' : ''} onClick={() => go('accueil')}>{Icon.plan}Événements</button>
         <motion.button whileTap={{ scale: .9 }} className={`mic ${listening ? 'rec' : ''}`} onClick={toggleMic} aria-label="Dicter une note">{Icon.mic}</motion.button>
-        <button className={tab === 'deleguer' ? 'on' : ''} onClick={() => go('deleguer')}>{Icon.deleguer}Déléguer</button>
+        <button className={tab === 'mapart' ? 'on' : ''} onClick={() => go('mapart')}>{Icon.deleguer}Ma part</button>
         <button className={tab === 'notes' ? 'on' : ''} onClick={() => go('notes')}>{Icon.notes}Notes</button>
       </nav>
 
       <Proposition prop={prop} data={data} onClose={() => setProp(null)} onDone={() => { setProp(null); load(data.evt) }} />
 
-      {openEl && <ElementSheet el={openEl} data={data} onClose={() => setOpenEl(null)} onSaved={putEl} />}
+      {openEl && <ElementSheet el={openEl} data={data} onClose={() => { setOpenEl(null); if (route.startsWith('poste/')) load(data.evt) }} onSaved={putEl} />}
 
       <Sheet open={!!addSheet} onClose={() => setAddSheet(null)} foot={<button className="btn primary" onClick={addEl}>Ajouter</button>}>
         <div className="el-kicker">{addSheet}</div>
