@@ -854,3 +854,10 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .hi-t.evenement { background: color-mix(in srgb, #A3456B 16%, transparent); color: #A3456B; }
 .hi-r { flex: none; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; background: var(--ink); color: var(--bg); }
 .hi-urg { color: var(--red); font-weight: 600; }
+
+/* Menu ⋯ d'une action */
+.am-l { font-size: 11.5px; font-weight: 800; color: var(--mute); text-transform: uppercase; letter-spacing: .4px; margin: 18px 0 8px; }
+.am-q { display: inline-flex; align-items: center; gap: 6px; padding-left: 6px; }
+.am-d { margin-top: 10px; }
+.au-ac .pv-3 { margin-left: -4px; }
+.au-tard { display: block; width: 100%; text-align: left; }

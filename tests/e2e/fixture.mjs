@@ -30,5 +30,5 @@ export const donnees = {
   elements, actions, postes, equipe_evt: { cuisine: 'Salima', achats: 'Amina', production: 'Ouadia', coordination: 'Ghali' },
   notes: [], deroule: [], pieces: [], factures: [], depot: [], reserve: {},
 }
-export const aujourdhui = { moi: 'Salmane', aujourdhui: J, actions: actions.map(a => ({ ...a, evt_nom: evt.nom, evt_date: evt.date, poste_nom: postes.find(p => p.cle === a.poste).nom })), evenements: [], intervenants: [] }
+export const aujourdhui = { moi: 'Salmane', aujourdhui: J, actions: actions.map(a => ({ ...a, evt_nom: evt.nom, evt_date: evt.date, poste_nom: postes.find(p => p.cle === a.poste).nom })), evenements: [], intervenants: donnees.intervenants }
 export const accueil = { moi: 'Salmane', aujourdhui: J, evenements: [evt, evt2].map(e => ({ ...e, n_elements: 4, n_revus: 1, pieces_a_imputer: 0, encaisse: 0, chiffre: true })) }

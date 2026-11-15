@@ -124,10 +124,15 @@ export function Poste({ data, cle, go, openEl, reload }) {
     setDepl(null)
     try { await api.ligneDeplacer(e.id, vers.cle); await reload(); ui.annulable(`Déplacé vers ${vers.nom}`, async () => { await api.ligneDeplacer(e.id, cle); reload() }) } catch (er) { ui.toast(er.message) }
   }
-  async function repousser(a, jours) {
+  async function dater(a, quand) {
     setMenu(null)
-    const avant = a.echeance, base = jours === 1 ? data.aujourdhui : (a.echeance && a.echeance > data.aujourdhui ? a.echeance : data.aujourdhui)
-    try { await api.actionEnregistrer(data.evt, a.id, { quand: plus(base, jours) }); await reload(); ui.annulable(`Repoussé au ${ddmm(plus(base, jours))}`, async () => { await api.actionEnregistrer(data.evt, a.id, { quand: avant }); reload() }) } catch (e) { ui.toast(e.message) }
+    const avant = a.echeance
+    try { await api.actionEnregistrer(data.evt, a.id, { quand }); await reload(); ui.annulable(`Repoussé au ${ddmm(quand)}`, async () => { await api.actionEnregistrer(data.evt, a.id, { quand: avant }); reload() }) } catch (e) { ui.toast(e.message) }
+  }
+  async function attribuer(a, qui) {
+    setMenu(null)
+    const avant = a.resp
+    try { await api.actionEnregistrer(data.evt, a.id, { qui }); await reload(); ui.annulable(`Confié à ${qui}`, async () => { await api.actionEnregistrer(data.evt, a.id, { qui: avant }); reload() }) } catch (e) { ui.toast(e.message) }
   }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -169,22 +174,18 @@ export function Poste({ data, cle, go, openEl, reload }) {
       </div>
       <ActionSheet open={!!act} init={act} data={data} poste={cle} onClose={() => setAct(null)} onDone={() => { setAct(null); reload() }} />
       <LigneSheet open={lig} data={data} poste={cle} onClose={() => setLig(false)} onDone={() => { setLig(false); reload() }} />
-      <Sheet open={!!menu} onClose={() => setMenu(null)}>
-        {menu && <>
-          <div className="el-name" style={{ fontSize: 24 }}>{menu.t === 'element' ? menu.o.element : menu.t === 'action' ? menu.o.quoi : menu.o.nom}</div>
+      <ActionMenu a={menu?.t === 'action' ? menu.o : null} today={data.aujourdhui} gens={gens(data)} onClose={() => setMenu(null)}
+        onDate={q => dater(menu.o, q)} onQui={q => attribuer(menu.o, q)} onModifier={() => { setAct({ a: menu.o }); setMenu(null) }}
+        onDupliquer={() => dupliquer('action', menu.o.id)} onSupprimer={() => supprimer('action', menu.o.id, menu.o.quoi)} />
+      <Sheet open={!!menu && menu.t !== 'action'} onClose={() => setMenu(null)}>
+        {menu && menu.t !== 'action' && <>
+          <div className="el-name" style={{ fontSize: 24 }}>{menu.t === 'element' ? menu.o.element : menu.o.nom}</div>
           <div className="ee-menu">
             {menu.t === 'element' && <>
               <button onClick={() => { setMenu(null); openEl(menu.o) }}>Modifier<span>›</span></button>
               <button onClick={() => { setDepl(menu.o); setMenu(null) }}>Déplacer vers…<span>›</span></button>
               <button onClick={() => dupliquer('element', menu.o.id)}>Dupliquer<span>⧉</span></button>
               <button className="danger" onClick={() => supprimer('element', menu.o.id, menu.o.element)}>Supprimer</button>
-            </>}
-            {menu.t === 'action' && <>
-              <button onClick={() => { setAct({ a: menu.o }); setMenu(null) }}>Modifier<span>›</span></button>
-              <button onClick={() => repousser(menu.o, 1)}>Repousser à demain<span>›</span></button>
-              <button onClick={() => repousser(menu.o, 3)}>Repousser de 3 jours<span>›</span></button>
-              <button onClick={() => dupliquer('action', menu.o.id)}>Dupliquer<span>⧉</span></button>
-              <button className="danger" onClick={() => supprimer('action', menu.o.id, menu.o.quoi)}>Supprimer</button>
             </>}
             {menu.t === 'poste' && <>
               <button onClick={() => { setMenu(null); setVal(mat ? p.prix_couvert : p.prevu); setEdit(true) }}>Corriger le prévu<span>›</span></button>
@@ -221,6 +222,37 @@ function LigneAction({ a, today, onTap, onCheck, onMenu }) {
       <span className="p">{n(a.cout) ? k(a.cout) : '—'}{a.paye ? <small>payé</small> : null}</span>
       <button className="pv-3" onClick={onMenu} aria-label="Plus d'actions">⋯</button>
     </div>
+  )
+}
+
+/* ---------- Menu ⋯ d'une action : repousser, réattribuer, dupliquer, supprimer ---------- */
+export function ActionMenu({ a, today, gens, sous, onClose, onDate, onQui, onModifier, onOuvrir, onDupliquer, onSupprimer }) {
+  const [choisir, setChoisir] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => { setChoisir(false) }, [a?.id])
+  if (!a) return null
+  const base = a.echeance && a.echeance > today ? a.echeance : today
+  const qui = [...new Set([a.resp, ...gens].filter(Boolean))]
+  return (
+    <Sheet open={!!a} onClose={onClose}>
+      <div className="el-name" style={{ fontSize: 24 }}>{a.quoi}</div>
+      {sous && <div className="meta" style={{ marginTop: 4 }}>{sous}</div>}
+      <div className="am-l">Repousser</div>
+      <div className="chips">
+        <button className="chip" onClick={() => onDate(plus(today, 1))}>Demain</button>
+        <button className="chip" onClick={() => onDate(plus(base, 3))}>+3 jours</button>
+        <button className={`chip ${choisir ? 'on' : ''}`} onClick={() => setChoisir(!choisir)}>Choisir…</button>
+      </div>
+      {choisir && <input ref={ref} type="date" className="am-d" min={today} defaultValue={a.echeance || today} onChange={x => x.target.value && onDate(x.target.value)} />}
+      <div className="am-l">Qui s'en charge</div>
+      <div className="chips">{qui.map(g => <button key={g} className={`chip am-q ${g === a.resp ? 'on' : ''}`} onClick={() => g !== a.resp && onQui(g)}><Av nom={g} size={20} />{g}</button>)}</div>
+      <div className="ee-menu">
+        {onModifier && <button onClick={onModifier}>Modifier<span>›</span></button>}
+        {onOuvrir && <button onClick={onOuvrir}>Ouvrir l'enveloppe<span>›</span></button>}
+        <button onClick={onDupliquer}>Dupliquer<span>⧉</span></button>
+        <button className="danger" onClick={onSupprimer}>Supprimer</button>
+      </div>
+    </Sheet>
   )
 }
 
@@ -383,6 +415,8 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
   const ui = useUI()
   const [d, setD] = useState(null)
   const [moi, setMoi] = useState(() => { try { return localStorage.getItem('orga_auj_moi') === '1' } catch { return false } })
+  const [menu, setMenu] = useState(null)
+  const [tard, setTard] = useState(false)
   const charger = () => api.aujourdhui().then(setD).catch(e => ui.toast(e.message))
   useEffect(() => { charger() }, [])
   if (!d) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
@@ -393,7 +427,43 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
     ? [['EN RETARD', L.filter(a => a.statut !== 'Fait' && a.echeance && a.echeance < t)], ['AUJOURD\'HUI', L.filter(a => a.echeance === t)], ['DEMAIN', L.filter(a => a.echeance === dem)],
        ['PLUS TARD', L.filter(a => a.statut !== 'Fait' && a.echeance > dem)], ['SANS DATE', L.filter(a => a.statut !== 'Fait' && !a.echeance)]]
     : [['EN RETARD', L.filter(a => a.statut !== 'Fait' && a.echeance && a.echeance < t)], ['AUJOURD\'HUI', L.filter(a => a.echeance === t)], ['DEMAIN', L.filter(a => a.echeance === dem)]]
-  const plusTard = mapart ? 0 : L.filter(a => a.statut !== 'Fait' && a.echeance > dem).length
+  const lTard = mapart ? [] : L.filter(a => a.statut !== 'Fait' && a.echeance > dem).sort((x, y) => x.echeance.localeCompare(y.echeance))
+  const plusTard = lTard.length
+  const equipe = [...new Set([d.moi, ...(d.intervenants || []).map(i => i.nom), ...d.actions.map(a => a.resp)].filter(Boolean))]
+  const maj = (a, p) => setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, ...p } : y) }))
+  async function changer(a, champ, v, texte) {
+    setMenu(null)
+    const col = champ === 'quand' ? 'echeance' : 'resp', avant = a[col]
+    maj(a, { [col]: v })
+    try {
+      await api.actionEnregistrer(a.evenement_id, a.id, { [champ]: v })
+      ui.annulable(texte, async () => { maj(a, { [col]: avant }); try { await api.actionEnregistrer(a.evenement_id, a.id, { [champ]: avant }) } catch (e) { ui.toast(e.message); charger() } })
+    } catch (e) { ui.toast(e.message); charger() }
+  }
+  async function dupliquer(a) { setMenu(null); try { await api.objetDupliquer('action', a.id); await charger(); ui.toast('Dupliqué') } catch (e) { ui.toast(e.message) } }
+  async function supprimer(a) {
+    setMenu(null)
+    try {
+      const cid = await api.objetSupprimer('action', a.id, a.evenement_id)
+      setD(x => ({ ...x, actions: x.actions.filter(y => y.id !== a.id) }))
+      ui.annulable(`« ${a.quoi} » supprimé`, async () => { try { await api.objetRestaurer(cid); charger() } catch (e) { ui.toast(e.message) } })
+    } catch (e) { ui.toast(e.message) }
+  }
+  const Carte = a => {
+    const j = a.evt_date ? Math.round((new Date(a.evt_date) - new Date(t)) / 864e5) : null
+    return (
+      <div key={a.id} className={`au-ac ${a.statut === 'Fait' ? 'fait' : ''}`}>
+        <motion.button whileTap={{ scale: .85 }} className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={() => cocher(a)} aria-label="Fait" />
+        <button className="x" onClick={() => ouvrirPoste(a.evenement_id, a.poste)}>
+          <b>{a.quoi}</b>
+          <span>{j !== null && j >= 0 && j <= 7 && <i className="pv-j">J-{j}</i>}{[a.evt_nom, a.poste_nom, a.element, a.logistique?.mode === 'livre' ? `livré${a.heure ? ` ${a.heure}` : ''}` : a.logistique?.mode === 'recuperer' ? `à récupérer${a.heure ? ` ${a.heure}` : ''}` : null, a.logistique?.retour_j1 ? 'retour J+1' : null].filter(Boolean).join(' · ')}</span>
+        </button>
+        <div className="h">{n(a.cout) ? k(a.cout) : '—'}<small>{jourCourt(a.echeance, t)}</small></div>
+        <Av nom={a.resp} onClick={() => setMenu(a)} />
+        <button className="pv-3" onClick={() => setMenu(a)} aria-label="Plus d'actions">⋯</button>
+      </div>
+    )
+  }
   async function cocher(a) {
     setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, statut: a.statut === 'Fait' ? 'À faire' : 'Fait' } : y) }))
     try { await api.actionEnregistrer(a.evenement_id, a.id, { fait: a.statut !== 'Fait' }) } catch (e) { ui.toast(e.message); charger() }
@@ -405,29 +475,20 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
         {mapart && <div className="meta">Ce qui est à ton nom, tous événements.</div>}</div>
       {!mapart && <div className="au-seg"><button className={!moi ? 'on' : ''} onClick={() => { setMoi(false); try { localStorage.setItem('orga_auj_moi', '0') } catch {} }}>Tout le monde</button><button className={moi ? 'on' : ''} onClick={() => { setMoi(true); try { localStorage.setItem('orga_auj_moi', '1') } catch {} }}>Ma part</button></div>}
       <div className="px">
-        {!total && <div className="pv-vide" style={{ marginTop: 20 }}>{mapart ? 'Rien à ton nom.' : 'Rien pour aujourd\'hui ni demain.'}{plusTard ? ` ${plusTard} action${plusTard > 1 ? 's' : ''} plus tard.` : ''}</div>}
+        {!total && <div className="pv-vide" style={{ marginTop: 20 }}>{mapart ? 'Rien à ton nom.' : 'Rien pour aujourd\'hui ni demain.'}</div>}
         {groupes.filter(g => g[1].length).map(([l, g]) => (
           <div key={l}>
             <div className={`pv-st ${l === 'EN RETARD' ? 'rouge' : ''}`}>{l} · {g.length}</div>
-            {g.map(a => {
-              const j = a.evt_date ? Math.round((new Date(a.evt_date) - new Date(t)) / 864e5) : null
-              return (
-                <div key={a.id} className={`au-ac ${a.statut === 'Fait' ? 'fait' : ''}`}>
-                  <motion.button whileTap={{ scale: .85 }} className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={() => cocher(a)} aria-label="Fait" />
-                  <button className="x" onClick={() => ouvrirPoste(a.evenement_id, a.poste)}>
-                    <b>{a.quoi}</b>
-                    <span>{j !== null && j >= 0 && j <= 7 && <i className="pv-j">J-{j}</i>}{[a.evt_nom, a.poste_nom, a.element, a.logistique?.mode === 'livre' ? `livré${a.heure ? ` ${a.heure}` : ''}` : a.logistique?.mode === 'recuperer' ? `à récupérer${a.heure ? ` ${a.heure}` : ''}` : null, a.logistique?.retour_j1 ? 'retour J+1' : null].filter(Boolean).join(' · ')}</span>
-                  </button>
-                  <div className="h">{n(a.cout) ? k(a.cout) : '—'}<small>{jourCourt(a.echeance, t)}</small></div>
-                  <Av nom={a.resp} />
-                </div>
-              )
-            })}
+            {g.map(Carte)}
           </div>
         ))}
-        {plusTard > 0 && total > 0 && <div className="pv-vide">+ {plusTard} action{plusTard > 1 ? 's' : ''} plus tard</div>}
+        {plusTard > 0 && <button className="pv-st au-tard" onClick={() => setTard(!tard)}>PLUS TARD · {plusTard} {tard ? '▾' : '›'}</button>}
+        {tard && lTard.map(Carte)}
         <button className="pv-plus" style={{ marginTop: 18 }} onClick={() => go('accueil')}>Événements ›</button>
       </div>
+      <ActionMenu a={menu} today={t} gens={equipe} sous={menu ? [menu.evt_nom, menu.poste_nom].filter(Boolean).join(' · ') : null} onClose={() => setMenu(null)}
+        onDate={q => changer(menu, 'quand', q, `Repoussé au ${ddmm(q)}`)} onQui={q => changer(menu, 'qui', q, `Confié à ${q}`)}
+        onOuvrir={() => { const a = menu; setMenu(null); ouvrirPoste(a.evenement_id, a.poste) }} onDupliquer={() => dupliquer(menu)} onSupprimer={() => supprimer(menu)} />
     </motion.div>
   )
 }

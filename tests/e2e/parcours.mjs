@@ -86,6 +86,15 @@ if (!cpt.includes(`${Math.round(prevu / 1000)}k`) && !cpt.includes(`${(prevu / 1
 await p.goto(`http://localhost:${port}/#/aujourdhui`); await p.waitForTimeout(500); appels.length = 0
 await p.locator('.au-ac .pv-ck').first().click(); await p.waitForTimeout(300)
 if (!appels.some(a => a[0] === 'action_enregistrer' && a[1].p.fait === true)) echec('cocher une action ne l\'enregistre pas'); else console.log('  ✓ cocher une action l\'enregistre')
+// 3 bis. Aujourd'hui : ⋯ repousser à demain et confier à quelqu'un, avec Annuler
+await p.goto(`http://localhost:${port}/#/aujourdhui`); await p.waitForTimeout(500); appels.length = 0
+await p.locator('.au-ac .pv-3').first().click(); await p.waitForTimeout(400)
+await p.locator('.sheet .chip', { hasText: 'Demain' }).click(); await p.waitForTimeout(400)
+if (!appels.some(a => a[0] === 'action_enregistrer' && a[1].p.quand === '2026-10-29') || !(await p.getByRole('button', { name: 'Annuler' }).count())) echec('repousser à demain depuis Aujourd\'hui'); else console.log('  ✓ repousser à demain depuis Aujourd\'hui, avec Annuler')
+appels.length = 0
+await p.locator('.au-ac .pv-3').first().click(); await p.waitForTimeout(400)
+await p.locator('.sheet .am-q', { hasText: 'Amina' }).click(); await p.waitForTimeout(400)
+if (!appels.some(a => a[0] === 'action_enregistrer' && a[1].p.qui === 'Amina')) echec('confier une action'); else console.log('  ✓ confier une action à quelqu\'un')
 // 4. Carte BB / Epicure proposée seulement pour un événement en espèces
 await p.evaluate(() => localStorage.setItem('orga_evt', 'EVT-T-001'))
 await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500)
