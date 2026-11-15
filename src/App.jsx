@@ -20,6 +20,7 @@ import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
 import { Corbeille, Historique } from './historique'
 import { Comptes } from './comptes'
+import { Chargement, Retour, Tournees } from './terrain'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
 import { synchroniser } from './api'
@@ -202,6 +203,9 @@ export default function App() {
   else if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
   else if (route === 'corbeille' || route === 'corbeille/tout') screen = <Corbeille key={route} data={data} go={go} tout={route === 'corbeille/tout'} reload={() => load(data.evt)} />
   else if (route === 'comptes') screen = <Comptes go={go} />
+  else if (route === 'tournees') screen = <Tournees go={go} />
+  else if (route === 'chargement') screen = <Chargement data={data} go={go} reload={() => load(data.evt)} />
+  else if (route === 'retour') screen = <Retour data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'historique') screen = <Historique data={data} go={go} />
   else if (route === 'voix') screen = <Voix data={data} go={go} ouvrir={ouvrir} />
   else if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />

@@ -145,6 +145,15 @@ const re = appels.find(a => a[0] === 'maj_element')
 if (!re || re[1].p?.reception !== 'Partiel' || re[1].p?.manque !== '6 assiettes') echec('réception depuis le ⋯ : ' + JSON.stringify(re?.[1])); else console.log('  ✓ réception partielle notée depuis le ⋯, avec ce qui manque')
 globalThis.__rep = false
 
+// 4 septies. Lot C : tournées par véhicule, attribuer d'un toucher ; chargement
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/tournees`); await p.waitForTimeout(600); appels.length = 0
+await p.locator('.tr-j .chip', { hasText: 'Demain' }).click(); await p.waitForTimeout(300)
+await p.locator('.tr-c .chip', { hasText: 'Utilitaire' }).click(); await p.waitForTimeout(400)
+if (!appels.some(a => a[0] === 'action_enregistrer' && a[1].p.logistique?.vehicule === 'Utilitaire')) echec('attribuer un véhicule depuis les tournées'); else console.log('  ✓ tournées : un arrêt sans véhicule s\'attribue d\'un toucher')
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/chargement`); await p.waitForTimeout(600); appels.length = 0
+await p.locator('.ch-l .pv-ck').first().click(); await p.waitForTimeout(300)
+if (!appels.some(a => a[0] === 'ligne_terrain' && a[1].p.charge > 0)) echec('cocher une ligne au chargement'); else console.log('  ✓ chargement : cocher une ligne l\'enregistre')
+
 // 4 bis. En-tête de l'événement : corriger sur place, menu ⋯
 await p.goto(`http://localhost:${port}/#/accueil`); await p.waitForTimeout(400); await p.getByText('Mariage Test').first().click(); await p.waitForTimeout(500)
 appels.length = 0

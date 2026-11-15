@@ -136,6 +136,7 @@ export const api = {
   compteRetirer: (nom) => rpc('compte_retirer', { p_token: store.token, p_nom: nom }),
   actionMerci: (id) => rpc('action_merci', { p_token: store.token, p_id: id }),
   maJournee: () => rpc('ma_journee', { p_token: store.token }),
+  ligneTerrain: (id, p) => rpc('ligne_terrain', { p_token: store.token, p_id: id, p }),
   objetDupliquer: (type, id) => rpc('objet_dupliquer', { p_token: store.token, p_type: type, p_id: id }),
   ligneDeplacer: (id, poste) => rpc('ligne_deplacer', { p_token: store.token, p_id: id, p_poste: poste }),
   posteCreer: (evt, nom, type) => rpc('poste_creer', { p_token: store.token, p_evt: evt, p_nom: nom, p_type: type || 'achat' }),

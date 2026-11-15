@@ -13,6 +13,10 @@ describe('jauge prêt', () => {
   it('se limite aux enveloppes demandées', () => {
     expect(pret(data, ['staff'])).toMatchObject({ fait: 1, total: 1, v: 1 })
   })
+  it('compte les retours une fois l\'événement passé', () => {
+    const passe = { ...data, evt: 'E', aujourdhui: '2026-11-02', evenements: [{ id: 'E', date: '2026-11-01' }], elements: data.elements.map(e => e.id === 'L1' ? { ...e, revenu: 200 } : e) }
+    expect(pret(passe)).toMatchObject({ fait: 4, total: 7 })
+  })
   it('vaut 0 sans rien à faire', () => {
     expect(pret({ postes: [], elements: [], actions: [] }).v).toBe(0)
   })

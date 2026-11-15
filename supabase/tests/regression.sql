@@ -94,6 +94,14 @@ begin
     if (mj->>'faites')::int < 1 then raise exception 'ECHEC : journée sans la coche'; end if;
     if (orga.accueil(tok)->'evenements'->0) ? 'pret_total' is not true then raise exception 'ECHEC : jauge absente de l''accueil'; end if;
   end; ok := ok + 1;
+  -- 8 bis ter. Lot C : chargement, retour compté, véhicules
+  declare t jsonb; begin
+    t := orga.ligne_terrain(tok_simple, l->>'id', '{"charge":10}');
+    t := orga.ligne_terrain(tok_simple, l->>'id', '{"revenu":9,"casse":1}');
+    if (t->>'charge')::int <> 10 or (t->>'revenu')::int <> 9 or (t->>'casse')::int <> 1 or (select retour_le from orga.elements where id = l->>'id') is null then raise exception 'ECHEC : terrain %', t; end if;
+    if (select (x->>'revenu')::int from jsonb_array_elements(orga.donnees(tok, ev)->'elements') x where x->>'id' = l->>'id') <> 9 then raise exception 'ECHEC : retour absent des données'; end if;
+    if jsonb_array_length(orga.donnees(tok, ev)->'regles'->'vehicules') < 5 then raise exception 'ECHEC : véhicules par défaut'; end if;
+  end; ok := ok + 1;
   -- 8 ter. Compte Équipe : seulement les événements confirmés où il a quelque chose, jamais le prix ni la marge
   declare te uuid; d jsonb; c jsonb; begin
     insert into orga.membres (nom, pin_hash, admin, role) values ('ZZTestEquipe', extensions.crypt('135790', extensions.gen_salt('bf')), false, 'equipe');

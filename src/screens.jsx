@@ -142,7 +142,7 @@ export function Plan({ data, go, mine, setMine, reload }) {
         {!mine && <Enveloppes data={data} go={go} reload={reload} />}
         {nbImp > 0 && <motion.button className="imp" whileTap={{ scale: .98 }} onClick={() => go('pieces')}><span className="n">{nbImp}</span>pièce{nbImp > 1 ? 's' : ''} à imputer<span className="go">›</span></motion.button>}
         <div className="ev-org">
-          {[['planning', 'Planning'], ['menu', 'Menu'], !equipe && ['equipe', 'Équipe'], !equipe && ['staff-evt', 'Staff'], !equipe && cadre && ['cadrage', 'Cadrage']].filter(Boolean).map(([r, l]) =>
+          {[['tournees', '🚚 Tournées'], ['chargement', 'Chargement'], ev.date && ev.date <= data.aujourdhui && ['retour', 'Retour'], ['planning', 'Planning'], ['menu', 'Menu'], !equipe && ['equipe', 'Équipe'], !equipe && ['staff-evt', 'Staff'], !equipe && cadre && ['cadrage', 'Cadrage']].filter(Boolean).map(([r, l]) =>
             <button key={r} className="chip" onClick={() => go(r)}>{l}</button>)}
         </div>
         <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>

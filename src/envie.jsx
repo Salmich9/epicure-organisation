@@ -12,8 +12,11 @@ export function pret(data, cles) {
   const ids = new Set(ps.flatMap(p => p.lignes || [])), acts = new Set(ps.flatMap(p => p.actions || []))
   const lignes = (data.elements || []).filter(e => ids.has(e.id) && A_RECEVOIR.includes(e.mode_ligne))
   const actions = (data.actions || []).filter(a => acts.has(a.id))
-  const total = lignes.length + actions.length
-  const fait = lignes.filter(e => e.reception === 'Reçu').length + actions.filter(a => a.statut === 'Fait').length
+  // Une fois l'événement passé, chaque ligne prélevée ou louée compte aussi par son retour
+  const ev = (data.evenements || []).find(x => x.id === data.evt)
+  const retours = ev?.date && data.aujourdhui && ev.date < data.aujourdhui ? (data.elements || []).filter(e => ids.has(e.id) && ['prelever', 'louer'].includes(e.mode_ligne)) : []
+  const total = lignes.length + actions.length + retours.length
+  const fait = lignes.filter(e => e.reception === 'Reçu').length + actions.filter(a => a.statut === 'Fait').length + retours.filter(e => e.revenu !== null && e.revenu !== undefined).length
   return { fait, total, v: total ? fait / total : 0 }
 }
 

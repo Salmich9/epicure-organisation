@@ -5,6 +5,8 @@ import { Info, Sheet, dateLongue, ddmm, n, useUI } from './ui'
 import { EnPlace } from './entete'
 import { MicFiche, useCible, useMicro } from './micro'
 import { Anneau, Journee, Merci, Pret, feliciter, pret } from './envie'
+import { arrets } from './terrain'
+import { vehicules } from './regles'
 
 /* Du général au particulier : enveloppes (prévu) → lignes (engagé) → actions (qui, quand, combien) */
 export const k = v => { v = n(v); return Math.abs(v) >= 10000 ? `${(v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: v >= 100000 ? 0 : 1 })} k` : Math.round(v).toLocaleString('fr-FR') }
@@ -381,10 +383,9 @@ export function ActionSheet({ open, init, data, poste, onClose, onDone }) {
         <input value={L.lieu || ''} onChange={x => setL('lieu', x.target.value)} placeholder={L.mode === 'livre' ? 'Où' : 'Chez qui'} />
         <input value={f.heure} onChange={x => set('heure', x.target.value)} placeholder="Heure (16 h)" />
       </div>}
-      <div className="as-2" style={{ marginTop: 8 }}>
-        <input value={L.vehicule || ''} onChange={x => setL('vehicule', x.target.value)} placeholder="Véhicule / qui transporte" />
-        <input value={L.contact || ''} onChange={x => setL('contact', x.target.value)} placeholder="☎ Contact fournisseur" />
-      </div>
+      {(L.mode || L.retour_j1) && <><div className="as-l">VÉHICULE</div>
+        <div className="chips">{[...new Set([...vehicules(), ...(L.vehicule && !vehicules().includes(L.vehicule) ? [L.vehicule] : [])])].map(v => <button key={v} className={`chip ${L.vehicule === v ? 'on' : ''}`} onClick={() => setL('vehicule', L.vehicule === v ? '' : v)}>{v}</button>)}</div></>}
+      <input value={L.contact || ''} onChange={x => setL('contact', x.target.value)} placeholder="☎ Contact fournisseur" style={{ marginTop: 8 }} />
       <div className="as-l">PAIEMENT</div>
       <div className="chips">{PAIE.map(([c, l]) => <button key={c} className={`chip ${f.paiement === c ? 'on' : ''}`} onClick={() => setF(x => ({ ...x, paiement: x.paiement === c ? '' : c, carte: c === 'carte' ? x.carte : '' }))}>{l}</button>)}</div>
       {f.paiement === 'carte' && ev.entite === 'Espèce' && <div className="chips" style={{ marginTop: 8 }}>{['Business Boys', 'Epicure'].map(c => <button key={c} className={`chip ${f.carte === c ? 'on' : ''}`} onClick={() => set('carte', c)}>Carte {c}</button>)}</div>}
@@ -524,6 +525,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
       {!mapart && <div className="au-seg"><button className={!moi ? 'on' : ''} onClick={() => { setMoi(false); try { localStorage.setItem('orga_auj_moi', '0') } catch {} }}>Tout le monde</button><button className={moi ? 'on' : ''} onClick={() => { setMoi(true); try { localStorage.setItem('orga_auj_moi', '1') } catch {} }}>Ma part</button></div>}
       <div className="px">
         <Journee mapart={mapart} />
+        {(k => k > 0 && <button className="tr-lien" onClick={() => go('tournees')}><span>🚚</span><b>Tournées</b><em>{k} arrêt{k > 1 ? 's' : ''} aujourd'hui et demain ›</em></button>)(arrets(d.actions).filter(x => !x.fait && (x.jour === t || x.jour === dem)).length)}
         {!total && <div className="pv-vide" style={{ marginTop: 20 }}>{mapart ? 'Rien à ton nom.' : 'Rien pour aujourd\'hui ni demain.'}</div>}
         {groupes.filter(g => g[1].length).map(([l, g]) => (
           <div key={l}>
