@@ -78,3 +78,20 @@ begin
     ''sante'', case when coalesce((select m.admin from orga.membres m where m.nom = me), false) then orga._sante_resume() end); end if;');
   end if;
 end $$;
+
+-- La fonction de contrôle écrit avec le rôle service
+grant select, insert on orga.sante, orga.journal to service_role;
+
+-- Réveil chaque matin (6 h UTC, 7 h à Marrakech) : pg_net appelle orga-sante avec le secret lu au moment même
+create extension if not exists pg_net;
+create extension if not exists pg_cron;
+create or replace function orga._sante_reveil() returns bigint
+language sql security definer set search_path = '' as $$
+  select net.http_post(
+    url := 'https://daehifcdzrusxtzhtuxi.supabase.co/functions/v1/orga-sante',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-sante', (select p.valeur->>'secret' from orga.parametres p where p.cle = 'sante')),
+    body := '{}'::jsonb, timeout_milliseconds := 30000);
+$$;
+revoke execute on function orga._sante_reveil() from public, anon, authenticated;
+select cron.unschedule('orga-sante') where exists (select 1 from cron.job where jobname = 'orga-sante');
+select cron.schedule('orga-sante', '0 6 * * *', 'select orga._sante_reveil()');

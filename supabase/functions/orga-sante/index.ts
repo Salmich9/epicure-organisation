@@ -73,7 +73,8 @@ Deno.serve(async (req) => {
       verifier('site', 'Site de l\'appli', async () => { const r = await fetch(SITE, { redirect: 'manual' }); if (r.status >= 500) throw new Error(`erreur ${r.status}`); return r.status === 401 || r.status === 403 ? 'en ligne (protégé)' : 'en ligne' }),
     ])
     const ok = res.every(r => r.ok !== false)
-    await adm.from('sante').insert({ resultats: res, ok, origine })
+    const { error: ko } = await adm.from('sante').insert({ resultats: res, ok, origine })
+    if (ko) throw new Error(`résultat non enregistré : ${ko.message}`)
     const pannes = res.filter(r => r.ok === false)
     if (pannes.length) await adm.from('journal').insert(pannes.map(r => ({ source: `sante:${r.cle}`, message: `${r.nom} : ${r.detail}`, qui: origine })))
     return json({ ok, resultats: res, quand: new Date().toISOString() })
