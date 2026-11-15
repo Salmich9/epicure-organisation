@@ -8,7 +8,8 @@ import { aImputer } from './pieces'
 import { Argent, Rail } from './cycle'
 import { compteRevue } from './revue'
 import { CadrageBarre } from './cadrage'
-import { Enveloppes } from './postes'
+import { ActionSheet, Enveloppes } from './postes'
+import { useCible } from './micro'
 import { EnteteEvt } from './entete'
 
 export function zoneStats(data, z) {
@@ -125,6 +126,8 @@ export function Plan({ data, go, mine, setMine, reload }) {
   const [onglet, setOngletS] = useState(() => { try { return localStorage.getItem('orga_onglet') || 'budget' } catch { return 'budget' } })
   const setOnglet = o => { setOngletS(o); try { localStorage.setItem('orga_onglet', o) } catch {} }
   const vue = mine ? 'budget' : onglet
+  const [act, setAct] = useState(null)
+  useCible({ label: ev.nom || 'l\'événement', onTexte: t => setAct({ texte: t }) })
   const cadre = ev.cadrage?.fait_le || ev.cadrage?.passe
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -154,6 +157,7 @@ export function Plan({ data, go, mine, setMine, reload }) {
           {['Réalisé', 'Clôturé'].includes(ev.statut) && <button className="chip" onClick={() => go('bilan')}>Bilan</button>}
         </div>
       </>}
+      <ActionSheet open={!!act} init={act} data={data} poste={null} onClose={() => setAct(null)} onDone={() => { setAct(null); reload() }} />
     </motion.div>
   )
 }

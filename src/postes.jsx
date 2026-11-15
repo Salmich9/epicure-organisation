@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { api } from './api'
 import { Info, Sheet, dateLongue, ddmm, n, useUI } from './ui'
 import { EnPlace } from './entete'
+import { MicFiche, useCible, useMicro } from './micro'
 
 /* Du général au particulier : enveloppes (prévu) → lignes (engagé) → actions (qui, quand, combien) */
 export const k = v => { v = n(v); return Math.abs(v) >= 10000 ? `${(v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: v >= 100000 ? 0 : 1 })} k` : Math.round(v).toLocaleString('fr-FR') }
@@ -96,6 +97,8 @@ export function Poste({ data, cle, go, openEl, reload }) {
   const [respSheet, setRespSheet] = useState(false)
   const [menu, setMenu] = useState(null)      // { t: 'element' | 'action' | 'poste', o }
   const [depl, setDepl] = useState(null)      // ligne à déplacer
+  const pNom = (data.postes || []).find(x => x.cle === cle)?.nom
+  useCible(pNom ? { label: pNom, onTexte: t => setAct({ texte: t }) } : null)
   if (!p) return <div className="empty" style={{ paddingTop: 80 }}>Enveloppe introuvable. <button className="small" onClick={() => go('')}>Retour</button></div>
   const els = data.elements.filter(e => p.lignes.includes(e.id))
   const lignes = els.filter(active), autres = els.filter(e => !active(e))
@@ -162,7 +165,6 @@ export function Poste({ data, cle, go, openEl, reload }) {
         {directes.length > 0 && <><div className="pv-st">ACTIONS · {directes.length}</div>
           <div className="pv-sub">{directes.map(a => <LigneAction key={a.id} a={a} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}</div></>}
         <div className="pv-add">
-          <motion.button whileTap={{ scale: .96 }} onClick={() => setAct({ voix: true })}>🎙 Dire</motion.button>
           <motion.button whileTap={{ scale: .96 }} onClick={() => setLig(true)}>+ Ligne</motion.button>
           <motion.button whileTap={{ scale: .96 }} onClick={() => setAct({})}>+ Action</motion.button>
         </div>
@@ -171,7 +173,8 @@ export function Poste({ data, cle, go, openEl, reload }) {
       <LigneSheet open={lig} data={data} poste={cle} idees={autres} onClose={() => setLig(false)} onDone={() => { setLig(false); reload() }} />
       <ActionMenu a={menu?.t === 'action' ? menu.o : null} today={data.aujourdhui} gens={gens(data)} onClose={() => setMenu(null)}
         onDate={q => dater(menu.o, q)} onQui={q => attribuer(menu.o, q)} onModifier={() => { setAct({ a: menu.o }); setMenu(null) }}
-        onDupliquer={() => dupliquer('action', menu.o.id)} onSupprimer={() => supprimer('action', menu.o.id, menu.o.quoi)} />
+        onDupliquer={() => dupliquer('action', menu.o.id)} onSupprimer={() => supprimer('action', menu.o.id, menu.o.quoi)}
+        onDire={async t => { const a = menu.o; setMenu(null); try { await direAction({ ...a, evenement_id: data.evt }, t, ui, reload) } catch (e) { ui.toast(e.message) } }} />
       <Sheet open={!!menu && menu.t !== 'action'} onClose={() => setMenu(null)}>
         {menu && menu.t !== 'action' && <>
           <div className="el-name" style={{ fontSize: 24 }}>{menu.t === 'element' ? menu.o.element : menu.o.nom}</div>
@@ -220,9 +223,25 @@ function LigneAction({ a, today, onTap, onCheck, onMenu }) {
   )
 }
 
+// Ce qui est dit sur une action touchée : on applique ce qui change, avec Annuler
+export async function direAction(a, t, ui, apres) {
+  const d = await api.dicter(t, a.poste, { type: 'action', a }, a.evenement_id)
+  const p = {}, avant = {}
+  if (d.quand && d.quand !== a.echeance) { p.quand = d.quand; avant.quand = a.echeance }
+  if (d.qui && d.qui !== a.resp) { p.qui = d.qui; avant.qui = a.resp }
+  if (d.cout !== undefined && d.cout !== null && Number(d.cout) !== Number(a.cout)) { p.cout = d.cout; avant.cout = a.cout }
+  if (d.heure && d.heure !== a.heure) { p.heure = d.heure; avant.heure = a.heure || '' }
+  if (d.quoi && d.quoi.trim() !== a.quoi) { p.quoi = d.quoi.trim(); avant.quoi = a.quoi }
+  if (!Object.keys(p).length) return ui.toast('Rien à changer, j\'ai compris la même chose.')
+  await api.actionEnregistrer(a.evenement_id, a.id, p); await apres?.()
+  const txt = [p.quand && `au ${ddmm(p.quand)}${p.heure ? ` ${p.heure}` : ''}`, p.qui && `confié à ${p.qui}`, p.cout !== undefined && `${k(p.cout)} MAD`, p.quoi && `« ${p.quoi} »`].filter(Boolean).join(' · ')
+  ui.annulable(`Changé : ${txt}`, async () => { await api.actionEnregistrer(a.evenement_id, a.id, avant); await apres?.() })
+}
+
 /* ---------- Menu ⋯ d'une action : repousser, réattribuer, dupliquer, supprimer ---------- */
-export function ActionMenu({ a, today, gens, sous, onClose, onDate, onQui, onModifier, onOuvrir, onDupliquer, onSupprimer }) {
+export function ActionMenu({ a, today, gens, sous, onClose, onDate, onQui, onModifier, onOuvrir, onDupliquer, onSupprimer, onDire }) {
   const [choisir, setChoisir] = useState(false)
+  const m = useMicro(t => onDire?.(t))
   const ref = useRef(null)
   useEffect(() => { setChoisir(false) }, [a?.id])
   if (!a) return null
@@ -232,6 +251,7 @@ export function ActionMenu({ a, today, gens, sous, onClose, onDate, onQui, onMod
     <Sheet open={!!a} onClose={onClose}>
       <div className="el-name" style={{ fontSize: 24 }}>{a.quoi}</div>
       {sous && <div className="meta" style={{ marginTop: 4 }}>{sous}</div>}
+      {onDire && <MicFiche m={m} pour="cette action" exemple="« repousse à vendredi et confie à Amina »" />}
       <div className="am-l">Repousser</div>
       <div className="chips">
         <button className="chip" onClick={() => onDate(plus(today, 1))}>Demain</button>
@@ -261,42 +281,29 @@ export function ActionSheet({ open, init, data, poste, onClose, onDone }) {
   const respPoste = c => (data.postes || []).find(p => p.cle === c)?.resp
   const vide = () => ({ quoi: '', cout: '', quand: plus(data.aujourdhui, 1), heure: '', qui: respPoste(pDefaut) || data.moi, poste: pDefaut, element_id: init?.element_id || '', logistique: {}, paiement: '', carte: '', paye: false })
   const [f, setF] = useState(vide)
-  const [ecoute, setEcoute] = useState(false)
-  const [dit, setDit] = useState('')
-  const [lit, setLit] = useState(false)
   const [suppr, setSuppr] = useState(false)
   const [plusG, setPlusG] = useState(false)
-  const rec = useRef(null)
+  const m = useMicro(comprendre)
   useEffect(() => {
-    if (!open) { rec.current?.stop(); return }
-    setSuppr(false); setDit(''); setPlusG(false)
+    if (!open) return
+    setSuppr(false); setPlusG(false)
     setF(a0 ? { quoi: a0.quoi || '', cout: a0.cout ?? '', quand: a0.echeance || '', heure: a0.heure || '', qui: a0.resp || '', poste: a0.poste || pDefaut, element_id: a0.element_id || '', logistique: a0.logistique || {}, paiement: a0.paiement || '', carte: a0.carte || '', paye: !!a0.paye } : vide())
-    if (init?.voix) setTimeout(ecouter, 250)
+    if (init?.voix) setTimeout(m.basculer, 250)
+    if (init?.texte) comprendre(init.texte)
   }, [open])
   const set = (c, v) => setF(x => ({ ...x, [c]: v }))
   const setL = (c, v) => setF(x => ({ ...x, logistique: { ...x.logistique, [c]: v } }))
-  function ecouter() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SR) { ui.bubble('La dictée n\'est pas disponible ici : utilise le micro du clavier dans « Quoi ».'); return }
-    if (rec.current) { rec.current.stop(); return }
-    const r = new SR(); r.lang = 'fr-FR'; r.interimResults = true; r.continuous = true
-    let t = ''
-    r.onresult = e => { t = ''; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; setDit(t) }
-    r.onend = () => { rec.current = null; setEcoute(false); if (t.trim()) comprendre(t) }
-    rec.current = r; r.start(); setEcoute(true)
-  }
   async function comprendre(t) {
-    setLit(true)
     try {
-      const d = await api.dicter(t, poste)
+      const d = await api.dicter(t, poste || init?.poste, a0 ? { type: 'action', a: a0 } : null)
       setF(x => ({ ...x, quoi: d.quoi || x.quoi, cout: d.cout ?? x.cout, qui: d.qui || x.qui, quand: d.quand || x.quand, heure: d.heure || x.heure,
         poste: (data.postes || []).some(p => p.cle === d.poste) ? d.poste : x.poste, element_id: d.element_id || x.element_id,
         paiement: d.paiement || x.paiement,
         logistique: { ...x.logistique, ...(d.livraison ? { mode: d.livraison } : {}), ...(d.lieu ? { lieu: d.lieu } : {}), ...(d.vehicule ? { vehicule: d.vehicule } : {}), ...(d.retour_j1 ? { retour_j1: true } : {}), ...(d.contact ? { contact: d.contact } : {}) } }))
       if (d.vehicule || d.contact) setPlusG(true)
     } catch (e) { ui.toast(e.message) }
-    setLit(false)
   }
+  const lit = m.lit
   const manque = !f.quoi.trim() ? 'quoi' : f.cout === '' || f.cout === null ? 'coût' : !f.qui ? 'qui' : !f.quand ? 'quand' : null
   async function valider() {
     if (manque) return ui.toast(`Il manque : ${manque}.`)
@@ -322,10 +329,7 @@ export function ActionSheet({ open, init, data, poste, onClose, onDone }) {
   const pourAutre = f.qui && f.qui !== data.moi
   return (
     <Sheet open={open} onClose={onClose} z={1} foot={<button className="btn primary" onClick={valider} disabled={lit || !!manque}>{manque ? `Il manque : ${manque}` : a0 ? 'Enregistrer' : `Ajouter${coutN ? ` · +${k(coutN)} engagé` : ''}${pourAutre ? ` · WhatsApp à ${f.qui}` : ''}`}</button>}>
-      <div className="as-voix">
-        <motion.button whileTap={{ scale: .9 }} className={`as-mic ${ecoute ? 'rec' : ''}`} onClick={ecouter} aria-label="Dicter">🎙</motion.button>
-        <span>{lit ? 'Je remplis la fiche…' : dit ? `« ${dit} »` : ecoute ? 'Je t\'écoute…' : a0 ? 'Modifier l\'action' : 'Dis-le : « le pain, 350 pers., 1 500 dh, Salima, livré jeudi 16 h »'}</span>
-      </div>
+      <MicFiche m={m} pour={a0 ? 'cette action' : 'la nouvelle action'} exemple={a0 ? '« repousse à vendredi, 600 dh »' : '« le pain, 350 pers., 1 500 dh, Salima, livré jeudi 16 h »'} />
       <div className={`as-l ${!f.quoi.trim() ? 'requis' : ''}`}>QUOI</div>
       <input value={f.quoi} onChange={x => set('quoi', x.target.value)} placeholder="Commander le pain · 350 pers." />
       <div className="as-2">
@@ -503,7 +507,8 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
       </div>
       <ActionMenu a={menu} today={t} gens={equipe} sous={menu ? [menu.evt_nom, menu.poste_nom].filter(Boolean).join(' · ') : null} onClose={() => setMenu(null)}
         onDate={q => changer(menu, 'quand', q, `Repoussé au ${ddmm(q)}`)} onQui={q => changer(menu, 'qui', q, `Confié à ${q}`)}
-        onOuvrir={() => { const a = menu; setMenu(null); ouvrirPoste(a.evenement_id, a.poste) }} onDupliquer={() => dupliquer(menu)} onSupprimer={() => supprimer(menu)} />
+        onOuvrir={() => { const a = menu; setMenu(null); ouvrirPoste(a.evenement_id, a.poste) }} onDupliquer={() => dupliquer(menu)} onSupprimer={() => supprimer(menu)}
+        onDire={async x => { const a = menu; setMenu(null); try { await direAction(a, x, ui, charger) } catch (e) { ui.toast(e.message) } }} />
     </motion.div>
   )
 }

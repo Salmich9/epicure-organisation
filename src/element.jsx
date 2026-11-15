@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from './api'
 import { ETATS, Info, MODES, Sheet, ddmm, mad, n, useUI } from './ui'
+import { MicFiche, useMicro } from './micro'
 
 const PERIMETRES = [['À notre charge', 'Nous'], ['En partie', 'En partie'], ['Tiers', 'Un tiers'], ['Pas besoin', 'Pas besoin'], ['À clarifier', '?']]
 
@@ -68,6 +69,22 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
   const [suivi, setSuivi] = useState(false)
   const [busy, setBusy] = useState(false)
   const [forcer, setForcer] = useState(false)
+  const micro = useMicro(async t => {
+    const k0 = MODES.find(x => x.k === mode) || MODES[1]
+    try {
+      const d = await api.dicter(t, e.poste, { type: 'ligne', e: { element: e.element, mode_ligne: e.mode_ligne, qte: n(e[k0.k]) || null, prix: k0.p ? e[k0.p] : null, fournisseur: e.fournisseur, resp: e.resp } }, e.evenement_id)
+      const vers = { prelever: 'stock', louer: 'location', acheter: 'achat', produire: 'production' }[d.mode] || mode
+      const mv = MODES.find(x => x.k === vers)
+      if (vers !== mode) { setMode(vers); if (d.qte !== undefined && n(e[mode])) set(mode, 0) }
+      if (d.qte !== undefined && d.qte !== null) set(vers, Number(d.qte))
+      if (d.prix !== undefined && d.prix !== null && mv.p) set(mv.p, Number(d.prix))
+      if (d.fournisseur) set('fournisseur', d.fournisseur)
+      if (d.resp) set('resp', d.resp)
+      if (d.nom) set('element', d.nom)
+      if (d.note) set('note', [e.note, d.note].filter(Boolean).join(' · '))
+      ui.toast('Fiche remplie : vérifie et valide')
+    } catch (er) { ui.toast(er.message) }
+  })
   useEffect(() => {
     setE(el); setChg({}); setSuivi(false)
     if (el) setMode(MODES.find(m => n(el[m.k]) > 0)?.k || (el.article_id ? 'stock' : 'location'))
@@ -122,6 +139,7 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
           <span className={`pill ${etat.c}`} style={{ marginTop: 12 }}>{etat.l}</span>
         </div>
         {(e.description || e.moments) && <div className="el-sub">{[e.moments, e.description].filter(Boolean).join(' · ')}</div>}
+        <MicFiche m={micro} pour="cette ligne" exemple="« 200 louées à 45 chez Atelier Lin »" />
 
         <div className="label">Qui s'en charge ?</div>
         <div className="chips">{PERIMETRES.map(([v, l]) => <button key={v} className={`chip ${e.perimetre === v ? 'on' : ''}`} onClick={() => set('perimetre', v)}>{l}</button>)}</div>

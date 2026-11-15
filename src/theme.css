@@ -881,3 +881,17 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .ls-pris { display: flex; justify-content: space-between; align-items: baseline; width: 100%; background: var(--surface); border-radius: 14px; padding: 13px 14px; margin-top: 14px; text-align: left; }
 .ls-pris b { font-size: 16px; }
 .ls-pris span { font-size: 12.5px; color: var(--accent); font-weight: 700; }
+
+/* Micro unique */
+.mi-f { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 16px; padding: 10px 12px; margin-top: 12px; }
+.mi-f.rec { outline: 2px solid var(--red); }
+.mi-f span { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.35; }
+.mi-f span b { display: block; font-size: 14px; }
+.mi-f span em { display: block; font-style: normal; font-size: 12px; color: var(--mute); margin-top: 1px; }
+.mi-b { flex: none; width: 42px; height: 42px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; }
+.mi-b.rec { background: var(--red); color: #fff; }
+.mi-nav { position: relative; display: flex; flex-direction: column; align-items: center; }
+.mi-pill { position: absolute; bottom: calc(100% + 30px); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 750; color: var(--accent); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; box-shadow: var(--shadow); pointer-events: none; }
+.mi-live { position: fixed; left: 14px; right: 14px; bottom: 118px; z-index: 31; background: var(--ink); color: var(--bg); border-radius: 18px; padding: 14px 16px; box-shadow: var(--shadow); }
+.mi-live b { display: block; font-size: 12px; opacity: .7; }
+.mi-live span { display: block; font-size: 15px; margin-top: 4px; }

@@ -19,6 +19,7 @@ import { Planning } from './planning'
 import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
 import { Corbeille, Historique } from './historique'
+import { useCibleActive, useMicro } from './micro'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
@@ -121,6 +122,8 @@ export default function App() {
   const setMine = v => { setMineState(v); try { localStorage.setItem('orga_mine', v ? '1' : '0') } catch {} }
   const rec = useRef(null)
   const [prop, setProp] = useState(null)
+  const cible = useCibleActive()
+  const micro = useMicro(t => cible?.onTexte(t))
 
   const load = useCallback(async (evt) => {
     try {
@@ -209,10 +212,14 @@ export default function App() {
     <div className="app">
       <AnimatePresence mode="wait">{screen}</AnimatePresence>
 
+      {(micro.ecoute || micro.lit) && <div className="mi-live"><b>{micro.lit ? 'Je comprends…' : `Pour ${cible?.label || ''}`}</b><span>{micro.dit ? `« ${micro.dit} »` : 'Je t\'écoute… touche le micro quand tu as fini'}</span></div>}
       <nav className="tabs">
         <button className={tab === 'auj' ? 'on' : ''} onClick={() => go('aujourdhui')}>{Icon.planning}Aujourd'hui</button>
         <button className={tab === 'evts' ? 'on' : ''} onClick={() => go('accueil')}>{Icon.plan}Événements</button>
-        <motion.button whileTap={{ scale: .9 }} className={`mic ${listening ? 'rec' : ''}`} onClick={toggleMic} aria-label="Dicter une note">{Icon.mic}</motion.button>
+        <div className="mi-nav">
+          <span className="mi-pill">{cible ? `→ ${cible.label}` : '→ une note'}</span>
+          <motion.button whileTap={{ scale: .9 }} className={`mic ${listening || micro.ecoute ? 'rec' : ''}`} onClick={cible ? micro.basculer : toggleMic} aria-label={cible ? `Parler à ${cible.label}` : 'Dicter une note'}>{Icon.mic}</motion.button>
+        </div>
         <button className={tab === 'mapart' ? 'on' : ''} onClick={() => go('mapart')}>{Icon.deleguer}Ma part</button>
         <button className={tab === 'notes' ? 'on' : ''} onClick={() => go('notes')}>{Icon.notes}Notes</button>
       </nav>

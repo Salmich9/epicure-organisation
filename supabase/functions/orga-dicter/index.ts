@@ -1,4 +1,7 @@
-// Dictée d'une action : « le pain, 350 pers., 1 500 dh, Salima, livré jeudi 16 h » → champs de la fiche action.
+// Micro unique : ce qui est dit s'applique à l'objet touché avant de parler.
+// - sans cible : une nouvelle action (« le pain, 350 pers., 1 500 dh, Salima, livré jeudi 16 h »)
+// - cible action : ce qui change sur cette action (« repousse à vendredi, confie à Amina »)
+// - cible ligne : ce qui change sur cette ligne (« 200 nappes louées à 45 chez Atelier Lin »)
 // Clé Claude côté serveur (secret ANTHROPIC_API_KEY).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -29,12 +32,28 @@ const OUTIL = {
     required: ['quoi'],
   },
 }
+const OUTIL_LIGNE = {
+  name: 'ligne',
+  description: "Ce qui change sur une ligne du budget. Ne mets que ce qui est dit.",
+  input_schema: {
+    type: 'object',
+    properties: {
+      nom: { type: 'string', description: 'Nouveau nom, seulement si on le renomme' },
+      mode: { type: 'string', enum: ['prelever', 'louer', 'acheter', 'produire', ''], description: 'prélevé au dépôt, loué, acheté ou produit / sous-traité' },
+      qte: { type: 'number', description: 'Quantité' },
+      prix: { type: 'number', description: 'Prix unitaire en MAD' },
+      fournisseur: { type: 'string', description: 'Loueur, fournisseur ou qui produit' },
+      resp: { type: 'string', description: 'Prénom de la personne qui s\'en occupe, pris dans la liste' },
+      note: { type: 'string', description: 'Remarque à garder' },
+    },
+  },
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
-    const { token, evt, texte, poste } = await req.json()
+    const { token, evt, texte, poste, cible } = await req.json()
     if (!String(texte || '').trim()) return json({ error: 'Rien entendu.' }, 400)
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
     const { data, error } = await sb.rpc('donnees', { p_token: token, p_evt: evt || null })
@@ -55,10 +74,20 @@ Enveloppes :\n${postes}
 ${poste ? `L'utilisateur est dans l'enveloppe « ${poste} » : prends-la par défaut.` : ''}
 Lignes existantes :\n${lignes || '(aucune)'}
 Si personne n'est nommé, prends le responsable de l'enveloppe. « dh » = MAD.`
+    let outil: any = OUTIL, consigne = ''
+    if (cible?.type === 'action' && cible.a) {
+      const a = cible.a
+      consigne = `\n\nOn MODIFIE l'action existante : « ${a.quoi} », coût ${a.cout ?? '?'}, pour ${a.resp || '?'}, le ${a.echeance || '?'}${a.heure ? ` à ${a.heure}` : ''}.
+Ne renvoie que les champs qui changent ; « quoi » seulement si on la renomme (sinon renvoie le même texte). « repousse de 2 jours » part de la date actuelle.`
+    } else if (cible?.type === 'ligne' && cible.e) {
+      const e = cible.e
+      outil = OUTIL_LIGNE
+      consigne = `\n\nOn MODIFIE la ligne existante : « ${e.element} », mode ${e.mode_ligne || '?'}, quantité ${e.qte ?? '?'}, prix ${e.prix ?? '?'}, fournisseur ${e.fournisseur || '?'}, responsable ${e.resp || '?'}. Ne renvoie que ce qui change.`
+    }
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 800, tools: [OUTIL], tool_choice: { type: 'tool', name: 'action' },
-        messages: [{ role: 'user', content: `${ctx}\n\nDicté : « ${texte} »` }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: 800, tools: [outil], tool_choice: { type: 'tool', name: outil.name },
+        messages: [{ role: 'user', content: `${ctx}${consigne}\n\nDicté : « ${texte} »` }] }),
     })
     const out = await r.json()
     if (!r.ok) return json({ error: out?.error?.message || 'Erreur Claude' }, 502)

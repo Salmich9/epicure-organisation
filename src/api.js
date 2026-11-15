@@ -111,8 +111,8 @@ export const api = {
   objetDupliquer: (type, id) => rpc('objet_dupliquer', { p_token: store.token, p_type: type, p_id: id }),
   ligneDeplacer: (id, poste) => rpc('ligne_deplacer', { p_token: store.token, p_id: id, p_poste: poste }),
   posteCreer: (evt, nom, type) => rpc('poste_creer', { p_token: store.token, p_evt: evt, p_nom: nom, p_type: type || 'achat' }),
-  dicter: async (texte, poste) => {
-    const r = await fetch(`${URL}/functions/v1/orga-dicter`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt: store.evt, texte, poste }) })
+  dicter: async (texte, poste, cible, evt) => {
+    const r = await fetch(`${URL}/functions/v1/orga-dicter`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt: evt || store.evt, texte, poste, cible }) })
     const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Dictée non comprise.'); return d
   },
   elementRevoir: (id, p) => rpc('element_revoir', { p_token: store.token, p_id: id, p: p || {} }),

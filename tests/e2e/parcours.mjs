@@ -38,6 +38,10 @@ await ctx.route('**/rest/v1/rpc/**', async route => {
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RPC[fn] ? RPC[fn](body) : true) })
 })
 await ctx.route('**/functions/v1/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"bulles":[],"questions":[]}' }))
+const dictees = []
+await ctx.route('**/functions/v1/orga-dicter', r => { const c = JSON.parse(r.request().postData()); dictees.push(c)
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(c.cible?.type === 'action' ? { quoi: c.cible.a.quoi, quand: '2026-10-30', qui: 'Amina' } : { quoi: 'Commander le pain', cout: 1500, qui: 'Salima', quand: '2026-10-29', poste: 'diner' }) }) })
+await ctx.addInitScript(() => { window.SpeechRecognition = window.webkitSpeechRecognition = class { start() { setTimeout(() => this.onresult?.({ results: [[{ transcript: window.__dit || 'test' }]] }), 100) } stop() { setTimeout(() => this.onend?.(), 30) } } })
 await ctx.route(u => !u.href.startsWith(`http://localhost:${port}`) && !u.href.includes('/rest/v1/') && !u.href.includes('/functions/v1/'), r => r.abort())
 const p = await ctx.newPage()
 let erreurs = []
@@ -95,6 +99,15 @@ appels.length = 0
 await p.locator('.au-ac .pv-3').first().click(); await p.waitForTimeout(400)
 await p.locator('.sheet .am-q', { hasText: 'Amina' }).click(); await p.waitForTimeout(400)
 if (!appels.some(a => a[0] === 'action_enregistrer' && a[1].p.qui === 'Amina')) echec('confier une action'); else console.log('  ✓ confier une action à quelqu\'un')
+// 3 ter. Micro unique : l'étiquette suit l'écran ; parler à une action touchée l'applique
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500)
+if (!(await p.locator('.mi-pill', { hasText: 'Matériel et équipement' }).count())) echec('le micro ne vise pas l\'enveloppe'); else console.log('  ✓ le micro vise l\'enveloppe affichée')
+await p.locator('.tabs .mic').click(); await p.waitForTimeout(300); await p.locator('.tabs .mic').click(); await p.waitForTimeout(700)
+if (await p.locator('.sheet input').first().inputValue() !== 'Commander le pain') echec('dicter sur une enveloppe ne remplit pas la fiche'); else console.log('  ✓ dicter sur une enveloppe remplit la fiche action')
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/aujourdhui`); await p.waitForTimeout(500); appels.length = 0
+await p.locator('.au-ac .pv-3').first().click(); await p.waitForTimeout(300)
+await p.locator('.sheet .mi-b').click(); await p.waitForTimeout(300); await p.locator('.sheet .mi-b').click(); await p.waitForTimeout(700)
+if (dictees.at(-1)?.cible?.type !== 'action' || !appels.some(a => a[0] === 'action_enregistrer' && a[1].p.qui === 'Amina' && a[1].p.quand === '2026-10-30')) echec('parler à une action touchée'); else console.log('  ✓ parler à une action touchée l\'applique')
 // 4. Carte BB / Epicure proposée seulement pour un événement en espèces
 await p.evaluate(() => localStorage.setItem('orga_evt', 'EVT-T-001'))
 await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500)
