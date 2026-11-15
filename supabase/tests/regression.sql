@@ -83,6 +83,8 @@ begin
     perform orga.ligne_deplacer(tok, d, 'consommables');
     if (select poste from orga.elements where id = d) <> 'consommables' then raise exception 'ECHEC : déplacement'; end if;
     cid := orga.objet_supprimer(tok, 'element', d);
+    if not exists (select 1 from orga.historique where evenement_id = ev and quoi = 'suppr' and corbeille_id = cid and qui = 'ZZTestAdmin') then raise exception 'ECHEC : suppression absente de l''historique'; end if;
+    if not exists (select 1 from jsonb_array_elements(orga.corbeille_liste(tok, ev)) x where (x->>'id')::bigint = cid) then raise exception 'ECHEC : ligne absente de la corbeille'; end if;
     if exists (select 1 from orga.elements where id = d) then raise exception 'ECHEC : ligne non supprimée'; end if;
     perform orga.objet_restaurer(tok, cid);
     if not exists (select 1 from orga.elements where id = d) then raise exception 'ECHEC : ligne non restaurée'; end if;
@@ -99,9 +101,23 @@ begin
   -- 9. Suppression : refusée à un non-admin, faite par un admin avec copie en corbeille
   begin perform orga.evenement_supprimer(tok_simple, ev); raise exception 'ECHEC : suppression permise à un non-admin';
   exception when others then if sqlerrm not like '%reserve_admin%' then raise; end if; end; ok := ok + 1;
+  if not exists (select 1 from jsonb_array_elements(orga.historique(tok, ev)) x where x->>'quoi' = 'ajout' and x->>'nom' = 'ZZ chaises')
+     or not exists (select 1 from orga.historique where evenement_id = ev and quoi = 'deplace' and apres = 'Consommables')
+     or not exists (select 1 from orga.historique where evenement_id = ev and quoi = 'modif' and champ = 'paye')
+     or not exists (select 1 from orga.historique where evenement_id = ev and type = 'evenement' and champ = 'invites' and avant = '100' and apres = '120')
+     or exists (select 1 from orga.historique where evenement_id = ev and type = 'poste' and quoi = 'modif' and champ = 'montant' and apres <> '12345')
+    then raise exception 'ECHEC : historique incomplet ou bruité'; end if; ok := ok + 1;
   perform orga.evenement_supprimer(tok, ev);
   if exists (select 1 from orga.evenements where id = ev) or not exists (select 1 from orga.corbeille where evenement_id = ev and donnees ? 'postes') then
     raise exception 'ECHEC : suppression incomplète'; end if; ok := ok + 1;
 
+  declare cid bigint; begin
+    select id into cid from orga.corbeille where evenement_id = ev and type = 'evenement' and restaure_le is null order by id desc limit 1;
+    perform orga.objet_restaurer(tok, cid);
+    if not exists (select 1 from orga.evenements where id = ev) or (select count(*) from orga.postes where evenement_id = ev and not retire) < 7
+       or not exists (select 1 from orga.elements where evenement_id = ev and element = 'ZZ chaises') or not exists (select 1 from orga.actions where id = a->>'id')
+      then raise exception 'ECHEC : événement mal restauré'; end if;
+    perform orga.evenement_supprimer(tok, ev);
+  end; ok := ok + 1;
   raise exception 'REGRESSION OK (% vérifications)', ok;
 end $$;

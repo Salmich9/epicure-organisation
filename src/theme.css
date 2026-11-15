@@ -838,3 +838,19 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .ee-menu .danger { color: var(--red); }
 .toast.avec { display: flex; gap: 14px; align-items: center; padding: 8px 8px 8px 18px; }
 .toast.avec button { color: var(--bg); font-weight: 800; background: color-mix(in srgb, var(--bg) 18%, transparent); border-radius: 999px; padding: 6px 12px; }
+
+/* Corbeille et historique */
+.hi-f { margin: 4px 14px 0; }
+.row.hi-c, .row.hi-h { display: flex; align-items: center; gap: 12px; }
+.row.hi-h { align-items: flex-start; }
+.row.hi-h .pv-av { margin-top: 1px; }
+.hi-p { font-size: 14.5px; line-height: 1.35; }
+.hi-p b { font-weight: 700; }
+.hi-v { font-size: 13.5px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.hi-v s { color: var(--mute); }
+.hi-t { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; margin-right: 6px; background: var(--line); color: var(--ink); }
+.hi-t.action { background: color-mix(in srgb, #3D6E9E 16%, transparent); color: #3D6E9E; }
+.hi-t.poste { background: color-mix(in srgb, #B0652E 16%, transparent); color: #B0652E; }
+.hi-t.evenement { background: color-mix(in srgb, #A3456B 16%, transparent); color: #A3456B; }
+.hi-r { flex: none; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; background: var(--ink); color: var(--bg); }
+.hi-urg { color: var(--red); font-weight: 600; }

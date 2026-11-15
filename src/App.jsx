@@ -18,6 +18,7 @@ import { Copilote, Proposition, prechargerChallenge } from './copilote'
 import { Planning } from './planning'
 import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
+import { Corbeille, Historique } from './historique'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
@@ -174,6 +175,8 @@ export default function App() {
   else if (route === 'mapart') screen = <Aujourdhui key="mp" mapart go={go} ouvrirPoste={ouvrirPoste} />
   else if (route.startsWith('poste/')) screen = <Poste key={route} data={data} cle={route.split('/')[1]} go={go} openEl={setOpenEl} reload={() => load(data.evt)} />
   else if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
+  else if (route === 'corbeille' || route === 'corbeille/tout') screen = <Corbeille key={route} data={data} go={go} tout={route === 'corbeille/tout'} reload={() => load(data.evt)} />
+  else if (route === 'historique') screen = <Historique data={data} go={go} />
   else if (route === 'voix') screen = <Voix data={data} go={go} ouvrir={ouvrir} />
   else if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />

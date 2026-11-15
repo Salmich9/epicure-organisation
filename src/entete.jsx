@@ -65,6 +65,8 @@ export function EnteteEvt({ data, go, reload }) {
         <div className="ee-menu">
           <button onClick={() => { setMenu(false); go('chiffrer') }}>{ev.budget ? 'Revoir le chiffrage' : 'Chiffrer cet événement'}<span>›</span></button>
           {ev.drive_url && <a href={ev.drive_url} target="_blank" rel="noreferrer">Dossier Drive<span>↗</span></a>}
+          <button onClick={() => { setMenu(false); go('historique') }}>Historique des changements<span>›</span></button>
+          <button onClick={() => { setMenu(false); go('corbeille') }}>Corbeille<span>›</span></button>
           <button onClick={() => { setMenu(false); go('nouveau') }}>Nouvel événement<span>›</span></button>
         </div>
         <SupprimerEvt data={data} go={go} apres={() => setMenu(false)} />

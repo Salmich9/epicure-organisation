@@ -57,6 +57,7 @@ export function Accueil({ go, ouvrir }) {
         <button className="ac-st ac-fin" onClick={() => setVoir(!voir)}>Clôturés et perdus · {fin.length} {voir ? '▾' : '›'}</button>
         {voir && fin.map(e => <Carte key={e.id} e={e} today={today} onClick={() => ouvrir(e.id)} />)}
       </>}
+      <button className="ac-st ac-fin" onClick={() => go('corbeille/tout')}>🗑 Corbeille ›</button>
     </motion.div>
   )
 }
