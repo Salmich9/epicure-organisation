@@ -861,3 +861,23 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .am-d { margin-top: 10px; }
 .au-ac .pv-3 { margin-left: -4px; }
 .au-tard { display: block; width: 100%; text-align: left; }
+
+/* Page événement : onglets Budget / Client */
+.ev-seg { margin: 6px 20px 4px; }
+.ev-org { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 20px 0; }
+.ev-org .chip { padding: 8px 13px; font-size: 13px; }
+
+/* + Ligne : chercher d'abord */
+.ls-q { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 0 12px; margin-top: 14px; }
+.ls-q span { font-size: 20px; color: var(--mute); }
+.ls-q input, .ls-q input:focus { border: 0; background: transparent; padding: 13px 0; flex: 1; outline: none; box-shadow: none; margin: 0; }
+.ls-q:focus-within { border-color: var(--accent); }
+.ls-r { background: var(--surface); border-radius: 16px; margin-top: 10px; overflow: hidden; }
+.ls-r button { display: block; width: 100%; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.ls-r button:last-child { border-bottom: 0; }
+.ls-r b { display: block; font-size: 14.5px; }
+.ls-r span { display: block; font-size: 12px; color: var(--mute); margin-top: 2px; }
+.ls-r .nv b { color: var(--accent); }
+.ls-pris { display: flex; justify-content: space-between; align-items: baseline; width: 100%; background: var(--surface); border-radius: 14px; padding: 13px 14px; margin-top: 14px; text-align: left; }
+.ls-pris b { font-size: 16px; }
+.ls-pris span { font-size: 12.5px; color: var(--accent); font-weight: 700; }

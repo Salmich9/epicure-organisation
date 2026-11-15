@@ -60,6 +60,11 @@ begin
   l := orga.ligne_ajouter(tok, ev, '{"poste":"materiel","nom":"ZZ chaises","mode":"louer","qte":10,"prix":20}');
   if (select (x->>'engage')::numeric from jsonb_array_elements(orga._postes_evt(ev)) x where x->>'cle' = 'materiel') <> 200 then raise exception 'ECHEC : engagé matériel ≠ 200'; end if; ok := ok + 1;
 
+  -- 5 bis. « + Ligne » sur une idée existante : la même ligne est reprise, pas de doublon
+  declare nb int := (select count(*) from orga.elements where evenement_id = ev); begin
+    perform orga.ligne_ajouter(tok, ev, jsonb_build_object('poste', 'materiel', 'nom', 'ZZ chaises', 'mode', 'louer', 'qte', 10, 'prix', 20, 'element_id', l->>'id'));
+    if (select count(*) from orga.elements where evenement_id = ev) <> nb then raise exception 'ECHEC : idée reprise en doublon'; end if;
+  end; ok := ok + 1;
   -- 6. Action : coût obligatoire ; engagé +400 ; payée → réel 400
   begin perform orga.action_enregistrer(tok, ev, null, '{"quoi":"ZZ sans coût","qui":"Ouadia","quand":"2030-05-30"}'); raise exception 'ECHEC : action sans coût acceptée';
   exception when others then if sqlerrm not like '%manque_obligatoire%' then raise; end if; end; ok := ok + 1;

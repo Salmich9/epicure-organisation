@@ -101,6 +101,20 @@ await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeou
 await p.getByText('+ Action').click(); await p.waitForTimeout(300); await p.getByRole('button', { name: 'Carte', exact: true }).click()
 if (await p.getByText('Carte Business Boys').count()) echec('choix de carte proposé hors événement espèces'); else console.log('  ✓ pas de choix de carte hors espèces')
 
+// 4 ter. « + Ligne » : chercher dans la bibliothèque, l'article remplit mode et prix
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500); appels.length = 0
+await p.getByText('+ Ligne').click(); await p.waitForTimeout(400); await p.keyboard.type('chafing'); await p.waitForTimeout(300)
+await p.locator('.ls-r button', { hasText: 'Chafing dish' }).click(); await p.waitForTimeout(300)
+await p.locator('.sheet input[inputmode=decimal]').first().fill('4'); await p.getByRole('button', { name: /^Ajouter/ }).click(); await p.waitForTimeout(400)
+const la = appels.find(a => a[0] === 'ligne_ajouter')
+if (!la || la[1].p.catalogue_id !== 'CAT-1' || la[1].p.mode !== 'louer' || Number(la[1].p.prix) !== 120 || la[1].p.qte !== '4') echec('+ Ligne depuis la bibliothèque'); else console.log('  ✓ + Ligne : recherche bibliothèque, mode et prix repris')
+// 4 quater. Page événement : Budget par défaut, l'argent client dans l'onglet Client
+await p.evaluate(() => localStorage.removeItem('orga_onglet')); await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/`); await p.waitForTimeout(600)
+const avant = await p.getByText('prix signé HT').count()
+await p.getByRole('button', { name: 'Client', exact: true }).click(); await p.waitForTimeout(400)
+if (avant || !(await p.getByText('prix signé HT').count())) echec('onglets Budget / Client'); else console.log('  ✓ Budget d\'abord, argent client dans l\'onglet Client')
+await p.getByRole('button', { name: 'Budget', exact: true }).click()
+
 // 4 bis. En-tête de l'événement : corriger sur place, menu ⋯
 await p.goto(`http://localhost:${port}/#/accueil`); await p.waitForTimeout(400); await p.getByText('Mariage Test').first().click(); await p.waitForTimeout(500)
 appels.length = 0

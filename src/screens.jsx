@@ -122,41 +122,38 @@ export function Plan({ data, go, mine, setMine, reload }) {
   const nbImp = mine ? 0 : aImputer(data).length
   const ia = useBulles(data)
   const bulles = [...regles(data), ...ia]
-  const [zones, setZones] = useState(false)
-  const marque = z => bulles.some(b => b.type === 'avertissement' && b.zone === z) ? 'warn' : bulles.some(b => b.zone === z) ? 'idea' : null
+  const [onglet, setOngletS] = useState(() => { try { return localStorage.getItem('orga_onglet') || 'budget' } catch { return 'budget' } })
+  const setOnglet = o => { setOngletS(o); try { localStorage.setItem('orga_onglet', o) } catch {} }
+  const vue = mine ? 'budget' : onglet
+  const cadre = ev.cadrage?.fait_le || ev.cadrage?.passe
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <EnteteEvt data={data} go={go} reload={reload} />
-      {!mine && <><Rail statut={ev.statut} /><Argent data={data} go={go} reload={reload} /></>}
-      {!mine && <CadrageBarre data={data} go={go} reload={reload} />}
-      {!mine && <Enveloppes data={data} go={go} reload={reload} />}
-      <div className="pv-liens">
+      {!mine && <div className="au-seg ev-seg">
+        <button className={vue === 'budget' ? 'on' : ''} onClick={() => setOnglet('budget')}>Budget</button>
+        <button className={vue === 'client' ? 'on' : ''} onClick={() => setOnglet('client')}>Client</button>
+      </div>}
+      {vue === 'budget' && <>
+        {!mine && !cadre && <CadrageBarre data={data} go={go} reload={reload} />}
+        {!mine && <Enveloppes data={data} go={go} reload={reload} />}
         {nbImp > 0 && <motion.button className="imp" whileTap={{ scale: .98 }} onClick={() => go('pieces')}><span className="n">{nbImp}</span>pièce{nbImp > 1 ? 's' : ''} à imputer<span className="go">›</span></motion.button>}
-        <button className="esp-lien" onClick={() => go('especes')}>💵 Espèces ›</button> · <button className="esp-lien" onClick={() => go('planning')}>Planning ›</button> · <button className="esp-lien" onClick={() => setZones(!zones)}>Vue par zone {zones ? '▾' : '›'}</button>
-      </div>
-      <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>
-      <Bulles items={bulles} go={go} />
-      {zones && <><Camps data={data} go={go} mine={mine} setMine={setMine} />
-      {!mine && (() => { const c = compteRevue(data), tot = c.revu + c.a_revoir + c.pas_vu; return tot > 0 && (
-        <motion.button className="rv-entree" whileTap={{ scale: .98 }} onClick={() => go('revue')}>
-          <div><b>Revue</b><span>{c.revu === tot ? 'tout est revu' : `${tot - c.revu} chose${tot - c.revu > 1 ? 's' : ''} à passer en revue`}</span></div>
-          <i><em style={{ width: `${(c.revu / tot) * 100}%` }} /></i><strong>{c.revu}/{tot}</strong>›
-        </motion.button>) })()}
-      <div className="plan" id="plan">
-        {data.zones.map((z, i) => {
-          const s = zoneStats(data, z)
-          const st = !s.els.length ? (mine ? 'rien pour toi' : 'vide') : s.alertes ? `${s.alertes} alerte${s.alertes > 1 ? 's' : ''}` : s.ouverts ? `${s.ouverts} à couvrir` : 'bouclée'
-          return (
-            <motion.button key={z.nom} className="table-btn" whileTap={{ scale: .94 }} onClick={() => go(`zone/${i}`)}>
-              <Table els={s.els} />
-              {marque(z.nom) === 'warn' && <span className="badge-warn">!</span>}
-              {marque(z.nom) === 'idea' && <span className="badge-idea">i</span>}
-              <div className="n">{z.nom}</div>
-              <div className={`s ${s.alertes || s.ouverts ? 'alert' : ''}`}>{st}</div>
-            </motion.button>
-          )
-        })}
-      </div></>}
+        <div className="ev-org">
+          {[['planning', 'Planning'], ['menu', 'Menu'], ['equipe', 'Équipe'], ['staff-evt', 'Staff'], cadre && ['cadrage', 'Cadrage']].filter(Boolean).map(([r, l]) =>
+            <button key={r} className="chip" onClick={() => go(r)}>{l}</button>)}
+        </div>
+        <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>
+        <Bulles items={bulles} go={go} />
+      </>}
+      {vue === 'client' && <>
+        <Rail statut={ev.statut} />
+        <Argent data={data} go={go} reload={reload} />
+        {!ev.prix_signe && <div className="pv-vide" style={{ margin: '18px 20px' }}>Pas encore de prix signé.</div>}
+        <div className="ev-org">
+          <button className="chip" onClick={() => go('especes')}>💵 Encaissements</button>
+          {ev.zoho_devis && <button className="chip" onClick={() => go('devis')}>Devis</button>}
+          {['Réalisé', 'Clôturé'].includes(ev.statut) && <button className="chip" onClick={() => go('bilan')}>Bilan</button>}
+        </div>
+      </>}
     </motion.div>
   )
 }

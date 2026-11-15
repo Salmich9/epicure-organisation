@@ -138,7 +138,7 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
           </div>
           <div className="bigbar">{MODES.map(x => n(e[x.k]) > 0 && <i key={x.k} style={{ width: `${Math.min(100, (n(e[x.k]) / (besoin || couvert || 1)) * 100)}%`, background: x.c }} />)}</div>
           <div className="barleg">
-            <span>{MODES.filter(x => n(e[x.k]) > 0).map(x => `${n(e[x.k])} ${x.l.toLowerCase()}`).join(' · ') || 'Rien de réparti'}</span>
+            <span>{MODES.filter(x => n(e[x.k]) > 0).map(x => `${n(e[x.k])} ${x.pl}`).join(' · ') || 'Rien de réparti'}</span>
             {reste === null ? <b>quantité ?</b> : reste > 0 ? <b>{reste} restent</b> : reste < 0 ? <b>+{-reste} en trop</b> : <b className="ok">Bouclé</b>}
           </div>
 

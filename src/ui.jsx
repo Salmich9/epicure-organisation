@@ -11,10 +11,10 @@ export const ETATS = {
 export const OUVERT = ['a_couvrir', 'partiel', 'a_clarifier']
 export const ALERTE = ['en_retard', 'non_recu', 'recu_partiel', 'a_revoir']
 export const MODES = [
-  { k: 'stock', l: 'Dépôt', c: 'var(--stock)', p: null },
-  { k: 'location', l: 'Location', c: 'var(--location)', p: 'prix_location' },
-  { k: 'achat', l: 'Achat', c: 'var(--achat)', p: 'prix_achat' },
-  { k: 'production', l: 'Production', c: 'var(--production)', p: 'prix_production' },
+  { k: 'stock', l: 'Prélever', pl: 'prélevés', c: 'var(--stock)', p: null },
+  { k: 'location', l: 'Louer', pl: 'loués', c: 'var(--location)', p: 'prix_location' },
+  { k: 'achat', l: 'Acheter', pl: 'achetés', c: 'var(--achat)', p: 'prix_achat' },
+  { k: 'production', l: 'Produire', pl: 'produits', c: 'var(--production)', p: 'prix_production' },
 ]
 export const n = v => (v === null || v === undefined || v === '' ? 0 : Number(v))
 export const mad = v => { v = n(v); return v >= 10000 ? `${Math.round(v / 1000)} k` : Math.round(v).toLocaleString('fr-FR') }

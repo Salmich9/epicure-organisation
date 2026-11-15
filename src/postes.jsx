@@ -91,7 +91,6 @@ export function Poste({ data, cle, go, openEl, reload }) {
   const p = (data.postes || []).find(x => x.cle === cle)
   const [act, setAct] = useState(null)
   const [lig, setLig] = useState(false)
-  const [idees, setIdees] = useState(false)
   const [edit, setEdit] = useState(false)
   const [val, setVal] = useState('')
   const [respSheet, setRespSheet] = useState(false)
@@ -167,13 +166,9 @@ export function Poste({ data, cle, go, openEl, reload }) {
           <motion.button whileTap={{ scale: .96 }} onClick={() => setLig(true)}>+ Ligne</motion.button>
           <motion.button whileTap={{ scale: .96 }} onClick={() => setAct({})}>+ Action</motion.button>
         </div>
-        {autres.length > 0 && <>
-          <button className="pv-idees" onClick={() => setIdees(!idees)}>Idées de la bibliothèque · {autres.length} {idees ? '▾' : '›'}</button>
-          {idees && <div className="pv-sub">{autres.map(e => <button key={e.id} className="pv-ln idee" onClick={() => openEl(e)}><Tag m={null} /><div className="x"><b>{e.element}</b><span>{e.zone}</span></div><span className="p">›</span></button>)}</div>}
-        </>}
       </div>
       <ActionSheet open={!!act} init={act} data={data} poste={cle} onClose={() => setAct(null)} onDone={() => { setAct(null); reload() }} />
-      <LigneSheet open={lig} data={data} poste={cle} onClose={() => setLig(false)} onDone={() => { setLig(false); reload() }} />
+      <LigneSheet open={lig} data={data} poste={cle} idees={autres} onClose={() => setLig(false)} onDone={() => { setLig(false); reload() }} />
       <ActionMenu a={menu?.t === 'action' ? menu.o : null} today={data.aujourdhui} gens={gens(data)} onClose={() => setMenu(null)}
         onDate={q => dater(menu.o, q)} onQui={q => attribuer(menu.o, q)} onModifier={() => { setAct({ a: menu.o }); setMenu(null) }}
         onDupliquer={() => dupliquer('action', menu.o.id)} onSupprimer={() => supprimer('action', menu.o.id, menu.o.quoi)} />
@@ -373,39 +368,59 @@ export function ActionSheet({ open, init, data, poste, onClose, onDone }) {
 }
 
 /* ---------- Ajouter une ligne quand on sait ---------- */
-export function LigneSheet({ open, data, poste, onClose, onDone }) {
+export function LigneSheet({ open, data, poste, idees = [], onClose, onDone }) {
   const ui = useUI()
-  const [f, setF] = useState({ nom: '', mode: 'louer', qte: '', prix: '', fournisseur: '', catalogue_id: '' })
+  const vide = { nom: '', mode: 'louer', qte: '', prix: '', fournisseur: '', catalogue_id: '', element_id: '' }
+  const [f, setF] = useState(vide)
+  const [pris, setPris] = useState(false)       // un nom est choisi : on passe aux détails
   const [cat, setCat] = useState(null)
-  useEffect(() => { if (open) { setF({ nom: '', mode: ['staff', 'logistique'].includes(poste) ? 'produire' : poste === 'consommables' || (data.postes || []).find(p => p.cle === poste)?.type === 'matiere' ? 'acheter' : 'louer', qte: '', prix: '', fournisseur: '', catalogue_id: '' }); if (!cat) api.catalogueListe().then(setCat).catch(() => {}) } }, [open])
+  const modeDefaut = ['staff', 'logistique'].includes(poste) ? 'produire' : poste === 'consommables' || (data.postes || []).find(p => p.cle === poste)?.type === 'matiere' ? 'acheter' : 'louer'
+  useEffect(() => { if (open) { setF({ ...vide, mode: modeDefaut }); setPris(false); if (cat === null) api.catalogueListe().then(setCat).catch(() => setCat([])) } }, [open])
   const set = (c, v) => setF(x => ({ ...x, [c]: v }))
-  const sug = useMemo(() => {
-    const q = f.nom.trim().toLowerCase(); if (q.length < 2 || !Array.isArray(cat) || f.catalogue_id) return []
-    return cat.filter(c => (c.element || '').toLowerCase().includes(q)).slice(0, 5)
-  }, [f.nom, cat, f.catalogue_id])
-  function choisir(c) {
-    const pr = { louer: c.prix_location, acheter: c.prix_achat, produire: c.prix_production, rafistoler: c.prix_production }[f.mode] ?? c.prix_location ?? c.prix_achat ?? c.prix_production
-    setF(x => ({ ...x, nom: c.element, catalogue_id: c.id, prix: pr ?? '', fournisseur: c.fournisseur || x.fournisseur }))
-  }
+  const q = f.nom.trim().toLowerCase()
+  const resultats = useMemo(() => {
+    if (q.length < 2) return []
+    const i = idees.filter(e => (e.element || '').toLowerCase().includes(q)).slice(0, 3).map(e => ({ t: 'idee', e }))
+    const c = (Array.isArray(cat) ? cat : []).filter(c => (c.element || '').toLowerCase().includes(q) && !i.some(x => x.e.element === c.element)).slice(0, 6).map(c => ({ t: 'cat', c }))
+    return [...i, ...c]
+  }, [q, cat, idees])
+  const prixDe = (c, m) => ({ louer: c.prix_location, acheter: c.prix_achat, produire: c.prix_production, rafistoler: c.prix_production }[m])
+  function modeDe(c) { return c.prix_location ? 'louer' : c.prix_achat ? 'acheter' : c.prix_production ? 'produire' : modeDefaut }
+  function prendreCat(c) { const m = modeDe(c); setF(x => ({ ...x, nom: c.element, catalogue_id: c.id, element_id: '', mode: m, prix: prixDe(c, m) ?? '', fournisseur: c.fournisseur || '' })); setPris(true) }
+  function prendreIdee(e) { const m = modeLigne(e) || modeDefaut; setF(x => ({ ...x, nom: e.element, element_id: e.id, catalogue_id: '', mode: m, qte: n(e.besoin) || '', prix: prixDe(e, m) ?? '', fournisseur: e.fournisseur || '' })); setPris(true) }
   const tot = (Number(String(f.qte || 1).replace(',', '.')) || 0) * (Number(String(f.prix).replace(',', '.')) || 0)
   async function valider() {
     if (!f.nom.trim()) return ui.toast('Il manque le nom.')
     try { await api.ligneAjouter(data.evt, { ...f, poste, qte: f.qte || 1 }); ui.toast('Ligne ajoutée'); onDone?.() } catch (e) { ui.toast(e.message) }
   }
+  const detailCat = c => [c.prix_location ? `loué ${k(c.prix_location)}` : null, c.prix_achat ? `acheté ${k(c.prix_achat)}` : null, c.prix_production ? `produit ${k(c.prix_production)}` : null, c.fournisseur].filter(Boolean).join(' · ') || c.zone
   return (
-    <Sheet open={open} onClose={onClose} z={1} foot={<button className="btn primary" onClick={valider} disabled={!f.nom.trim()}>{!f.nom.trim() ? 'Il manque : quoi' : `Ajouter${tot ? ` · +${k(tot)} engagé` : ''}`}</button>}>
+    <Sheet open={open} onClose={onClose} z={1} foot={pris ? <button className="btn primary" onClick={valider}>{`Ajouter${tot ? ` · +${k(tot)} engagé` : ''}`}</button> : null}>
       <div className="el-name" style={{ fontSize: 26 }}>Nouvelle ligne</div>
-      <div className="as-l">QUOI</div>
-      <input autoFocus value={f.nom} onChange={x => setF(y => ({ ...y, nom: x.target.value, catalogue_id: '' }))} placeholder="Assiettes plates, chafing dish…" />
-      {sug.length > 0 && <div className="as-sug">{sug.map(c => <button key={c.id} onClick={() => choisir(c)}>{c.element}<span>{c.zone}</span></button>)}</div>}
-      <div className="as-l">COMMENT</div>
-      <div className="chips">{Object.entries(MODES_L).map(([c, l]) => <button key={c} className={`chip ${f.mode === c ? 'on' : ''}`} onClick={() => set('mode', c)}>{l}</button>)}</div>
-      <div className="as-2">
-        <div><div className="as-l">QUANTITÉ</div><input inputMode="decimal" value={f.qte} onChange={x => set('qte', x.target.value)} placeholder="1" /></div>
-        <div><div className="as-l">{f.mode === 'prelever' ? 'COÛT (souvent 0)' : 'PRIX UNITAIRE'}</div><input inputMode="decimal" value={f.prix} onChange={x => set('prix', x.target.value)} placeholder="MAD" /></div>
-      </div>
-      <div className="as-l">{f.mode === 'louer' ? 'LOUEUR' : f.mode === 'acheter' ? 'FOURNISSEUR' : 'QUI / OÙ'}</div>
-      <input value={f.fournisseur} onChange={x => set('fournisseur', x.target.value)} placeholder="Facultatif" />
+      {!pris ? <>
+        <div className="ls-q"><span>⌕</span><input autoFocus value={f.nom} onChange={x => setF(y => ({ ...y, nom: x.target.value }))} placeholder="Chercher ou écrire : nappes, DJ, glace…"
+          onKeyDown={x => { if (x.key === 'Enter' && f.nom.trim()) setPris(true) }} /></div>
+        {q.length < 2 && idees.length > 0 && <>
+          <div className="as-l">IDÉES POUR CETTE ENVELOPPE</div>
+          <div className="chips">{idees.slice(0, 14).map(e => <button key={e.id} className="chip" onClick={() => prendreIdee(e)}>{e.element}</button>)}</div>
+        </>}
+        {q.length >= 2 && <div className="ls-r">
+          {resultats.map(r => r.t === 'idee'
+            ? <button key={r.e.id} onClick={() => prendreIdee(r.e)}><b>{r.e.element}</b><span>idée prévue pour cet événement</span></button>
+            : <button key={r.c.id} onClick={() => prendreCat(r.c)}><b>{r.c.element}</b><span>{detailCat(r.c)}</span></button>)}
+          <button className="nv" onClick={() => setPris(true)}><b>+ Créer « {f.nom.trim()} »</b><span>nouvelle ligne, gardée dans la bibliothèque</span></button>
+        </div>}
+      </> : <>
+        <button className="ls-pris" onClick={() => setPris(false)}><b>{f.nom}</b><span>changer</span></button>
+        <div className="as-l">COMMENT</div>
+        <div className="chips">{Object.entries(MODES_L).map(([c, l]) => <button key={c} className={`chip ${f.mode === c ? 'on' : ''}`} onClick={() => set('mode', c)}>{l}</button>)}</div>
+        <div className="as-2">
+          <div><div className="as-l">QUANTITÉ</div><input inputMode="decimal" value={f.qte} onChange={x => set('qte', x.target.value)} placeholder="1" /></div>
+          <div><div className="as-l">{f.mode === 'prelever' ? 'COÛT (souvent 0)' : 'PRIX UNITAIRE'}</div><input inputMode="decimal" value={f.prix} onChange={x => set('prix', x.target.value)} placeholder="MAD" /></div>
+        </div>
+        <div className="as-l">{f.mode === 'louer' ? 'LOUEUR' : f.mode === 'acheter' ? 'FOURNISSEUR' : 'QUI / OÙ'}</div>
+        <input value={f.fournisseur} onChange={x => set('fournisseur', x.target.value)} placeholder="Facultatif" />
+      </>}
     </Sheet>
   )
 }
