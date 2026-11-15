@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { api, store } from './api'
 import { setRegles, tva } from './regles'
 import { Info, dans, dateLongue, n, useUI } from './ui'
+import { Anneau } from './envie'
 
 /* Accueil : tous les événements par étape, l'argent en jeu et ce qui presse */
 const mt = v => Math.round(n(v)).toLocaleString('fr-FR')
@@ -78,9 +79,10 @@ function Carte({ e, today, onClick }) {
   return (
     <motion.button whileTap={{ scale: .98 }} className="ac-ev" onClick={onClick}>
       <div className="t"><b>{e.nom}</b><span>{e.date ? dans(e.date, today) : 'date à fixer'}</span></div>
+      {['confirme', 'a_cloturer'].includes(e.et) && n(e.pret_total) > 0 && <div className="ac-pr"><Anneau v={n(e.pret_fait) / n(e.pret_total)} size={40} epais={4}><b>{Math.round(n(e.pret_fait) / n(e.pret_total) * 100)}</b></Anneau></div>}
       <div className="m">{[e.invites ? `${e.invites} invités` : null, e.entite, n(e.prix_signe) ? `${mt(e.prix_signe)} signé` : null].filter(Boolean).join(' · ')}</div>
       {tags.length > 0 && <div className="tags">{tags.map(([c, x]) => <i key={x} className={c}>{x}</i>)}</div>}
-      {['confirme', 'a_cloturer'].includes(e.et) && e.n_elements > 0 && <div className="bar"><em style={{ width: `${prog * 100}%` }} /></div>}
+      {['confirme', 'a_cloturer'].includes(e.et) && e.n_elements > 0 && !n(e.pret_total) && <div className="bar"><em style={{ width: `${prog * 100}%` }} /></div>}
     </motion.button>
   )
 }

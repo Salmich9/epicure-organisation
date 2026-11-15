@@ -4,6 +4,7 @@ import { api } from './api'
 import { Info, Sheet, dateLongue, ddmm, n, useUI } from './ui'
 import { EnPlace } from './entete'
 import { MicFiche, useCible, useMicro } from './micro'
+import { Anneau, Journee, Merci, Pret, feliciter, pret } from './envie'
 
 /* Du général au particulier : enveloppes (prévu) → lignes (engagé) → actions (qui, quand, combien) */
 export const k = v => { v = n(v); return Math.abs(v) >= 10000 ? `${(v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: v >= 100000 ? 0 : 1 })} k` : Math.round(v).toLocaleString('fr-FR') }
@@ -64,12 +65,13 @@ export function Enveloppes({ data, go, reload }) {
   ) : (
     <motion.button whileTap={{ scale: .98 }} className="pv-env" onClick={() => go(`poste/${p.cle}`)}>
       <div className="l1"><Av nom={p.resp} /><div className="x"><b>{p.nom}{p.type === 'matiere' ? ` · ${String(n(p.prix_couvert)).replace('.', ',')} × ${ev.invites || '?'}` : ''}</b><span>{p.resp || 'à attribuer'}</span></div>
-        <div className="m">{(f => `${f(p.engage)} / ${f(p.prevu)}`)(kMeme(p.engage, p.prevu))}<small>engagé / prévu</small></div><span className="go">›</span></div>
+        <div className="m">{(f => `${f(p.engage)} / ${f(p.prevu)}`)(kMeme(p.engage, p.prevu))}<small>engagé / prévu</small></div>{(q => q.total > 0 && <Anneau v={q.v} size={22} epais={3} />)(pret(data, [p.cle]))}<span className="go">›</span></div>
       <div className="pb"><i className={n(p.engage) > n(p.prevu) ? 'o' : ''} style={{ width: `${Math.min(100, n(p.prevu) ? n(p.engage) / n(p.prevu) * 100 : 0)}%` }} /></div>
     </motion.button>
   )
   return (
     <div className="pv">
+      <Pret p={pret(data, equipe ? ps.filter(miens).map(p => p.cle) : null)} />
       {equipe && <div className="pv-st" style={{ marginTop: 6 }}>TES ENVELOPPES</div>}
       <Compteur {...t} info="Prévu : la somme des enveloppes (chiffrage vocal, sinon un ratio par invité ; touche une enveloppe pour corriger). Engagé : ce que coûtent les lignes et les actions. Réel : les pièces imputées et les actions marquées payées." />
       {mat.length > 0 && <div className="pv-st">MATIÈRE PAR MOMENT</div>}
@@ -123,7 +125,7 @@ export function Poste({ data, cle, go, openEl, reload }) {
     if (!(v >= 0)) return setEdit(false)
     try { await api.posteMaj(data.evt, cle, mat ? { prix_couvert: v } : { montant: v }); setEdit(false); reload() } catch (e) { ui.toast(e.message) }
   }
-  async function cocher(a) { try { await api.actionEnregistrer(data.evt, a.id, { fait: a.statut !== 'Fait' }); reload() } catch (e) { ui.toast(e.message) } }
+  async function cocher(a) { if (a.statut !== 'Fait') feliciter(); try { await api.actionEnregistrer(data.evt, a.id, { fait: a.statut !== 'Fait' }); reload() } catch (e) { ui.toast(e.message) } }
   async function supprimer(t, id, nom) {
     setMenu(null)
     try {
@@ -159,6 +161,7 @@ export function Poste({ data, cle, go, openEl, reload }) {
       <div className="px">
         {edit && <div className="pv-edit"><input autoFocus inputMode="decimal" value={val} onChange={x => setVal(x.target.value)} onKeyDown={x => x.key === 'Enter' && sauver()} /><span>{mat ? 'MAD / couvert' : 'MAD'}</span><button className="btn primary" onClick={sauver}>OK</button></div>}
         <Compteur prevu={n(p.prevu)} engage={n(p.engage)} reel={n(p.reel)} />
+        <Pret p={pret(data, [cle])} titre="Enveloppe prête à" />
         <div className="pv-st">LIGNES · {lignes.length}</div>
         {lignes.length + directes.length === 0 && <div className="pv-vide">Rien encore. Ajoute une ligne quand tu sais, ou une action.</div>}
         {lignes.length > 0 && <div className="pv-sub">{lignes.map(e => (
@@ -175,7 +178,7 @@ export function Poste({ data, cle, go, openEl, reload }) {
           </div>
         ))}</div>}
         {directes.length > 0 && <><div className="pv-st">ACTIONS · {directes.length}</div>
-          <div className="pv-sub">{directes.map(a => <LigneAction key={a.id} a={a} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}</div></>}
+          <div className="pv-sub">{directes.map(a => <LigneAction key={a.id} a={a} moi={data.moi} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}</div></>}
         <div className="pv-add">
           <motion.button whileTap={{ scale: .96 }} onClick={() => setLig(true)}>+ Ligne</motion.button>
           <motion.button whileTap={{ scale: .96 }} onClick={() => setAct({})}>+ Action</motion.button>
@@ -232,11 +235,12 @@ export const Reponse = ({ a }) => a.reponse ? <div className="pv-rp"><b>{a.resp}
 function SousAction({ a, today, onTap, onCheck, onMenu }) {
   return <><div className={`pv-sa ${a.statut === 'Fait' ? 'fait' : ''}`}><button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" /><button className="t" onClick={onTap}><b>{a.quoi}</b> · {detailAction(a, today)}{n(a.cout) ? ` · ${k(a.cout)}` : ''}</button><button className="pv-3 petit" onClick={onMenu} aria-label="Plus d'actions">⋯</button></div><Reponse a={a} /></>
 }
-function LigneAction({ a, today, onTap, onCheck, onMenu }) {
+function LigneAction({ a, today, onTap, onCheck, onMenu, moi }) {
   return (<>
     <div className={`pv-ln ${a.statut === 'Fait' ? 'fait' : ''}`}>
       <button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" />
       <button className="x" onClick={onTap}><b>{a.quoi}</b><span>{detailAction(a, today)}</span></button>
+      <Merci a={a} moi={moi} />
       <span className="p">{n(a.cout) ? k(a.cout) : '—'}{a.paye ? <small>payé</small> : null}</span>
       <button className="pv-3" onClick={onMenu} aria-label="Plus d'actions">⋯</button>
     </div>
@@ -457,6 +461,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
   const [moi, setMoi] = useState(() => { try { return localStorage.getItem('orga_auj_moi') === '1' } catch { return false } })
   const [menu, setMenu] = useState(null)
   const [tard, setTard] = useState(false)
+  const [voirFait, setVoirFait] = useState(true)
   const charger = () => api.aujourdhui().then(setD).catch(e => ui.toast(e.message))
   useEffect(() => { charger() }, [])
   if (!d) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
@@ -466,7 +471,8 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
   const groupes = mapart
     ? [['EN RETARD', L.filter(a => a.statut !== 'Fait' && a.echeance && a.echeance < t)], ['AUJOURD\'HUI', L.filter(a => a.echeance === t)], ['DEMAIN', L.filter(a => a.echeance === dem)],
        ['PLUS TARD', L.filter(a => a.statut !== 'Fait' && a.echeance > dem)], ['SANS DATE', L.filter(a => a.statut !== 'Fait' && !a.echeance)]]
-    : [['EN RETARD', L.filter(a => a.statut !== 'Fait' && a.echeance && a.echeance < t)], ['AUJOURD\'HUI', L.filter(a => a.echeance === t)], ['DEMAIN', L.filter(a => a.echeance === dem)]]
+    : [['EN RETARD', L.filter(a => a.statut !== 'Fait' && a.echeance && a.echeance < t)], ['AUJOURD\'HUI', L.filter(a => a.echeance === t && a.statut !== 'Fait')], ['DEMAIN', L.filter(a => a.echeance === dem && a.statut !== 'Fait')]]
+  const faites = mapart ? [] : L.filter(a => a.statut === 'Fait')
   const lTard = mapart ? [] : L.filter(a => a.statut !== 'Fait' && a.echeance > dem).sort((x, y) => x.echeance.localeCompare(y.echeance))
   const plusTard = lTard.length
   const equipe = [...new Set([d.moi, ...(d.intervenants || []).map(i => i.nom), ...d.actions.map(a => a.resp)].filter(Boolean))]
@@ -498,7 +504,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
           <b>{a.quoi}</b>
           <span>{j !== null && j >= 0 && j <= 7 && <i className="pv-j">J-{j}</i>}{[a.evt_nom, a.poste_nom, a.element, a.logistique?.mode === 'livre' ? `livré${a.heure ? ` ${a.heure}` : ''}` : a.logistique?.mode === 'recuperer' ? `à récupérer${a.heure ? ` ${a.heure}` : ''}` : null, a.logistique?.retour_j1 ? 'retour J+1' : null].filter(Boolean).join(' · ')}</span>
         </button>
-        <div className="h">{n(a.cout) ? k(a.cout) : '—'}<small>{jourCourt(a.echeance, t)}</small></div>
+        {a.statut === 'Fait' ? <Merci a={a} moi={d.moi} onDone={charger} /> : <div className="h">{n(a.cout) ? k(a.cout) : '—'}<small>{jourCourt(a.echeance, t)}</small></div>}
         <Av nom={a.resp} onClick={() => setMenu(a)} />
         <button className="pv-3" onClick={() => setMenu(a)} aria-label="Plus d'actions">⋯</button>
         {a.reponse && <div className="pv-rp au">{a.resp} : « {a.reponse} »</div>}
@@ -506,6 +512,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
     )
   }
   async function cocher(a) {
+    if (a.statut !== 'Fait') feliciter()
     setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, statut: a.statut === 'Fait' ? 'À faire' : 'Fait' } : y) }))
     try { await api.actionEnregistrer(a.evenement_id, a.id, { fait: a.statut !== 'Fait' }) } catch (e) { ui.toast(e.message); charger() }
   }
@@ -516,6 +523,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
         {mapart && <div className="meta">Ce qui est à ton nom, tous événements.</div>}</div>
       {!mapart && <div className="au-seg"><button className={!moi ? 'on' : ''} onClick={() => { setMoi(false); try { localStorage.setItem('orga_auj_moi', '0') } catch {} }}>Tout le monde</button><button className={moi ? 'on' : ''} onClick={() => { setMoi(true); try { localStorage.setItem('orga_auj_moi', '1') } catch {} }}>Ma part</button></div>}
       <div className="px">
+        <Journee mapart={mapart} />
         {!total && <div className="pv-vide" style={{ marginTop: 20 }}>{mapart ? 'Rien à ton nom.' : 'Rien pour aujourd\'hui ni demain.'}</div>}
         {groupes.filter(g => g[1].length).map(([l, g]) => (
           <div key={l}>
@@ -525,6 +533,8 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
         ))}
         {plusTard > 0 && <button className="pv-st au-tard" onClick={() => setTard(!tard)}>PLUS TARD · {plusTard} {tard ? '▾' : '›'}</button>}
         {tard && lTard.map(Carte)}
+        {faites.length > 0 && <><button className="pv-st au-tard" onClick={() => setVoirFait(!voirFait)}>FAIT · {faites.length} {voirFait ? '▾' : '›'}</button>
+          {voirFait && faites.map(Carte)}</>}
         <button className="pv-plus" style={{ marginTop: 18 }} onClick={() => go('accueil')}>Événements ›</button>
       </div>
       <ActionMenu a={menu} today={t} gens={equipe} sous={menu ? [menu.evt_nom, menu.poste_nom].filter(Boolean).join(' · ') : null} onClose={() => setMenu(null)}

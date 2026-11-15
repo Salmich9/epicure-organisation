@@ -939,3 +939,34 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .rv-manque input { flex: 1; }
 .pv-rc { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 .rv-manque .btn { flex: none; padding: 0 22px; }
+
+/* Lot B : l'envie */
+.an { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.an svg { position: absolute; inset: 0; }
+.an i { position: relative; font-style: normal; font-size: 11px; font-weight: 800; }
+.an i b { font-weight: 800; }
+.pr { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 18px; padding: 10px 14px; margin: 10px 0; }
+.pr b { display: block; font-size: 14.5px; font-weight: 750; }
+.pr span { display: block; font-size: 11.5px; color: var(--mute); font-weight: 600; margin-top: 1px; }
+.pv-env .an { margin-left: 8px; }
+.ac-ev { position: relative; }
+.ac-pr { position: absolute; right: 14px; bottom: 14px; }
+.pv-ck.on { animation: ck-pop .35s ease-out; }
+@keyframes ck-pop { 0% { transform: scale(.7); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 60% { transform: scale(1.18); box-shadow: 0 0 0 8px transparent; } 100% { transform: scale(1); } }
+.me { flex: none; font-size: 12px; font-weight: 750; padding: 6px 10px; border-radius: 999px; background: var(--surface2); color: var(--ink); white-space: nowrap; }
+.me.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.me-n { font-size: 12px; font-weight: 750; color: var(--mute); white-space: nowrap; }
+.jr { background: var(--ink); color: var(--bg); border-radius: 20px; padding: 14px 16px; margin: 10px 0 4px; }
+.jr .t { font-size: 12px; font-weight: 750; opacity: .7; }
+.jr .c { display: flex; gap: 22px; margin-top: 6px; }
+.jr .c div { font-size: 12px; opacity: .85; }
+.jr .c b { display: block; font-family: var(--display); font-size: 30px; font-weight: 400; line-height: 1.1; opacity: 1; }
+.jr .e { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 10px; font-size: 12.5px; font-weight: 650; }
+.jr .e span { display: inline-flex; align-items: center; gap: 6px; }
+.jr .e em { font-style: normal; color: var(--gold); font-weight: 800; }
+.jr.mercis { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--ink); }
+.jr.mercis b { display: block; font-size: 14.5px; }
+.jr.mercis span { display: block; font-size: 12px; color: var(--mute); margin-top: 3px; }
+.pr .an b { display: inline; font-size: 11px; }
+.ac-pr { bottom: 12px; }
+.pr .an { display: inline-flex; margin-top: 0; }

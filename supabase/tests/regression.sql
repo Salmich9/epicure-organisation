@@ -82,6 +82,18 @@ begin
   if not exists (select 1 from jsonb_array_elements(orga.aujourdhui(tok)->'actions') y where y->>'id' = a->>'id' and y->>'evt_nom' = 'ZZ Test régression') then
     raise exception 'ECHEC : action absente de Aujourd''hui'; end if; ok := ok + 1;
 
+  -- 8 bis bis. Lot B : jauge, merci, journée
+  declare pr jsonb; mj jsonb; begin
+    perform orga.action_enregistrer(tok, ev, a->>'id', '{"fait":true}');
+    pr := orga._pret(ev);
+    if (pr->>'total')::int < 2 or (pr->>'fait')::int < 1 then raise exception 'ECHEC : jauge prêt %', pr; end if;
+    if jsonb_array_length(orga.action_merci(tok_simple, a->>'id')) <> 1 or jsonb_array_length(orga.action_merci(tok_simple, a->>'id')) <> 1 then raise exception 'ECHEC : merci'; end if;
+    begin perform orga.action_merci(tok, ev); raise exception 'ECHEC : merci sur rien';
+    exception when others then if sqlerrm not like '%introuvable%' then raise; end if; end;
+    mj := orga.ma_journee(tok);
+    if (mj->>'faites')::int < 1 then raise exception 'ECHEC : journée sans la coche'; end if;
+    if (orga.accueil(tok)->'evenements'->0) ? 'pret_total' is not true then raise exception 'ECHEC : jauge absente de l''accueil'; end if;
+  end; ok := ok + 1;
   -- 8 ter. Compte Équipe : seulement les événements confirmés où il a quelque chose, jamais le prix ni la marge
   declare te uuid; d jsonb; c jsonb; begin
     insert into orga.membres (nom, pin_hash, admin, role) values ('ZZTestEquipe', extensions.crypt('135790', extensions.gen_salt('bf')), false, 'equipe');

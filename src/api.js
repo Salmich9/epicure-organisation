@@ -15,6 +15,7 @@ const MESSAGES = {
   reserve_admin: 'Réservé aux administrateurs.',
   reserve_direction: 'Réservé à la direction.',
   nom_pris: 'Ce prénom a déjà un compte.',
+  merci_impossible: 'On remercie quelqu\'un d\'autre, pour une action faite.',
   element_facture: 'Une facture est déjà rangée sur cet élément : retire-la d\'abord.',
   enveloppe_non_vide: 'Déplace ou supprime d\'abord ses lignes et ses actions.',
 }
@@ -133,6 +134,8 @@ export const api = {
   compteMaj: (nom, p) => rpc('compte_maj', { p_token: store.token, p_nom: nom, p }),
   compteNouveauCode: (nom) => rpc('compte_nouveau_code', { p_token: store.token, p_nom: nom }),
   compteRetirer: (nom) => rpc('compte_retirer', { p_token: store.token, p_nom: nom }),
+  actionMerci: (id) => rpc('action_merci', { p_token: store.token, p_id: id }),
+  maJournee: () => rpc('ma_journee', { p_token: store.token }),
   objetDupliquer: (type, id) => rpc('objet_dupliquer', { p_token: store.token, p_type: type, p_id: id }),
   ligneDeplacer: (id, poste) => rpc('ligne_deplacer', { p_token: store.token, p_id: id, p_poste: poste }),
   posteCreer: (evt, nom, type) => rpc('poste_creer', { p_token: store.token, p_evt: evt, p_nom: nom, p_type: type || 'achat' }),
