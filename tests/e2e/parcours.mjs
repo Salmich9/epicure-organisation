@@ -13,6 +13,7 @@ const srv = http.createServer((q, r) => { let p = q.url.split('?')[0]; if (p ===
 
 const appels = []
 const RPC = {
+  depot_liste: () => donnees.depot || [],
   donnees: () => (globalThis.__equipe ? { ...donnees, moi: 'Ouadia', role: 'equipe', admin: false } : globalThis.__rep ? { ...donnees, actions: donnees.actions.map(a => a.id === 'ACT-1' ? { ...a, reponse: 'Vernis acheté, demain matin' } : a) } : donnees), aujourdhui: () => aujourdhui, accueil: () => accueil,
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }),
   catalogue_liste: () => [{ id: 'CAT-1', element: 'Chafing dish', zone: 'Cuisine traiteur', prix_location: 120 }],

@@ -149,6 +149,7 @@ export const api = {
   evenementStatut: (evt, statut) => rpc('evenement_statut', { p_token: store.token, p_evt: evt, p_statut: statut }),
   porteurAjouter: (nom) => rpc('porteur_ajouter', { p_token: store.token, p_nom: nom }),
   enveloppeRemettre: (evt, nom, montant) => fonction('orga-especes', { token: store.token, evt, nom, montant }, 'Remise impossible.'),
+  depotListe: () => rpc('depot_liste', { p_token: store.token }),
   santeEtat: () => rpc('sante_etat', { p_token: store.token }),
   santeVerifier: () => fonction('orga-sante', { token: store.token }, 'Le contrôle n\'a pas pu se faire.'),
   planningListe: (evt) => rpc('planning_liste', { p_token: store.token, p_evt: evt }),

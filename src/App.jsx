@@ -28,6 +28,14 @@ import { reseau } from './reseau'
 import { synchroniser } from './api'
 import { ETATS, Icon, Sheet, ddmm, n, useUI } from './ui'
 
+// Stock du dépôt : chargé à part, gardé 5 minutes (il change rarement et pèse lourd)
+const DEPOT = { liste: null, le: 0 }
+async function depotFrais(forcer) {
+  if (!forcer && DEPOT.liste && Date.now() - DEPOT.le < 5 * 60e3) return DEPOT.liste
+  try { DEPOT.liste = await api.depotListe(); DEPOT.le = Date.now() } catch (e) { if (e.code === 'session_expiree') throw e }
+  return DEPOT.liste
+}
+
 function useHash() {
   const [h, setH] = useState(location.hash ? location.hash.slice(2) : 'aujourdhui')
   useEffect(() => { const f = () => setH(location.hash.slice(2)); addEventListener('hashchange', f); return () => removeEventListener('hashchange', f) }, [])
@@ -153,9 +161,11 @@ export default function App() {
   const load = useCallback(async (evt) => {
     try {
       if (evt) store.evt = evt
-      let d = await api.donnees(evt || store.evt)
+      const [d0, depot] = await Promise.all([api.donnees(evt || store.evt), depotFrais(!!evt)])
+      let d = d0
       // Événement mémorisé supprimé entre-temps : on retombe sur le prochain événement
       if (!d.evenements.some(x => x.id === d.evt)) d = await api.donnees(null)
+      d = { ...d, depot: Array.isArray(depot) ? depot : d.depot || [] }
       setRegles(d.regles); setData(d); store.evt = d.evt; prechargerChallenge(d.evt) }
     catch (e) { if (e.code === 'session_expiree') { store.token = null; setLogged(false) } else ui.toast(e.message) }
   }, [])
