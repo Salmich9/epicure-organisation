@@ -7,6 +7,7 @@ import { MicFiche, useCible, useMicro } from './micro'
 import { Anneau, Journee, Merci, Pret, feliciter, pret } from './envie'
 import { arrets } from './terrain'
 import { vehicules } from './regles'
+import { Bulle, Fil, FilSheet, PourToi } from './fil'
 
 /* Du général au particulier : enveloppes (prévu) → lignes (engagé) → actions (qui, quand, combien) */
 export const k = v => { v = n(v); return Math.abs(v) >= 10000 ? `${(v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: v >= 100000 ? 0 : 1 })} k` : Math.round(v).toLocaleString('fr-FR') }
@@ -106,6 +107,8 @@ export function Poste({ data, cle, go, openEl, reload }) {
   const [menu, setMenu] = useState(null)      // { t: 'element' | 'action' | 'poste', o }
   const [depl, setDepl] = useState(null)      // ligne à déplacer
   const [recManque, setRecManque] = useState(null)
+  const [fil, setFil] = useState(null)   // { type, o }
+  const nf = id => n((data.fil || {})[id])
   async function recevoir(e, r, texte) {
     if (r !== 'Reçu' && !texte) { setRecManque({ r, texte: e.manque || '' }); return }
     setMenu(null); setRecManque(null)
@@ -174,13 +177,14 @@ export function Poste({ data, cle, go, openEl, reload }) {
                 <div className="x"><b>{e.element}</b><span>{e.reception && <Recu e={e} />}{[n(e.besoin) ? `${n(e.besoin)}` : null, e.fournisseur, e.perimetre === 'Tiers' ? `tiers${e.fourni_par ? ` · ${e.fourni_par}` : ''}` : null].filter(Boolean).join(' · ') || ' '}</span></div>
                 <span className="p">{n(e.cout) ? k(e.cout) : '—'}</span>
               </button>
+              <Bulle n={nf(e.id)} onClick={() => setFil({ type: 'element', o: e })} />
               <button className="pv-3" onClick={() => setMenu({ t: 'element', o: e })} aria-label="Plus d'actions">⋯</button>
             </div>
-            {sous(e.id).map(a => <SousAction key={a.id} a={a} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}
+            {sous(e.id).map(a => <SousAction key={a.id} a={a} nFil={nf(a.id)} onFil={() => setFil({ type: 'action', o: a })} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}
           </div>
         ))}</div>}
         {directes.length > 0 && <><div className="pv-st">ACTIONS · {directes.length}</div>
-          <div className="pv-sub">{directes.map(a => <LigneAction key={a.id} a={a} moi={data.moi} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}</div></>}
+          <div className="pv-sub">{directes.map(a => <LigneAction key={a.id} a={a} moi={data.moi} nFil={nf(a.id)} onFil={() => setFil({ type: 'action', o: a })} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}</div></>}
         <div className="pv-add">
           <motion.button whileTap={{ scale: .96 }} onClick={() => setLig(true)}>+ Ligne</motion.button>
           <motion.button whileTap={{ scale: .96 }} onClick={() => setAct({})}>+ Action</motion.button>
@@ -191,7 +195,9 @@ export function Poste({ data, cle, go, openEl, reload }) {
       <ActionMenu a={menu?.t === 'action' ? menu.o : null} today={data.aujourdhui} gens={gens(data)} onClose={() => setMenu(null)}
         onDate={q => dater(menu.o, q)} onQui={q => attribuer(menu.o, q)} onModifier={() => { setAct({ a: menu.o }); setMenu(null) }}
         onDupliquer={() => dupliquer('action', menu.o.id)} onSupprimer={() => supprimer('action', menu.o.id, menu.o.quoi)}
-        onDire={async t => { const a = menu.o; setMenu(null); try { await direAction({ ...a, evenement_id: data.evt }, t, ui, reload) } catch (e) { ui.toast(e.message) } }} />
+        onDire={async t => { const a = menu.o; setMenu(null); try { await direAction({ ...a, evenement_id: data.evt }, t, ui, reload) } catch (e) { ui.toast(e.message) } }}
+        onFil={() => { setFil({ type: 'action', o: menu.o }); setMenu(null) }} nFil={menu?.t === 'action' ? nf(menu.o.id) : 0} />
+      <FilSheet type={fil?.type} objet={fil?.o} gens={gens(data)} moi={data.moi} onClose={() => { setFil(null); reload() }} />
       <Sheet open={!!menu && menu.t !== 'action'} onClose={() => { setMenu(null); setRecManque(null) }}>
         {menu && menu.t !== 'action' && <>
           <div className="el-name" style={{ fontSize: 24 }}>{menu.t === 'element' ? menu.o.element : menu.o.nom}</div>
@@ -204,6 +210,7 @@ export function Poste({ data, cle, go, openEl, reload }) {
           <div className="ee-menu">
             {menu.t === 'element' && <>
               <button onClick={() => { setMenu(null); openEl(menu.o) }}>Modifier<span>›</span></button>
+              <button onClick={() => { setFil({ type: 'element', o: menu.o }); setMenu(null) }}>Échanges{nf(menu.o.id) ? ` · ${nf(menu.o.id)}` : ''}<span>💬</span></button>
               <button onClick={() => { setDepl(menu.o); setMenu(null) }}>Déplacer vers…<span>›</span></button>
               <button onClick={() => dupliquer('element', menu.o.id)}>Dupliquer<span>⧉</span></button>
               <button className="danger" onClick={() => supprimer('element', menu.o.id, menu.o.element)}>Supprimer</button>
@@ -234,14 +241,15 @@ const detailAction = (a, today) => [a.resp, jourCourt(a.echeance, today) + (a.he
   a.logistique?.mode === 'livre' ? `livré${a.logistique.lieu ? ` ${a.logistique.lieu}` : ''}` : a.logistique?.mode === 'recuperer' ? `à récupérer${a.logistique.lieu ? ` ${a.logistique.lieu}` : ''}` : null,
   a.logistique?.retour_j1 ? 'retour J+1' : null].filter(Boolean).join(' · ')
 export const Reponse = ({ a }) => a.reponse ? <div className="pv-rp"><b>{a.resp}</b> « {a.reponse} »</div> : null
-function SousAction({ a, today, onTap, onCheck, onMenu }) {
-  return <><div className={`pv-sa ${a.statut === 'Fait' ? 'fait' : ''}`}><button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" /><button className="t" onClick={onTap}><b>{a.quoi}</b> · {detailAction(a, today)}{n(a.cout) ? ` · ${k(a.cout)}` : ''}</button><button className="pv-3 petit" onClick={onMenu} aria-label="Plus d'actions">⋯</button></div><Reponse a={a} /></>
+function SousAction({ a, today, onTap, onCheck, onMenu, nFil, onFil }) {
+  return <><div className={`pv-sa ${a.statut === 'Fait' ? 'fait' : ''}`}><button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" /><button className="t" onClick={onTap}><b>{a.quoi}</b> · {detailAction(a, today)}{n(a.cout) ? ` · ${k(a.cout)}` : ''}</button><Bulle n={nFil} onClick={onFil} /><button className="pv-3 petit" onClick={onMenu} aria-label="Plus d'actions">⋯</button></div><Reponse a={a} /></>
 }
-function LigneAction({ a, today, onTap, onCheck, onMenu, moi }) {
+function LigneAction({ a, today, onTap, onCheck, onMenu, moi, nFil, onFil }) {
   return (<>
     <div className={`pv-ln ${a.statut === 'Fait' ? 'fait' : ''}`}>
       <button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" />
       <button className="x" onClick={onTap}><b>{a.quoi}</b><span>{detailAction(a, today)}</span></button>
+      <Bulle n={nFil} onClick={onFil} />
       <Merci a={a} moi={moi} />
       <span className="p">{n(a.cout) ? k(a.cout) : '—'}{a.paye ? <small>payé</small> : null}</span>
       <button className="pv-3" onClick={onMenu} aria-label="Plus d'actions">⋯</button>
@@ -266,7 +274,7 @@ export async function direAction(a, t, ui, apres) {
 }
 
 /* ---------- Menu ⋯ d'une action : repousser, réattribuer, dupliquer, supprimer ---------- */
-export function ActionMenu({ a, today, gens, sous, onClose, onDate, onQui, onModifier, onOuvrir, onDupliquer, onSupprimer, onDire }) {
+export function ActionMenu({ a, today, gens, sous, onClose, onDate, onQui, onModifier, onOuvrir, onDupliquer, onSupprimer, onDire, onFil, nFil }) {
   const [choisir, setChoisir] = useState(false)
   const m = useMicro(t => onDire?.(t))
   const ref = useRef(null)
@@ -290,6 +298,7 @@ export function ActionMenu({ a, today, gens, sous, onClose, onDate, onQui, onMod
       <div className="chips">{qui.map(g => <button key={g} className={`chip am-q ${g === a.resp ? 'on' : ''}`} onClick={() => g !== a.resp && onQui(g)}><Av nom={g} size={20} />{g}</button>)}</div>
       <div className="ee-menu">
         {onModifier && <button onClick={onModifier}>Modifier<span>›</span></button>}
+        {onFil && <button onClick={onFil}>Échanges{nFil ? ` · ${nFil}` : ''}<span>💬</span></button>}
         {onOuvrir && <button onClick={onOuvrir}>Ouvrir l'enveloppe<span>›</span></button>}
         <button onClick={onDupliquer}>Dupliquer<span>⧉</span></button>
         <button className="danger" onClick={onSupprimer}>Supprimer</button>
@@ -391,6 +400,7 @@ export function ActionSheet({ open, init, data, poste, onClose, onDone }) {
       {f.paiement === 'carte' && ev.entite === 'Espèce' && <div className="chips" style={{ marginTop: 8 }}>{['Business Boys', 'Epicure'].map(c => <button key={c} className={`chip ${f.carte === c ? 'on' : ''}`} onClick={() => set('carte', c)}>Carte {c}</button>)}</div>}
       {a0 && <>
         <div className="chips" style={{ marginTop: 16 }}><button className={`chip ${f.paye ? 'on' : ''}`} onClick={() => set('paye', !f.paye)}>{f.paye ? '✓ Payé' : 'Marquer payé'}</button></div>
+        <Fil type="action" objet={a0} gens={gens(data)} moi={data.moi} entete={<div className="as-l">ÉCHANGES</div>} />
         <button className={`evt-suppr ${suppr ? 'on' : ''}`} style={{ width: '100%', marginTop: 18 }} onClick={supprimer} onBlur={() => setSuppr(false)}>{suppr ? 'Toucher encore pour supprimer' : 'Supprimer l\'action'}</button>
       </>}
     </Sheet>
@@ -463,6 +473,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
   const [menu, setMenu] = useState(null)
   const [tard, setTard] = useState(false)
   const [voirFait, setVoirFait] = useState(true)
+  const [filA, setFilA] = useState(null)
   const charger = () => api.aujourdhui().then(setD).catch(e => ui.toast(e.message))
   useEffect(() => { charger() }, [])
   if (!d) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
@@ -506,6 +517,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
           <span>{j !== null && j >= 0 && j <= 7 && <i className="pv-j">J-{j}</i>}{[a.evt_nom, a.poste_nom, a.element, a.logistique?.mode === 'livre' ? `livré${a.heure ? ` ${a.heure}` : ''}` : a.logistique?.mode === 'recuperer' ? `à récupérer${a.heure ? ` ${a.heure}` : ''}` : null, a.logistique?.retour_j1 ? 'retour J+1' : null].filter(Boolean).join(' · ')}</span>
         </button>
         {a.statut === 'Fait' ? <Merci a={a} moi={d.moi} onDone={charger} /> : <div className="h">{n(a.cout) ? k(a.cout) : '—'}<small>{jourCourt(a.echeance, t)}</small></div>}
+        <Bulle n={n((d.fil || {})[a.id])} onClick={() => setFilA(a)} />
         <Av nom={a.resp} onClick={() => setMenu(a)} />
         <button className="pv-3" onClick={() => setMenu(a)} aria-label="Plus d'actions">⋯</button>
         {a.reponse && <div className="pv-rp au">{a.resp} : « {a.reponse} »</div>}
@@ -524,6 +536,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
         {mapart && <div className="meta">Ce qui est à ton nom, tous événements.</div>}</div>
       {!mapart && <div className="au-seg"><button className={!moi ? 'on' : ''} onClick={() => { setMoi(false); try { localStorage.setItem('orga_auj_moi', '0') } catch {} }}>Tout le monde</button><button className={moi ? 'on' : ''} onClick={() => { setMoi(true); try { localStorage.setItem('orga_auj_moi', '1') } catch {} }}>Ma part</button></div>}
       <div className="px">
+        {mapart && <PourToi ouvrir={x => ouvrirPoste(x.evenement_id, x.poste)} />}
         <Journee mapart={mapart} />
         {!mapart && (d.evenements || []).filter(e => e.date === t).map(e => <button key={e.id} className="jj-ban" onClick={() => ouvrirPoste(e.id).then(() => go('jourj'))}><span>⏱</span><b>C'est le jour J</b><em>{e.nom} · heure par heure et brief ›</em></button>)}
         {(k => k > 0 && <button className="tr-lien" onClick={() => go('tournees')}><span>🚚</span><b>Tournées</b><em>{k} arrêt{k > 1 ? 's' : ''} aujourd'hui et demain ›</em></button>)(arrets(d.actions).filter(x => !x.fait && (x.jour === t || x.jour === dem)).length)}
@@ -543,7 +556,9 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
       <ActionMenu a={menu} today={t} gens={equipe} sous={menu ? [menu.evt_nom, menu.poste_nom].filter(Boolean).join(' · ') : null} onClose={() => setMenu(null)}
         onDate={q => changer(menu, 'quand', q, `Repoussé au ${ddmm(q)}`)} onQui={q => changer(menu, 'qui', q, `Confié à ${q}`)}
         onOuvrir={() => { const a = menu; setMenu(null); ouvrirPoste(a.evenement_id, a.poste) }} onDupliquer={() => dupliquer(menu)} onSupprimer={() => supprimer(menu)}
-        onDire={async x => { const a = menu; setMenu(null); try { await direAction(a, x, ui, charger) } catch (e) { ui.toast(e.message) } }} />
+        onDire={async x => { const a = menu; setMenu(null); try { await direAction(a, x, ui, charger) } catch (e) { ui.toast(e.message) } }}
+        onFil={() => { setFilA(menu); setMenu(null) }} nFil={menu ? n((d.fil || {})[menu.id]) : 0} />
+      <FilSheet type="action" objet={filA} gens={equipe} moi={d.moi} onClose={() => { setFilA(null); charger() }} />
     </motion.div>
   )
 }

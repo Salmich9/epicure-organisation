@@ -25,7 +25,7 @@ import { JourJ } from './jourj'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
 import { synchroniser } from './api'
-import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
+import { ETATS, Icon, Sheet, ddmm, n, useUI } from './ui'
 
 function useHash() {
   const [h, setH] = useState(location.hash ? location.hash.slice(2) : 'aujourdhui')
@@ -253,7 +253,7 @@ export default function App() {
           <span className="mi-pill">{cible ? `→ ${cible.label}` : '→ une note'}</span>
           <motion.button whileTap={{ scale: .9 }} className={`mic ${listening || micro.ecoute ? 'rec' : ''}`} onClick={cible ? micro.basculer : toggleMic} aria-label={cible ? `Parler à ${cible.label}` : 'Dicter une note'}>{Icon.mic}</motion.button>
         </div>
-        <button className={tab === 'mapart' ? 'on' : ''} onClick={() => go('mapart')}>{Icon.deleguer}Ma part</button>
+        <button className={`${tab === 'mapart' ? 'on' : ''} ${n(data.pour_toi) > 0 && tab !== 'mapart' ? 'pt-dot' : ''}`} onClick={() => go('mapart')}>{Icon.deleguer}Ma part</button>
         <button className={tab === 'notes' ? 'on' : ''} onClick={() => go('notes')}>{Icon.notes}Notes</button>
       </nav>
 

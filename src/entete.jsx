@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, store } from './api'
 import { Sheet, dans, dateLongue, useUI } from './ui'
 import { SupprimerEvt } from './screens'
+import { Relais } from './fil'
 
 /* En-tête d'un événement : chaque information se corrige sur place, d'un toucher ; le reste est dans ⋯ */
 const SOCIETES = ['Epicure', 'Business Boys', 'Espèce']
@@ -31,6 +32,7 @@ export function EnteteEvt({ data, go, reload }) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const [menu, setMenu] = useState(false)
   const [soc, setSoc] = useState(false)
+  const [relais, setRelais] = useState(false)
   const fige = data.role === 'equipe'
   async function maj(p, msg = 'Enregistré') {
     try {
@@ -62,11 +64,13 @@ export function EnteteEvt({ data, go, reload }) {
         <div className="chips" style={{ marginTop: 14 }}>{SOCIETES.map(s => <button key={s} className={`chip ${(ev.entite || 'Epicure') === s ? 'on' : ''}`} onClick={() => { setSoc(false); maj({ entite: s }) }}>{s}</button>)}</div>
       </Sheet>
 
+      <Relais open={relais} data={data} onClose={() => setRelais(false)} onDone={() => { setRelais(false); reload?.() }} />
       <Sheet open={menu} onClose={() => setMenu(false)}>
         <div className="el-name" style={{ fontSize: 26 }}>{ev.nom}</div>
         <div className="ee-menu">
           {!fige && <button onClick={() => { setMenu(false); go('chiffrer') }}>{ev.budget ? 'Revoir le chiffrage' : 'Chiffrer cet événement'}<span>›</span></button>}
           {ev.drive_url && <a href={ev.drive_url} target="_blank" rel="noreferrer">Dossier Drive<span>↗</span></a>}
+          <button onClick={() => { setMenu(false); setRelais(true) }}>Passer le relais<span>⇄</span></button>
           <button onClick={() => { setMenu(false); go('historique') }}>Historique des changements<span>›</span></button>
           {!fige && <button onClick={() => { setMenu(false); go('corbeille') }}>Corbeille<span>›</span></button>}
           {!fige && <button onClick={() => { setMenu(false); go('nouveau') }}>Nouvel événement<span>›</span></button>}

@@ -102,6 +102,23 @@ begin
     if (select (x->>'revenu')::int from jsonb_array_elements(orga.donnees(tok, ev)->'elements') x where x->>'id' = l->>'id') <> 9 then raise exception 'ECHEC : retour absent des données'; end if;
     if jsonb_array_length(orga.donnees(tok, ev)->'regles'->'vehicules') < 5 then raise exception 'ECHEC : véhicules par défaut'; end if;
   end; ok := ok + 1;
+  -- 8 bis quater. Lot E : fil, mention, Pour toi, relais
+  declare r jsonb; r2 jsonb; begin
+    r := orga.fil_ajouter(tok, 'action', a->>'id', 'Salut @ZZTestSimple, tu vérifies ?', null);
+    if not ('ZZTestSimple' = any(array(select jsonb_array_elements_text(r->'mentions')))) then raise exception 'ECHEC : mention %', r; end if;
+    if jsonb_array_length(orga.fil_liste(tok_simple, 'action', a->>'id')) <> 1 then raise exception 'ECHEC : fil'; end if;
+    if not exists (select 1 from jsonb_array_elements(orga.pour_toi(tok_simple)->'items') x where x->>'type' = 'mention') then raise exception 'ECHEC : pour toi sans la mention'; end if;
+    if (orga.donnees(tok, ev)->'fil'->>(a->>'id'))::int <> 1 or (orga.donnees(tok_simple, ev)->>'pour_toi')::int < 1 then raise exception 'ECHEC : compteurs du fil'; end if;
+    perform orga.pour_toi_vu(tok_simple);
+    if (orga.pour_toi(tok_simple)->>'non_vus')::int <> 0 then raise exception 'ECHEC : pour toi vu'; end if;
+    begin perform orga.fil_ajouter(tok, 'action', a->>'id', null, 'javascript:alert(1)'); raise exception 'ECHEC : photo non image acceptée';
+    exception when others then if sqlerrm not like '%photo_trop_lourde%' then raise; end if; end;
+    perform orga.action_enregistrer(tok, ev, null, jsonb_build_object('quoi', 'ZZ relais', 'qui', 'ZZRelaisA', 'quand', '2030-05-30', 'cout', 0, 'poste', 'materiel'));
+    r := orga.relais(tok, ev, 'ZZRelaisA', 'ZZRelaisB', 'test');
+    if jsonb_array_length(r->'actions') <> 1 or not exists (select 1 from orga.actions where evenement_id = ev and resp = 'ZZRelaisB') then raise exception 'ECHEC : relais %', r; end if;
+    r2 := orga.relais(tok, ev, 'ZZRelaisB', 'ZZRelaisA', null, array(select jsonb_array_elements_text(r->'actions')), array(select jsonb_array_elements_text(r->'postes')));
+    if exists (select 1 from orga.actions where evenement_id = ev and resp = 'ZZRelaisB') then raise exception 'ECHEC : annuler le relais'; end if;
+  end; ok := ok + 1;
   -- 8 ter. Compte Équipe : seulement les événements confirmés où il a quelque chose, jamais le prix ni la marge
   declare te uuid; d jsonb; c jsonb; begin
     insert into orga.membres (nom, pin_hash, admin, role) values ('ZZTestEquipe', extensions.crypt('135790', extensions.gen_salt('bf')), false, 'equipe');

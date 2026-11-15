@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { api } from './api'
 import { ETATS, Info, MODES, Sheet, ddmm, mad, n, useUI } from './ui'
 import { MicFiche, useMicro } from './micro'
+import { Fil } from './fil'
 
 const PERIMETRES = [['À notre charge', 'Nous'], ['En partie', 'En partie'], ['Tiers', 'Un tiers'], ['Pas besoin', 'Pas besoin'], ['À clarifier', '?']]
 
@@ -212,6 +213,7 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
             {e.piece && <div className="field"><a className="chip" href={e.piece} target="_blank" rel="noreferrer">Voir la pièce</a></div>}
           </div>}
         </div>
+        <Fil type="element" objet={e} gens={data.intervenants.map(i => i.nom)} moi={data.moi} entete={<div className="label">Échanges</div>} />
       </Sheet>
 
       <Picker open={picker === 'fournisseur'} onClose={() => setPicker(null)} title="Fournisseur" items={noms} value={e.fournisseur} onPick={v => set('fournisseur', v || null)} />

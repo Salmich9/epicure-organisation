@@ -17,6 +17,7 @@ const RPC = {
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }),
   catalogue_liste: () => [{ id: 'CAT-1', element: 'Chafing dish', zone: 'Cuisine traiteur', prix_location: 120 }],
   staff_liste: () => [], staff_evt_liste: () => ({ postes: [], affectes: [] }), planning_liste: () => ({ planning: [] }),
+  fil_liste: () => [{ id: 1, qui: 'Ouadia', texte: 'Livré, photo à suivre', cree_le: '2026-10-28T10:00:00Z' }], fil_ajouter: () => ({ id: 2, mentions: ['Amina'] }), pour_toi: () => ({ non_vus: 1, items: [{ id: 'x', type: 'mention', nouveau: true, qui: 'Salmane', texte: 't\'a mentionné : « test »', evt_nom: 'Mariage Test', evenement_id: 'EVT-T-001', poste: 'materiel', quand: '2026-10-28T09:00:00Z' }] }), pour_toi_vu: () => true, relais: () => ({ actions: ['ACT-1'], postes: ['materiel'] }),
   brief: () => ({ staff: [{ nom: 'Youssef', poste: 'Serveur' }] }), bilan_liste: () => ({ lecons: [], encaissements: [], enveloppes: [], pieces_a_imputer: [] }), especes_liste: () => ({ mouvements: [], porteurs: [], encaissements: [], soldes: [] }),
   equipe_liste: () => ({ equipe: donnees.equipe_evt, defaut: donnees.equipe_evt, compte: {} }), chiffrage_contexte: () => ({ catalogue: [], references: [], chiffrage: null }),
   action_enregistrer: b => ({ id: 'ACT-NEW', ...b.p }),
@@ -158,6 +159,20 @@ if (!appels.some(a => a[0] === 'ligne_terrain' && a[1].p.charge > 0)) echec('coc
 await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/jourj`); await p.waitForTimeout(600)
 await p.getByRole('button', { name: "Brief de l'équipe" }).click(); await p.waitForTimeout(400)
 if (!(await p.getByText('Youssef').count()) || !(await p.getByText('Envoyer le brief sur WhatsApp').count())) echec('brief du jour J'); else console.log('  ✓ jour J : le brief montre l\'équipe et les extras')
+
+// 4 nonies. Lot E : fil d'une action (avec @mention), Pour toi, relais
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500); appels.length = 0
+await p.locator('.pv-sa .pv-3').first().click(); await p.waitForTimeout(300); await p.getByText(/^Échanges/).click(); await p.waitForTimeout(500)
+await p.locator('.fl-in input').first().fill('@Am'); await p.waitForTimeout(200); await p.locator('.fl-s .chip', { hasText: '@Amina' }).click()
+await p.locator('.fl-in input').first().press('End'); await p.locator('.fl-in input').first().type('tu peux voir ?'); await p.locator('.fl-in .go').click(); await p.waitForTimeout(400)
+const fa = appels.find(a => a[0] === 'fil_ajouter')
+if (!(await p.getByText('Livré, photo à suivre').count()) || !fa || !fa[1].p_texte.startsWith('@Amina ')) echec('fil d\'une action : ' + JSON.stringify(fa?.[1])); else console.log('  ✓ fil : on lit l\'échange et on écrit avec @mention')
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/mapart`); await p.waitForTimeout(600)
+if (!(await p.getByText('POUR TOI').count())) echec('Pour toi absent de Ma part'); else console.log('  ✓ Ma part : « Pour toi » liste ce qui te concerne')
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/`); await p.waitForTimeout(500); appels.length = 0
+await p.getByRole('button', { name: "Plus d'actions" }).first().click(); await p.waitForTimeout(300); await p.getByText('Passer le relais').click(); await p.waitForTimeout(400)
+await p.locator('.sheet .am-q', { hasText: 'Ouadia' }).first().click(); await p.locator('.sheet .am-q', { hasText: 'Amina' }).last().click(); await p.getByRole('button', { name: 'Passer à Amina' }).click(); await p.waitForTimeout(400)
+if (!appels.some(a => a[0] === 'relais' && a[1].p_de === 'Ouadia' && a[1].p_a === 'Amina')) echec('passer le relais'); else console.log('  ✓ passer le relais de Ouadia à Amina')
 
 // 4 bis. En-tête de l'événement : corriger sur place, menu ⋯
 await p.goto(`http://localhost:${port}/#/accueil`); await p.waitForTimeout(400); await p.getByText('Mariage Test').first().click(); await p.waitForTimeout(500)
