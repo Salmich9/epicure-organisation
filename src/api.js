@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { copie, differer, estCoupure, garder, vider } from './reseau'
 
 const URL = 'https://daehifcdzrusxtzhtuxi.supabase.co'
 const KEY = 'sb_publishable_UP5yav1CuZBbkT57KrHbAA_N-9_VYps'
@@ -16,9 +17,12 @@ const MESSAGES = {
   enveloppe_non_vide: 'Déplace ou supprime d\'abord ses lignes et ses actions.',
 }
 
-async function rpc(fn, args) {
-  const { data, error } = await sb.rpc(fn, args)
+async function brut(fn, args) {
+  let r
+  try { r = await sb.rpc(fn, args) } catch (e) { r = { error: e } }
+  const { data, error } = r
   if (error) {
+    if (estCoupure(error)) { const e = new Error('Pas de réseau : ce changement n\'est pas parti, refais-le quand le réseau revient.'); e.code = 'hors_ligne'; throw e }
     const key = Object.keys(MESSAGES).find(k => (error.message || '').includes(k))
     const e = new Error(key ? MESSAGES[key] : error.message)
     e.code = key || error.code
@@ -26,6 +30,20 @@ async function rpc(fn, args) {
   }
   return data
 }
+const LECTURE = /^(donnees|aujourdhui|accueil|historique|corbeille_liste|catalogue_liste|.*_liste|bulles.*)$/
+async function rpc(fn, args) {
+  try { const data = await brut(fn, args); garder(fn, args, data); return data }
+  catch (e) {
+    if (e.code !== 'hors_ligne') throw e
+    const c = copie(fn, args); if (c !== null) return c
+    const d = differer(fn, args); if (d) return d
+    if (LECTURE.test(fn)) { const l = new Error('Pas de réseau, et cet écran n\'a pas encore été ouvert sur ce téléphone.'); l.code = 'hors_ligne'; throw l }
+    throw e
+  }
+}
+// Retour du réseau : la file d'attente part toute seule
+export const synchroniser = () => vider(brut)
+if (typeof window !== 'undefined') { addEventListener('online', synchroniser); setInterval(synchroniser, 30000) }
 
 export const store = {
   get token() { try { return localStorage.getItem('orga_token') } catch { return null } },

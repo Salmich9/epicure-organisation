@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
 import { ElementSheet, sendWa } from './element'
@@ -20,6 +20,8 @@ import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
 import { Corbeille, Historique } from './historique'
 import { useCibleActive, useMicro } from './micro'
+import { reseau } from './reseau'
+import { synchroniser } from './api'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
@@ -122,6 +124,12 @@ export default function App() {
   const setMine = v => { setMineState(v); try { localStorage.setItem('orga_mine', v ? '1' : '0') } catch {} }
   const rec = useRef(null)
   const [prop, setProp] = useState(null)
+  const net = useSyncExternalStore(reseau.abonner, reseau.get)
+  const lot = useRef(net.attente)
+  useEffect(() => {
+    if (net.attente > lot.current) lot.current = net.attente
+    if (lot.current > 0 && net.attente === 0 && net.enLigne) { ui.toast(`${lot.current > 1 ? `${lot.current} changements envoyés` : 'Changement envoyé'} ✓`); lot.current = 0; if (data) load(data.evt) }
+  }, [net.attente, net.enLigne])
   const cible = useCibleActive()
   const micro = useMicro(t => cible?.onTexte(t))
 
@@ -210,6 +218,10 @@ export default function App() {
 
   return (
     <div className="app">
+      {(!net.enLigne || net.attente > 0) && <button className={`hl-ban ${net.enLigne ? 'envoi' : ''}`} onClick={() => synchroniser()}>
+        <i />{net.enLigne ? `Envoi de ${net.attente} changement${net.attente > 1 ? 's' : ''}…`
+          : <>Hors connexion{net.vuLe ? ` · copie de ${new Date(net.vuLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}{net.attente ? <b> · {net.attente} en attente</b> : ''}</>}
+      </button>}
       <AnimatePresence mode="wait">{screen}</AnimatePresence>
 
       {(micro.ecoute || micro.lit) && <div className="mi-live"><b>{micro.lit ? 'Je comprends…' : `Pour ${cible?.label || ''}`}</b><span>{micro.dit ? `« ${micro.dit} »` : 'Je t\'écoute… touche le micro quand tu as fini'}</span></div>}
