@@ -46,7 +46,7 @@ export function Cadrage({ data, go, fin, reload }) {
   const total = useMemo(() => QUESTIONS.filter(x => !x.si || x.si({ prestations: ['Boissons', 'Traiteur'], alcool: 'Nous', emplacement: 'Extérieur', ...rep })).length, [rep])
   const q = qs[Math.min(i, qs.length - 1)]
   const v = rep[q?.k]
-  const sauver = r => api.cadrageMaj(data.evt, { reponses: r }).catch(() => {})
+  const sauver = r => api.cadrageMaj(data.evt, { reponses: r }).catch(e => ui.toast(`Réponse pas enregistrée : ${e.message}`))
 
   function choisir(o) {
     if (q.multi) {

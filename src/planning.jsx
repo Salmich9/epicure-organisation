@@ -207,6 +207,8 @@ export function Planning({ data, reload, open, go }) {
   const demain = addDays(data.aujourdhui, 1)
   const rappels = rows.filter(r => r.rappel && r.date === demain && !r.fait && r.qui)
 
+  // Un geste qui échoue le dit, au lieu de rester sans réponse
+  const garde = f => async (...a) => { try { return await f(...a) } catch (e) { ui.toast(`Pas enregistré : ${e.message}`) } }
   async function enregistrer(item, f, decaler) {
     const p = { titre: f.titre, date: f.date, heure: f.heure, qui: f.qui, lieu: f.lieu, note: f.note, rappel: f.rappel }
     if (!item.key || item.kind === 'planning') await api.planningEnregistrer(data.evt, item.key || null, p)
@@ -224,16 +226,16 @@ export function Planning({ data, reload, open, go }) {
     } else ui.toast('Enregistré')
     await charger(); reload()
   }
-  async function supprimer(item) { await api.planningSupprimer(item.key); setEdit(null); ui.toast('Supprimé'); charger() }
-  async function dupliquer(item, f) { await api.planningEnregistrer(data.evt, null, { ...f, titre: f.titre }); setEdit(null); ui.toast('Dupliqué'); charger() }
-  async function cocher(i) {
+  const supprimer = garde(async function supprimer(item) { await api.planningSupprimer(item.key); setEdit(null); ui.toast('Supprimé'); charger() })
+  const dupliquer = garde(async function dupliquer(item, f) { await api.planningEnregistrer(data.evt, null, { ...f, titre: f.titre }); setEdit(null); ui.toast('Dupliqué'); charger() })
+  const cocher = garde(async function cocher(i) {
     if (i.kind === 'planning') { await api.planningEnregistrer(data.evt, i.key, { fait: !i.fait }); charger() }
     else if (i.kind === 'action') { await api.actionModifier(i.ref.id, { fait: !i.fait }); reload() }
-  }
-  async function accepter(s) {
+  })
+  const accepter = garde(async function accepter(s) {
     await api.planningEnregistrer(data.evt, null, { titre: s.titre, date: s.date, heure: s.heure || '', qui: s.qui || '', source: 'copilote' })
     setEcartees(e => [...e, s.k]); ui.toast('Ajouté au planning'); charger()
-  }
+  })
   function toucher(i) {
     if (['planning', 'action', 'deroule'].includes(i.kind)) setEdit(i)
     else if (i.ref?.length === 1) open(i.ref[0])

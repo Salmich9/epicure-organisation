@@ -86,12 +86,12 @@ function RespView({ lien }) {
   useEffect(() => { load() }, [])
   if (err) return <div className="login"><h1>Lien invalide</h1><p className="mute" style={{ marginTop: 12 }}>{err}</p></div>
   if (!d) return <div className="login"><p className="mute">Chargement…</p></div>
-  async function toggle(a) { const st = a.statut === 'Fait' ? 'À faire' : 'Fait'; setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, statut: st } : y) })); await api.respAction(lien, a.id, st) }
+  async function toggle(a) { const st = a.statut === 'Fait' ? 'À faire' : 'Fait'; setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, statut: st } : y) })); try { await api.respAction(lien, a.id, st) } catch (er) { ui.toast(`Pas enregistré : ${er.message}`); load() } }
   async function recep(e, r, texte) {
     if (r !== 'Reçu' && !texte) { setManque({ e, r, texte: '' }); return }
     try { await api.respReception(lien, e.id, r, texte || null); setManque(null); ui.toast('Merci, c\'est noté'); load() } catch (er) { ui.toast(er.message) }
   }
-  async function repondre(a, texte) { setRep(null); if (texte === (a.reponse || '')) return; setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, reponse: texte } : y) })); await api.respAction(lien, a.id, null, texte); ui.toast('Envoyé') }
+  async function repondre(a, texte) { setRep(null); if (texte === (a.reponse || '')) return; setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, reponse: texte } : y) })); try { await api.respAction(lien, a.id, null, texte); ui.toast('Envoyé') } catch (er) { ui.toast(`Pas envoyé : ${er.message}`); load() } }
   const reste = d.actions.filter(a => a.statut !== 'Fait').length
   return (
     <div className="app rv-app">
