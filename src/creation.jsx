@@ -147,7 +147,9 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   }, [data.evt])
 
   // Sauvegarde discrète après chaque retouche
-  const enregistrer = (ls, cf) => { clearTimeout(sauve.current); sauve.current = setTimeout(() => api.chiffrageEnregistrer(data.evt, ls, hyp, cf).catch(() => {}), 1200) }
+  const enregistrer = (ls, cf) => { clearTimeout(sauve.current); sauve.current = setTimeout(() => api.chiffrageEnregistrer(data.evt, ls, hyp, cf).catch(e => ui.toast(`Chiffrage pas enregistré : ${e.message}`)), 1200) }
+  // Avant de quitter l'écran : on enregistre, et on reste si ça n'est pas passé
+  const fixer = async () => { clearTimeout(sauve.current); try { await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef); return true } catch (e) { ui.toast(`Chiffrage pas enregistré : ${e.message}`); return false } }
   const majLigne = (i, p) => setLignes(ls => { const x = ls.map((l, k) => k === i ? { ...l, ...p } : l); enregistrer(x, coef); return x })
   const retirer = i => setLignes(ls => { const x = ls.filter((_, k) => k !== i); enregistrer(x, coef); return x })
   const ajouter = zone => setLignes(ls => [...ls, { zone, element: '', mode: 'achat', quantite: n(ev.invites), prix: 0 }])
@@ -231,9 +233,9 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
           </>}
         </div>
         <div className="px" style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          {<button className={`btn ${vente ? 'primary' : ''}`} onClick={async () => { clearTimeout(sauve.current); await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); go('devis') }}>{devis ? `Devis ${devis}` : 'Devis client'}</button>}
-          {vente ? <button className="btn" onClick={async () => { clearTimeout(sauve.current); await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); await reload(); go('') }}>Terminer</button>
-            : <button className="btn primary" onClick={() => { clearTimeout(sauve.current); api.chiffrageEnregistrer(data.evt, lignes, hyp, coef).catch(() => {}); setEtape('budget') }}>{data.elements.length ? 'Mettre à jour le budget' : 'Retenir le budget'}</button>}
+          {<button className={`btn ${vente ? 'primary' : ''}`} onClick={async () => { if (await fixer()) go('devis') }}>{devis ? `Devis ${devis}` : 'Devis client'}</button>}
+          {vente ? <button className="btn" onClick={async () => { if (await fixer()) { await reload(); go('') } }}>Terminer</button>
+            : <button className="btn primary" onClick={async () => { if (await fixer()) setEtape('budget') }}>{data.elements.length ? 'Mettre à jour le budget' : 'Retenir le budget'}</button>}
         </div>
       </>}
     </motion.div>

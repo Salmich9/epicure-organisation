@@ -28,8 +28,10 @@ async function brut(fn, args) {
   if (error) {
     if (estCoupure(error)) { const e = new Error('Pas de réseau : ce changement n\'est pas parti, refais-le quand le réseau revient.'); e.code = 'hors_ligne'; throw e }
     const key = Object.keys(MESSAGES).find(k => (error.message || '').includes(k))
-    const e = new Error(key ? MESSAGES[key] : error.message)
-    e.code = key || error.code
+    // Une erreur technique du serveur (délai, verrou…) reçoit une phrase lisible ; le texte d'origine part au journal
+    const tech = !key && error.code && error.code !== 'P0001'
+    const e = new Error(key ? MESSAGES[key] : tech ? 'Le serveur a eu un souci, réessaie dans un instant.' : error.message)
+    e.code = key || error.code; e.brut = error.message
     throw e
   }
   return data
@@ -49,7 +51,7 @@ const LECTURE = /^(donnees|aujourdhui|accueil|historique|corbeille_liste|catalog
 async function rpc(fn, args) {
   try { const data = await brut(fn, args); garder(fn, args, data); return data }
   catch (e) {
-    if (e.code !== 'hors_ligne') { if (!(e.code in MESSAGES) && fn !== 'journal_ecrire') noter(`rpc:${fn}`, e.message, { code: e.code }); throw e }
+    if (e.code !== 'hors_ligne') { if (!(e.code in MESSAGES) && fn !== 'journal_ecrire') noter(`rpc:${fn}`, e.brut || e.message, { code: e.code }); throw e }
     const c = copie(fn, args); if (c !== null) return c
     const d = differer(fn, args); if (d) return d
     if (LECTURE.test(fn)) { const l = new Error('Pas de réseau, et cet écran n\'a pas encore été ouvert sur ce téléphone.'); l.code = 'hors_ligne'; throw l }

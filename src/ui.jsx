@@ -33,12 +33,17 @@ const Ctx = createContext(null)
 export function UIProvider({ children }) {
   const [toast, setToast] = useState(null)
   const [bubble, setBubble] = useState(null)
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), toast?.annuler ? 5000 : 2000); return () => clearTimeout(t) }, [toast])
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), toast?.annuler ? 5000 : 2500); return () => clearTimeout(t) }, [toast])
+  // Filet : une action qui échoue sans être rattrapée s'affiche quand même (« pas enregistré »)
+  useEffect(() => {
+    const f = e => { const r = e.reason; setToast(r?.code === 'hors_ligne' ? r.message : `Ça n'a pas marché : ${r?.message || 'erreur inattendue'}`) }
+    addEventListener('unhandledrejection', f); return () => removeEventListener('unhandledrejection', f)
+  }, [])
   return (
     <Ctx.Provider value={{ toast: setToast, bubble: setBubble, annulable: (texte, annuler) => setToast({ texte, annuler }) }}>
       {children}
       <AnimatePresence>
-        {toast && <motion.div key="t" className={`toast ${toast?.annuler ? 'avec' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>{toast?.annuler ? <><span>{toast.texte}</span><button onClick={() => { const f = toast.annuler; setToast(null); f() }}>Annuler</button></> : toast}</motion.div>}
+        {toast && <motion.div key="t" className={`toast ${toast?.annuler ? 'avec' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>{toast?.annuler ? <><span>{toast.texte}</span><button onClick={() => { const f = toast.annuler; setToast(null); Promise.resolve().then(f).catch(e => setToast(`Pas annulé : ${e.message}`)) }}>Annuler</button></> : toast}</motion.div>}
         {bubble && <motion.div key="b" className="bubble" onClick={() => setBubble(null)} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }}>{bubble}</motion.div>}
       </AnimatePresence>
     </Ctx.Provider>
