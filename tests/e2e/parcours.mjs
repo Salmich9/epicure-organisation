@@ -55,13 +55,22 @@ for (const [r, attendu] of ROUTES) {
 }
 
 console.log('Parcours')
+// 0. Rafraîchir la page de l'événement garde l'événement
+await p.goto(`http://localhost:${port}/#/accueil`); await p.waitForTimeout(400); await p.getByText('Mariage Test').first().click(); await p.waitForTimeout(500)
+await p.reload(); await p.waitForTimeout(700)
+if (!(await p.locator('.pv-cpt').count())) echec('rafraîchir la page de l\'événement la quitte'); else console.log('  ✓ rafraîchir garde la page de l\'événement')
+// 0 bis. Le bouton du cadrage reste dans l'écran
+await p.goto(`http://localhost:${port}/#/cadrage`); await p.waitForTimeout(500)
+const bb = await p.locator('.cd-pied').boundingBox()
+if (!bb || bb.x + bb.width > 390) echec(`bouton du cadrage hors de l'écran (${bb && bb.x + bb.width})`); else console.log('  ✓ bouton du cadrage dans l\'écran')
 // 1. Une action sans coût est refusée, avec coût elle part avec les bons champs
 await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500)
 await p.getByText('+ Action').click(); await p.waitForTimeout(400)
 await p.locator('.sheet input').first().fill('Récupérer les chafing')
 appels.length = 0
-await p.locator('.sheet .foot button').click(); await p.waitForTimeout(300)
-if (appels.some(a => a[0] === 'action_enregistrer')) echec('action sans coût envoyée'); else console.log('  ✓ action sans coût refusée')
+const bouton = p.locator('.sheet .foot button')
+if (!(await bouton.isDisabled()) || !(await bouton.innerText()).includes('Il manque : coût')) echec('action sans coût : bouton actif ou sans explication')
+else console.log('  ✓ action sans coût : bouton grisé « Il manque : coût »')
 await p.locator('.sheet input').nth(1).fill('600')
 await p.locator('.sheet .foot button').click(); await p.waitForTimeout(400)
 const env = appels.find(a => a[0] === 'action_enregistrer')

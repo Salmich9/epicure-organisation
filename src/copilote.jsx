@@ -124,7 +124,7 @@ export function Copilote({ data, go, reload }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head">
-        <button className="back" onClick={() => go('')}>‹ Accueil</button>
+        <button className="back" onClick={() => go('')}>‹ Événement</button>
         <h1>Challenge</h1>
         <div className="meta">Le copilote cherche ce qui risque d'être oublié.</div>
       </div>

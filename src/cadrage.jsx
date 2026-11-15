@@ -96,7 +96,7 @@ export function Cadrage({ data, go, fin, reload }) {
   const trail = qs.slice(0, i).map((x, j) => [j, court(x.k, rep[x.k])]).filter(x => x[1])
   return (
     <div className="cd">
-      <div className="cd-top"><button onClick={() => (i ? setI(i - 1) : go(''))}>‹ {i ? 'Retour' : 'Plan'}</button><span>{i + 1} / {Math.max(total, qs.length)}</span></div>
+      <div className="cd-top"><button onClick={() => (i ? setI(i - 1) : go(''))}>‹ {i ? 'Retour' : 'Événement'}</button><span>{i + 1} / {Math.max(total, qs.length)}</span></div>
       <div className="cd-dots">{Array.from({ length: Math.max(total, qs.length) }, (_, j) => <i key={j} className={j <= i ? 'on' : ''} />)}</div>
       {trail.length > 0 && <div className="cd-trail">{trail.map(([j, t]) => <button key={j} onClick={() => setI(j)}>{t}</button>)}</div>}
       <AnimatePresence mode="wait">

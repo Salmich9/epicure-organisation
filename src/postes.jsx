@@ -6,6 +6,8 @@ import { Info, Sheet, dateLongue, ddmm, n, useUI } from './ui'
 /* Du général au particulier : enveloppes (prévu) → lignes (engagé) → actions (qui, quand, combien) */
 export const k = v => { v = n(v); return Math.abs(v) >= 10000 ? `${(v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: v >= 100000 ? 0 : 1 })} k` : Math.round(v).toLocaleString('fr-FR') }
 const COUL = ['#A3456B', '#3D6E9E', '#B0652E', '#1F6F6B', '#6A5ACD', '#4F7A3A', '#8A7A2E', '#9E3D3D']
+// Plusieurs montants lus ensemble : même format pour tous (tous en k dès que l'un dépasse 10 000)
+export const kMeme = (...vals) => { const grand = vals.some(v => Math.abs(n(v)) >= 10000); return v => grand ? `${(n(v) / 1000).toLocaleString('fr-FR', { maximumFractionDigits: Math.abs(n(v)) >= 100000 ? 0 : 1 })} k` : Math.round(n(v)).toLocaleString('fr-FR') }
 export const couleur = nom => COUL[[...String(nom || '?')].reduce((s, c) => s + c.charCodeAt(0), 0) % COUL.length]
 export const Av = ({ nom, size = 30, onClick }) => <i className="pv-av" onClick={onClick} style={{ background: couleur(nom), width: size, height: size, fontSize: size * .4 }}>{(nom || '?')[0]}</i>
 export const MODES_L = { prelever: 'Prélever', louer: 'Louer', acheter: 'Acheter', produire: 'Produire', rafistoler: 'Rafistoler' }
@@ -25,6 +27,7 @@ const gens = data => [...new Set([...Object.values(data.equipe_evt || {}), data.
 /* ---------- Compteur prévu / engagé / réel / reste ---------- */
 export function Compteur({ prevu, engage, reel, sans }) {
   const reste = prevu - engage
+  const k = kMeme(prevu, engage, reel, reste)
   return (
     <div className="pv-cpt">
       <div className="r">
@@ -50,7 +53,7 @@ export function Enveloppes({ data, go, reload }) {
   const Ligne = ({ p }) => (
     <motion.button whileTap={{ scale: .98 }} className="pv-env" onClick={() => go(`poste/${p.cle}`)}>
       <div className="l1"><Av nom={p.resp} /><div className="x"><b>{p.nom}{p.type === 'matiere' ? ` · ${String(n(p.prix_couvert)).replace('.', ',')} × ${ev.invites || '?'}` : ''}</b><span>{p.resp || 'à attribuer'}</span></div>
-        <div className="m">{k(p.engage)} / {k(p.prevu)}<small>engagé / prévu</small></div><span className="go">›</span></div>
+        <div className="m">{(f => `${f(p.engage)} / ${f(p.prevu)}`)(kMeme(p.engage, p.prevu))}<small>engagé / prévu</small></div><span className="go">›</span></div>
       <div className="pb"><i className={n(p.engage) > n(p.prevu) ? 'o' : ''} style={{ width: `${Math.min(100, n(p.prevu) ? n(p.engage) / n(p.prevu) * 100 : 0)}%` }} /></div>
     </motion.button>
   )
@@ -201,9 +204,9 @@ export function ActionSheet({ open, init, data, poste, onClose, onDone }) {
     } catch (e) { ui.toast(e.message) }
     setLit(false)
   }
-  const manque = !f.quoi.trim() ? 'quoi' : f.cout === '' || f.cout === null ? 'le coût' : !f.qui ? 'qui' : !f.quand ? 'quand' : null
+  const manque = !f.quoi.trim() ? 'quoi' : f.cout === '' || f.cout === null ? 'coût' : !f.qui ? 'qui' : !f.quand ? 'quand' : null
   async function valider() {
-    if (manque) return ui.toast(`Il manque ${manque}.`)
+    if (manque) return ui.toast(`Il manque : ${manque}.`)
     const p = { ...f, cout: Number(String(f.cout).replace(',', '.')) || 0 }
     try {
       const a = await api.actionEnregistrer(data.evt, a0?.id || null, p)
@@ -225,18 +228,18 @@ export function ActionSheet({ open, init, data, poste, onClose, onDone }) {
   const coutN = Number(String(f.cout).replace(',', '.')) || 0
   const pourAutre = f.qui && f.qui !== data.moi
   return (
-    <Sheet open={open} onClose={onClose} z={1} foot={<button className="btn primary" onClick={valider} disabled={lit}>{a0 ? 'Enregistrer' : `Ajouter${coutN ? ` · +${k(coutN)} engagé` : ''}${pourAutre ? ` · WhatsApp à ${f.qui}` : ''}`}</button>}>
+    <Sheet open={open} onClose={onClose} z={1} foot={<button className="btn primary" onClick={valider} disabled={lit || !!manque}>{manque ? `Il manque : ${manque}` : a0 ? 'Enregistrer' : `Ajouter${coutN ? ` · +${k(coutN)} engagé` : ''}${pourAutre ? ` · WhatsApp à ${f.qui}` : ''}`}</button>}>
       <div className="as-voix">
         <motion.button whileTap={{ scale: .9 }} className={`as-mic ${ecoute ? 'rec' : ''}`} onClick={ecouter} aria-label="Dicter">🎙</motion.button>
         <span>{lit ? 'Je remplis la fiche…' : dit ? `« ${dit} »` : ecoute ? 'Je t\'écoute…' : a0 ? 'Modifier l\'action' : 'Dis-le : « le pain, 350 pers., 1 500 dh, Salima, livré jeudi 16 h »'}</span>
       </div>
-      <div className="as-l">QUOI</div>
+      <div className={`as-l ${!f.quoi.trim() ? 'requis' : ''}`}>QUOI</div>
       <input value={f.quoi} onChange={x => set('quoi', x.target.value)} placeholder="Commander le pain · 350 pers." />
       <div className="as-2">
-        <div><div className="as-l">COÛT</div><input inputMode="decimal" value={f.cout} onChange={x => set('cout', x.target.value)} placeholder="MAD" /></div>
-        <div><div className="as-l">QUAND</div><input type="date" value={f.quand} onChange={x => set('quand', x.target.value)} /></div>
+        <div><div className={`as-l ${f.cout === '' || f.cout === null ? 'requis' : ''}`}>COÛT</div><input inputMode="decimal" value={f.cout} onChange={x => set('cout', x.target.value)} placeholder="MAD" /></div>
+        <div><div className={`as-l ${!f.quand ? 'requis' : ''}`}>QUAND</div><input type="date" value={f.quand} onChange={x => set('quand', x.target.value)} /></div>
       </div>
-      <div className="as-l">QUI</div>
+      <div className={`as-l ${!f.qui ? 'requis' : ''}`}>QUI</div>
       <div className="chips">{gens(data).slice(0, plusG ? 99 : 6).map(g => <button key={g} className={`chip ${f.qui === g ? 'on' : ''}`} onClick={() => set('qui', g)}>{g}</button>)}
         {f.qui && !gens(data).slice(0, plusG ? 99 : 6).includes(f.qui) && <button className="chip on">{f.qui}</button>}
         {!plusG && <button className="chip ghost" onClick={() => setPlusG(true)}>+</button>}</div>
@@ -292,7 +295,7 @@ export function LigneSheet({ open, data, poste, onClose, onDone }) {
     try { await api.ligneAjouter(data.evt, { ...f, poste, qte: f.qte || 1 }); ui.toast('Ligne ajoutée'); onDone?.() } catch (e) { ui.toast(e.message) }
   }
   return (
-    <Sheet open={open} onClose={onClose} z={1} foot={<button className="btn primary" onClick={valider}>Ajouter{tot ? ` · +${k(tot)} engagé` : ''}</button>}>
+    <Sheet open={open} onClose={onClose} z={1} foot={<button className="btn primary" onClick={valider} disabled={!f.nom.trim()}>{!f.nom.trim() ? 'Il manque : quoi' : `Ajouter${tot ? ` · +${k(tot)} engagé` : ''}`}</button>}>
       <div className="el-name" style={{ fontSize: 26 }}>Nouvelle ligne</div>
       <div className="as-l">QUOI</div>
       <input autoFocus value={f.nom} onChange={x => setF(y => ({ ...y, nom: x.target.value, catalogue_id: '' }))} placeholder="Assiettes plates, chafing dish…" />

@@ -50,7 +50,7 @@ export function Pieces({ data, go, reload }) {
   return (
     <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
       <div className="head">
-        <button className="back" onClick={() => go('')}>‹ Plan</button>
+        <button className="back" onClick={() => go('')}>‹ Événement</button>
         <h1 style={{ fontSize: 34 }}>Pièces à imputer</h1>
       </div>
       {!liste.length && <div className="empty">Tout est imputé. Les prochaines pièces du bot arriveront ici.</div>}

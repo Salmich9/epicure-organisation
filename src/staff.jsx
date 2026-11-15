@@ -37,7 +37,7 @@ export function StaffListe({ go }) {
   const groupes = [...FAMILLES, ''].map(f => [f, vus.filter(s => (s.famille || '') === f)]).filter(x => x[1].length)
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="head"><button className="back" onClick={() => go('accueil')}>‹ Accueil</button><h1 style={{ fontSize: 36 }}>Staff</h1><div className="meta">{l.length} personnes</div></div>
+      <div className="head"><button className="back" onClick={() => go('accueil')}>‹ Événements</button><h1 style={{ fontSize: 36 }}>Staff</h1><div className="meta">{l.length} personnes</div></div>
       <input className="rv-search sf-q" placeholder="Chercher un nom, un rôle…" value={q} onChange={x => setQ(x.target.value)} />
       <div className="sf-ch">
         <button className={!fam ? 'on' : ''} onClick={() => setFam('')}>Tous</button>

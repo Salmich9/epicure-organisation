@@ -172,7 +172,7 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   return (
     <motion.div {...glisse} className="wiz">
       <div className="head">
-        <button className="back" onClick={() => go('')}>‹ Plan</button>
+        <button className="back" onClick={() => go('')}>‹ Événement</button>
         <div className="when">{ev.nom} · {ev.invites} invités · 2 sur 3</div>
         <h1 style={{ fontSize: 38 }}>Chiffrage</h1>
         <div className="meta">{(ev.prestations || []).join(' + ')}{ev.format ? ` · ${ev.format}` : ''} · facturé par {ev.entite}</div>

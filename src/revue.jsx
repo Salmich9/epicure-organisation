@@ -256,7 +256,7 @@ export function Bibliotheque({ data, go, zoneIdx, reload }) {
   const retour = zoneIdx !== undefined ? `revue/${zoneIdx}` : 'revue'
   return (
     <motion.div {...slide}>
-      <div className="head"><button className="back" onClick={() => go(retour)}>‹ Revue</button><h1 style={{ fontSize: 34 }}>Bibliothèque</h1><div className="meta">{(cat || []).length} articles · touche une famille pour l'ouvrir</div></div>
+      <div className="head"><button className="back" onClick={() => go(retour)}>‹ Revue</button><h1 style={{ fontSize: 34 }}>Bibliothèque</h1><div className="meta">{(cat || []).length} article{(cat || []).length > 1 ? 's' : ''} · touche une famille pour l'ouvrir</div></div>
       <div className="px"><input className="rv-search" placeholder="🔍  Chercher : verre, glace, nappe…" value={q} onChange={x => setQ(x.target.value)} /></div>
       {!cat ? <div className="empty">Chargement…</div> : !arbre.length ? (
         <div className="empty">Rien ne correspond. Crée-le ci-dessous : il entrera dans la bibliothèque.</div>

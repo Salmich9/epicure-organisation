@@ -21,7 +21,7 @@ import { setRegles } from './regles'
 import { ETATS, Icon, Sheet, ddmm, useUI } from './ui'
 
 function useHash() {
-  const [h, setH] = useState(location.hash && location.hash.length > 2 ? location.hash.slice(2) : 'aujourdhui')
+  const [h, setH] = useState(location.hash ? location.hash.slice(2) : 'aujourdhui')
   useEffect(() => { const f = () => setH(location.hash.slice(2)); addEventListener('hashchange', f); return () => removeEventListener('hashchange', f) }, [])
   return [h, to => { location.hash = '/' + to; window.scrollTo(0, 0) }]
 }

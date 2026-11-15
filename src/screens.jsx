@@ -74,7 +74,7 @@ export function Perimetre({ data, kind, go, open }) {
   return (
     <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
       <div className="head">
-        <button className="back" onClick={() => go('')}>‹ Accueil</button>
+        <button className="back" onClick={() => go('')}>‹ Événement</button>
         <h1 style={{ fontSize: 38 }}>{autres ? 'Aux autres' : 'Personne ne sait'}</h1>
         <div className="meta">{autres ? 'Ce que fournissent l\'agence, le lieu ou le client. À faire confirmer, rien à payer.' : 'Personne ne l\'a pris en charge. Décidez qui s\'en occupe.'}</div>
       </div>
@@ -205,7 +205,7 @@ export function Zone({ data, idx, go, open, patch, delegate, addEl }) {
   return (
     <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
       <div className="head">
-        <button className="back" onClick={() => go('')}>‹ Plan de salle</button>
+        <button className="back" onClick={() => go('')}>‹ Événement</button>
         <h1 style={{ fontSize: 38 }}>{z.nom}</h1>
         <div className="meta">{s.els.length - s.ouverts - s.alertes}/{s.els.length} bouclés{s.env ? ` · prévu ${mad(s.env)}` : ''} · engagé {mad(s.cout)}{s.facture > 0 && <> · <b style={{ color: s.env && s.facture > s.env ? 'var(--red)' : 'var(--ink)' }}>facturé {mad(s.facture)}</b></>}</div>
       </div>

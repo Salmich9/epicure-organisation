@@ -131,7 +131,7 @@ export function Voix({ data, go, ouvrir }) {
   function basculerMicro() { const m = !muet; setMuet(m); try { conv.current?.setMicMuted(m) } catch {} }
   return (
     <div className="vo">
-      <button className="vo-back" onClick={() => { raccrocher(); go('accueil') }}>‹ Accueil</button>
+      <button className="vo-back" onClick={() => { raccrocher(); go('accueil') }}>‹ Événements</button>
       <motion.div className={`orb ${etat === 'appel' ? mode : ''}`} animate={etat === 'appel' ? { scale: mode === 'speaking' ? [1, 1.08, 1] : [1, 1.02, 1] } : { scale: 1 }} transition={{ repeat: Infinity, duration: mode === 'speaking' ? .9 : 2.4 }} />
       {etat === 'pret' && <>
         <div className="vq">Chiffre un événement en parlant</div>
