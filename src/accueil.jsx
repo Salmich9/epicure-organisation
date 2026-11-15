@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlerteSante } from './sante'
 import { motion } from 'framer-motion'
-import { api, store } from './api'
+import { api, store, vite } from './api'
 import { setRegles, tva } from './regles'
 import { Info, dans, dateLongue, n, useUI } from './ui'
 import { Anneau } from './envie'
@@ -23,7 +23,7 @@ const resteTTC = e => Math.max(0, n(e.prix_signe) * (1 + tva(e.entite) / 100) - 
 
 export function Accueil({ go, ouvrir }) {
   const ui = useUI()
-  const [a, setA] = useState(null)
+  const [a, setA] = useState(() => { const c = vite.accueil(); if (c?.regles) setRegles(c.regles); return c?.evenements ? c : null })   // ouverture immédiate
   const [voir, setVoir] = useState(false)
   useEffect(() => { api.accueil().then(a => { setRegles(a.regles); setA(a) }).catch(e => ui.toast(e.message)) }, [])
   if (!a) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>

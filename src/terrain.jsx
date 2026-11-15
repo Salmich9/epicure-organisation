@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { api } from './api'
+import { api, vite } from './api'
 import { Info, ddmm, n, useUI } from './ui'
 import { Av, MODES_L, modeLigne } from './postes'
 import { vehicules } from './regles'
@@ -27,8 +27,8 @@ export function arrets(actions) {
 /* ---------- Tournées : par jour, par véhicule ---------- */
 export function Tournees({ go }) {
   const ui = useUI()
-  const [d, setD] = useState(null)
-  const [jour, setJour] = useState(null)
+  const [d, setD] = useState(() => { const c = vite.aujourdhui(); return c?.actions ? c : null })   // ouverture immédiate
+  const [jour, setJour] = useState(() => vite.aujourdhui()?.aujourdhui || null)
   const charger = () => api.aujourdhui().then(x => { setD(x); setJour(j => j || x.aujourdhui) }).catch(e => ui.toast(e.message))
   useEffect(() => { charger() }, [])
   const tous = useMemo(() => arrets(d?.actions), [d])

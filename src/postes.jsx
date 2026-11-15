@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { api } from './api'
+import { api, vite } from './api'
 import { Info, Sheet, dateLongue, ddmm, n, useUI } from './ui'
 import { EnPlace } from './entete'
 import { MicFiche, useCible, useMicro } from './micro'
@@ -484,7 +484,7 @@ export function LigneSheet({ open, data, poste, idees = [], onClose, onDone }) {
 /* ---------- Aujourd'hui (et Ma part) : les actions de tous les événements ---------- */
 export function Aujourdhui({ go, ouvrirPoste, mapart }) {
   const ui = useUI()
-  const [d, setD] = useState(null)
+  const [d, setD] = useState(() => { const c = vite.aujourdhui(); return c?.actions ? c : null })   // ouverture immédiate
   const [moi, setMoi] = useState(() => { try { return localStorage.getItem('orga_auj_moi') === '1' } catch { return false } })
   const [menu, setMenu] = useState(null)
   const [tard, setTard] = useState(false)
