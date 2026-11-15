@@ -95,7 +95,14 @@ export function Enveloppes({ data, go, reload }) {
 }
 
 /* ---------- Une enveloppe : lignes et actions ---------- */
-export function Poste({ data, cle, go, openEl, reload }) {
+// Changements locaux, appliqués avant la réponse du serveur
+const majA = (id, p) => d => ({ ...d, actions: d.actions.map(y => y.id === id ? { ...y, ...p } : y) })
+const majE = (id, p) => d => ({ ...d, elements: d.elements.map(y => y.id === id ? { ...y, ...p } : y) })
+const majP = (cle, p) => d => ({ ...d, postes: (d.postes || []).map(y => y.cle === cle ? { ...y, ...p } : y) })
+
+export function Poste({ data, cle, go, openEl, reload, geste: g0 }) {
+  // Sans geste instantané (anciens appels) : on attend l'envoi puis on recharge, comme avant
+  const geste = g0 || (async (_c, envoyer) => { try { const r = await envoyer(); reload(); return { ok: true, r } } catch (e) { ui.toast(e.message); return { ok: false } } })
   const ui = useUI()
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const p = (data.postes || []).find(x => x.cle === cle)
@@ -113,8 +120,9 @@ export function Poste({ data, cle, go, openEl, reload }) {
     if (r !== 'Reçu' && !texte) { setRecManque({ r, texte: e.manque || '' }); return }
     setMenu(null); setRecManque(null)
     const avant = { reception: e.reception || null, manque: e.manque || null }
-    try { await api.majElement(e.id, { reception: e.reception === r && !texte ? null : r, manque: r === 'Reçu' ? null : texte }); await reload()
-      ui.annulable(r === 'Reçu' ? `« ${e.element} » reçu` : `Noté : ${r.toLowerCase()}`, async () => { await api.majElement(e.id, avant); reload() }) } catch (er) { ui.toast(er.message) }
+    const apres = { reception: e.reception === r && !texte ? null : r, manque: r === 'Reçu' ? null : texte }
+    const x = await geste(majE(e.id, apres), () => api.majElement(e.id, apres))
+    if (x.ok) ui.annulable(r === 'Reçu' ? `« ${e.element} » reçu` : `Noté : ${r.toLowerCase()}`, () => geste(majE(e.id, avant), () => api.majElement(e.id, avant)))
   }
   const pNom = (data.postes || []).find(x => x.cle === cle)?.nom
   useCible(pNom ? { label: pNom, onTexte: t => setAct({ texte: t }) } : null)
@@ -128,32 +136,40 @@ export function Poste({ data, cle, go, openEl, reload }) {
   async function sauver() {
     const v = Number(String(val).replace(',', '.').replace(/\s/g, ''))
     if (!(v >= 0)) return setEdit(false)
-    try { await api.posteMaj(data.evt, cle, mat ? { prix_couvert: v } : { montant: v }); setEdit(false); reload() } catch (e) { ui.toast(e.message) }
+    setEdit(false)
+    geste(majP(cle, mat ? { prix_couvert: v } : { montant: v, prevu: v }), () => api.posteMaj(data.evt, cle, mat ? { prix_couvert: v } : { montant: v }))
   }
-  async function cocher(a) { if (a.statut !== 'Fait') feliciter(); try { await api.actionEnregistrer(data.evt, a.id, { fait: a.statut !== 'Fait' }); reload() } catch (e) { ui.toast(e.message) } }
+  function cocher(a) {
+    const fait = a.statut !== 'Fait'; if (fait) feliciter()
+    geste(majA(a.id, { statut: fait ? 'Fait' : 'À faire' }), () => api.actionEnregistrer(data.evt, a.id, { fait }))
+  }
   async function supprimer(t, id, nom) {
     setMenu(null)
-    try {
-      const cid = await api.objetSupprimer(t, id, data.evt)
-      if (t === 'poste') go('')
-      await reload()
-      ui.annulable(`« ${nom} » supprimé`, async () => { try { await api.objetRestaurer(cid); await reload(); if (t === 'poste') go(`poste/${id}`) } catch (e) { ui.toast(e.message) } })
-    } catch (e) { ui.toast(e.message) }
+    if (t === 'poste') go('')
+    const retirer = t === 'element' ? d => ({ ...d, elements: d.elements.filter(x => x.id !== id), actions: d.actions.filter(x => x.element_id !== id) })
+      : t === 'action' ? d => ({ ...d, actions: d.actions.filter(x => x.id !== id) }) : null
+    const x = await geste(retirer, () => api.objetSupprimer(t, id, data.evt))
+    if (x.ok) ui.annulable(`« ${nom} » supprimé`, async () => { const y = await geste(null, () => api.objetRestaurer(x.r)); if (y.ok && t === 'poste') go(`poste/${id}`) })
   }
-  async function dupliquer(t, id) { setMenu(null); try { await api.objetDupliquer(t, id); await reload(); ui.toast('Dupliqué') } catch (e) { ui.toast(e.message) } }
+  async function dupliquer(t, id) { setMenu(null); const x = await geste(null, () => api.objetDupliquer(t, id)); if (x.ok) ui.toast('Dupliqué') }
   async function deplacer(e, vers) {
     setDepl(null)
-    try { await api.ligneDeplacer(e.id, vers.cle); await reload(); ui.annulable(`Déplacé vers ${vers.nom}`, async () => { await api.ligneDeplacer(e.id, cle); reload() }) } catch (er) { ui.toast(er.message) }
+    const bouger = (de, a) => d => ({ ...d, elements: d.elements.map(x => x.id === e.id ? { ...x, poste: a } : x),
+      postes: (d.postes || []).map(p => p.cle === de ? { ...p, lignes: (p.lignes || []).filter(i => i !== e.id) } : p.cle === a ? { ...p, lignes: [...(p.lignes || []), e.id] } : p) })
+    const x = await geste(bouger(cle, vers.cle), () => api.ligneDeplacer(e.id, vers.cle))
+    if (x.ok) ui.annulable(`Déplacé vers ${vers.nom}`, () => geste(bouger(vers.cle, cle), () => api.ligneDeplacer(e.id, cle)))
   }
   async function dater(a, quand) {
     setMenu(null)
     const avant = a.echeance
-    try { await api.actionEnregistrer(data.evt, a.id, { quand }); await reload(); ui.annulable(`Repoussé au ${ddmm(quand)}`, async () => { await api.actionEnregistrer(data.evt, a.id, { quand: avant }); reload() }) } catch (e) { ui.toast(e.message) }
+    const x = await geste(majA(a.id, { echeance: quand }), () => api.actionEnregistrer(data.evt, a.id, { quand }))
+    if (x.ok) ui.annulable(`Repoussé au ${ddmm(quand)}`, () => geste(majA(a.id, { echeance: avant }), () => api.actionEnregistrer(data.evt, a.id, { quand: avant })))
   }
   async function attribuer(a, qui) {
     setMenu(null)
     const avant = a.resp
-    try { await api.actionEnregistrer(data.evt, a.id, { qui }); await reload(); ui.annulable(`Confié à ${qui}`, async () => { await api.actionEnregistrer(data.evt, a.id, { qui: avant }); reload() }) } catch (e) { ui.toast(e.message) }
+    const x = await geste(majA(a.id, { resp: qui }), () => api.actionEnregistrer(data.evt, a.id, { qui }))
+    if (x.ok) ui.annulable(`Confié à ${qui}`, () => geste(majA(a.id, { resp: avant }), () => api.actionEnregistrer(data.evt, a.id, { qui: avant })))
   }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -229,7 +245,7 @@ export function Poste({ data, cle, go, openEl, reload }) {
       </Sheet>
       <Sheet open={respSheet} onClose={() => setRespSheet(false)}>
         <div className="el-name" style={{ fontSize: 26 }}>Qui tient l'enveloppe ?</div>
-        <div className="chips" style={{ marginTop: 14 }}>{gens(data).map(g => <button key={g} className={`chip ${g === p.resp ? 'on' : ''}`} onClick={() => api.posteMaj(data.evt, cle, { resp: g }).then(() => { setRespSheet(false); reload() }).catch(e => ui.toast(e.message))}>{g}</button>)}</div>
+        <div className="chips" style={{ marginTop: 14 }}>{gens(data).map(g => <button key={g} className={`chip ${g === p.resp ? 'on' : ''}`} onClick={() => { setRespSheet(false); geste(majP(cle, { resp: g }), () => api.posteMaj(data.evt, cle, { resp: g })) }}>{g}</button>)}</div>
       </Sheet>
     </motion.div>
   )

@@ -32,6 +32,8 @@ export function Tournees({ go }) {
   const charger = () => api.aujourdhui().then(x => { setD(x); setJour(j => j || x.aujourdhui) }).catch(e => ui.toast(e.message))
   useEffect(() => { charger() }, [])
   const tous = useMemo(() => arrets(d?.actions), [d])
+  // Geste instantané : l'arrêt change tout de suite, l'envoi part derrière
+  const local = (id, p) => setD(x => ({ ...x, actions: x.actions.map(y => y.id === id ? { ...y, ...p } : y) }))
   if (!d) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
   const t = d.aujourdhui
   const jours = [...new Set([t, plus(t, 1), ...tous.map(x => x.jour).filter(j => j >= t)])].sort().slice(0, 7)
@@ -39,12 +41,15 @@ export function Tournees({ go }) {
   const vs = [...new Set([...vehicules(), ...du.map(x => x.vehicule).filter(Boolean)])]
   const groupes = [...vs.map(v => [v, du.filter(x => x.vehicule === v)]), ['À attribuer', du.filter(x => !x.vehicule)]].filter(g => g[1].length)
   async function attribuer(x, v) {
-    try { await api.actionEnregistrer(x.a.evenement_id, x.a.id, { logistique: { ...(x.a.logistique || {}), vehicule: v } }); ui.toast(`${v} · ${x.a.quoi}`); charger() } catch (e) { ui.toast(e.message) }
+    const logistique = { ...(x.a.logistique || {}), vehicule: v }
+    local(x.a.id, { logistique }); ui.toast(`${v} · ${x.a.quoi}`)
+    try { await api.actionEnregistrer(x.a.evenement_id, x.a.id, { logistique }) } catch (e) { ui.toast(`Pas enregistré : ${e.message}`); charger() }
   }
   async function cocher(x) {
     if (x.type === 'retour') return go('retour')
     if (!x.fait) feliciter()
-    try { await api.actionEnregistrer(x.a.evenement_id, x.a.id, { fait: !x.fait }); charger() } catch (e) { ui.toast(e.message) }
+    local(x.a.id, { statut: x.fait ? 'À faire' : 'Fait' })
+    try { await api.actionEnregistrer(x.a.evenement_id, x.a.id, { fait: !x.fait }) } catch (e) { ui.toast(`Pas enregistré : ${e.message}`); charger() }
   }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
