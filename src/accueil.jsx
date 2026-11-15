@@ -8,7 +8,7 @@ const TVA = { Epicure: 20, 'Business Boys': 10 }
 const mt = v => Math.round(n(v)).toLocaleString('fr-FR')
 const AGENT = 'agent_7201m5t5aynbfdcsexzx82j4mprz'
 
-function etape(e, today) {
+export function etape(e, today) {
   if (e.statut === 'Perdu') return 'perdu'
   if (e.statut === 'Clôturé') return 'cloture'
   if (e.statut === 'Réalisé' || ((e.statut === 'Confirmé' || e.statut === 'En préparation') && e.date && e.date < today)) return 'a_cloturer'
