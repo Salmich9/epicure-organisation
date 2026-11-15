@@ -12,6 +12,7 @@ import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
 import { Sante } from './sante'
+import { Seuil } from './seuil'
 import { Chargement, Retour, Tournees } from './terrain'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
@@ -236,6 +237,7 @@ export default function App() {
   let screen
   const ouvrir = id => { go(''); load(id) }
   const ouvrirPoste = async (id, cle) => { await load(id); go(cle ? `poste/${cle}` : '') }
+  if (route.startsWith('seuil')) return <Seuil style={route.split('/')[1] || 'A'} entrer={() => go('aujourdhui')} />
   if (route === 'aujourdhui') screen = <Aujourdhui key="auj" go={go} ouvrirPoste={ouvrirPoste} />
   else if (route === 'mapart') screen = <Aujourdhui key="mp" mapart go={go} ouvrirPoste={ouvrirPoste} />
   else if (route.startsWith('poste/')) screen = <Poste key={route} data={data} cle={route.split('/')[1]} go={go} openEl={setOpenEl} reload={() => load(data.evt)} geste={geste} />
