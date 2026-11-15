@@ -20,6 +20,8 @@ const RPC = {
   bilan_liste: () => ({ lecons: [], encaissements: [], enveloppes: [], pieces_a_imputer: [] }), especes_liste: () => ({ mouvements: [], porteurs: [], encaissements: [], soldes: [] }),
   equipe_liste: () => ({ equipe: donnees.equipe_evt, defaut: donnees.equipe_evt, compte: {} }), chiffrage_contexte: () => ({ catalogue: [], references: [], chiffrage: null }),
   action_enregistrer: b => ({ id: 'ACT-NEW', ...b.p }),
+  connexion: b => (b.p_pin === '111111' ? { token: '00000000-0000-0000-0000-000000000000', nom: 'Salmane' } : { erreur: b.p_pin === '999999' ? 'compte_bloque' : 'code_incorrect' }),
+  deconnexion: () => true,
 }
 const ROUTES = [
   ['aujourdhui', "Aujourd'hui"], ['mapart', 'Ma part'], ['accueil', 'Mariage Test'], ['', 'Mariage Test'],
@@ -80,6 +82,20 @@ await p.evaluate(() => localStorage.setItem('orga_evt', 'EVT-T-001'))
 await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500)
 await p.getByText('+ Action').click(); await p.waitForTimeout(300); await p.getByRole('button', { name: 'Carte', exact: true }).click()
 if (await p.getByText('Carte Business Boys').count()) echec('choix de carte proposé hors événement espèces'); else console.log('  ✓ pas de choix de carte hors espèces')
+
+// 5. Connexion : mauvais code refusé, compte bloqué annoncé, bon code accepté
+const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 } })
+await ctx2.route('**/rest/v1/rpc/**', async route => { const fn = route.request().url().split('/rpc/')[1]; const body = JSON.parse(route.request().postData() || '{}'); route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RPC[fn] ? RPC[fn](body) : true) }) })
+await ctx2.route('**/functions/v1/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
+const q = await ctx2.newPage()
+const taper = async code => { for (const c of code) await q.locator('.pad button', { hasText: new RegExp(`^${c}$`) }).click(); await q.waitForTimeout(400) }
+await q.goto(`http://localhost:${port}/`); await q.waitForTimeout(400); await q.getByText('Salmane').click()
+await taper('123456')
+if (!(await q.getByText('Code incorrect.').count())) echec('mauvais code : pas de message'); else console.log('  ✓ mauvais code refusé')
+await taper('999999')
+if (!(await q.getByText(/réessaie dans 15 minutes/).count())) echec('compte bloqué : pas de message'); else console.log('  ✓ blocage annoncé')
+await taper('111111'); await q.waitForTimeout(600)
+if (!(await q.evaluate(() => localStorage.getItem('orga_token')))) echec('bon code : pas connecté'); else console.log('  ✓ bon code accepté')
 
 await b.close(); srv.close()
 console.log(ko ? `\n${ko} échec(s)` : '\nTout passe')

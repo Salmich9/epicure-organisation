@@ -242,7 +242,7 @@ export default function App() {
           <button className="btn primary" style={{ flex: 'none' }} onClick={async () => { const v = Number(document.getElementById('inv').value); if (!v) return; await api.majInvites(data.evt, v); setEvtSheet(false); ui.toast('Quantités recalculées'); load(data.evt) }}>Mettre à jour</button>
         </div>
         <SupprimerEvt data={data} go={go} apres={() => setEvtSheet(false)} />
-        <button className="btn block" style={{ marginTop: 22 }} onClick={() => { store.token = null; location.reload() }}>Se déconnecter ({data.moi})</button>
+        <button className="btn block" style={{ marginTop: 22 }} onClick={async () => { try { await api.deconnexion() } catch {} store.token = null; location.reload() }}>Se déconnecter ({data.moi})</button>
       </Sheet>
     </div>
   )

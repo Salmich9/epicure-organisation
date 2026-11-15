@@ -11,7 +11,7 @@ begin
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'orga' and has_function_privilege('anon', p.oid, 'execute')
     and pg_get_functiondef(p.oid) !~ '_qui\(|_bot_ok\(|from orga.liens'
-    and p.proname not in ('connexion', '_moment', '_poste_auto', '_postes_def')
+    and p.proname not in ('connexion', 'deconnexion', '_moment', '_poste_auto', '_postes_def')
     and p.prorettype <> 'trigger'::regtype;
   if msg is not null then raise exception 'ECHEC : fonctions ouvertes sans contrôle : %', msg; end if; ok := ok + 1;
 
@@ -25,12 +25,20 @@ begin
   -- 3. Connexion : mauvais code refusé, faux jeton refusé
   insert into orga.membres (nom, pin_hash, admin) values ('ZZTestAdmin', extensions.crypt('135790', extensions.gen_salt('bf')), true),
                                                         ('ZZTestSimple', extensions.crypt('135790', extensions.gen_salt('bf')), false);
-  begin perform orga.connexion('ZZTestAdmin', '000000'); raise exception 'ECHEC : mauvais code accepté';
-  exception when others then if sqlerrm not like '%code_incorrect%' then raise; end if; end; ok := ok + 1;
+  if orga.connexion('ZZTestAdmin', '000000')->>'erreur' is distinct from 'code_incorrect' then raise exception 'ECHEC : mauvais code accepté'; end if; ok := ok + 1;
+  -- Verrou : 5 échecs → bloqué, même avec le bon code ; on débloque pour la suite du test
+  perform orga.connexion('ZZTestAdmin', '000000'); perform orga.connexion('ZZTestAdmin', '000000'); perform orga.connexion('ZZTestAdmin', '000000'); perform orga.connexion('ZZTestAdmin', '000000');
+  if orga.connexion('ZZTestAdmin', '135790')->>'erreur' is distinct from 'compte_bloque' then raise exception 'ECHEC : pas de blocage après 5 échecs'; end if; ok := ok + 1;
+  delete from orga.connexion_essais where nom = 'ztestadmin';
   begin perform orga._qui(gen_random_uuid()); raise exception 'ECHEC : faux jeton accepté';
   exception when others then if sqlerrm not like '%session_expiree%' then raise; end if; end; ok := ok + 1;
   tok := (orga.connexion('ZZTestAdmin', '135790')->>'token')::uuid;
   tok_simple := (orga.connexion('ZZTestSimple', '135790')->>'token')::uuid; ok := ok + 1;
+  -- Déconnexion : la session ne marche plus
+  perform orga.deconnexion(tok_simple);
+  begin perform orga._qui(tok_simple); raise exception 'ECHEC : session encore valide après déconnexion';
+  exception when others then if sqlerrm not like '%session_expiree%' then raise; end if; end; ok := ok + 1;
+  tok_simple := (orga.connexion('ZZTestSimple', '135790')->>'token')::uuid;
 
   -- 4. Un événement créé reçoit ses enveloppes (4 achats + matière si traiteur)
   ev := orga.evenement_creer(tok, '{"nom":"ZZ Test régression","date":"2030-06-01","invites":100,"prestations":["Boissons","Traiteur"],"entite":"Epicure"}')->>'id';

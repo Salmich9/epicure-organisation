@@ -8,6 +8,7 @@ const sb = createClient(URL, KEY, { auth: { persistSession: false }, db: { schem
 const MESSAGES = {
   session_expiree: 'Session expirée, reconnectez-vous.',
   code_incorrect: 'Code incorrect.',
+  compte_bloque: 'Trop d\'essais : réessaie dans 15 minutes.',
   lien_invalide: 'Ce lien n\'est plus valide.',
   manque_obligatoire: 'Il manque quoi, coût, qui ou quand.',
   reserve_admin: 'Seuls Salmane, Hamza et Ghali peuvent supprimer un événement.',
@@ -33,7 +34,12 @@ export const store = {
 }
 
 export const api = {
-  connexion: (nom, pin) => rpc('connexion', { p_nom: nom, p_pin: pin }),
+  connexion: async (nom, pin) => {
+    const r = await rpc('connexion', { p_nom: nom, p_pin: pin })
+    if (r?.erreur) { const e = new Error(MESSAGES[r.erreur] || r.erreur); e.code = r.erreur; throw e }
+    return r
+  },
+  deconnexion: () => rpc('deconnexion', { p_token: store.token }),
   donnees: (evt) => rpc('donnees', { p_token: store.token, p_evt: evt || null }),
   majElement: (id, patch) => rpc('maj_element', { p_token: store.token, p_id: id, p: patch }),
   ajoutElement: (evt, zone, nom) => rpc('ajout_element', { p_token: store.token, p_evt: evt, p_zone: zone, p_nom: nom }),
