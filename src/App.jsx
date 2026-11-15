@@ -158,7 +158,10 @@ export default function App() {
   const cible = useCibleActive()
   const micro = useMicro(t => cible?.onTexte(t))
 
-  const load = useCallback(async (evt) => {
+  // Gestes instantanés : un rechargement arrivé pendant qu'un envoi est en vol, ou dépassé par un plus récent, est ignoré
+  const vol = useRef(0), tour = useRef(0)
+  const load = useCallback(async (evt, discret) => {
+    const n0 = ++tour.current
     try {
       if (evt) store.evt = evt
       const [d0, depot] = await Promise.all([api.donnees(evt || store.evt), depotFrais(!!evt)])
@@ -166,10 +169,20 @@ export default function App() {
       // Événement mémorisé supprimé entre-temps : on retombe sur le prochain événement
       if (!d.evenements.some(x => x.id === d.evt)) d = await api.donnees(null)
       d = { ...d, depot: Array.isArray(depot) ? depot : d.depot || [] }
+      if (n0 !== tour.current || (discret && vol.current)) return
       setRegles(d.regles); setData(d); store.evt = d.evt; prechargerChallenge(d.evt) }
     catch (e) { if (e.code === 'session_expiree') { store.token = null; setLogged(false) } else ui.toast(e.message) }
   }, [])
   useEffect(() => { if (logged && !lien) load() }, [logged])
+  // L'écran change tout de suite ; l'envoi part derrière, puis les totaux se recalculent en silence.
+  // Si l'envoi échoue : retour à la version du serveur, et un message le dit.
+  const geste = useCallback(async (changer, envoyer) => {
+    if (changer) setData(d => (d && changer(d)) || d)
+    vol.current++
+    try { return { ok: true, r: await envoyer() } }
+    catch (e) { ui.toast(`Pas enregistré : ${e.message}`); return { ok: false } }
+    finally { vol.current--; if (!vol.current) load(null, true) }
+  }, [])
   useEffect(() => { setOpenEl(null); setProp(null) }, [route])
 
   if (lien) return <RespView lien={lien} />
@@ -211,7 +224,7 @@ export default function App() {
   const ouvrirPoste = async (id, cle) => { await load(id); go(cle ? `poste/${cle}` : '') }
   if (route === 'aujourdhui') screen = <Aujourdhui key="auj" go={go} ouvrirPoste={ouvrirPoste} />
   else if (route === 'mapart') screen = <Aujourdhui key="mp" mapart go={go} ouvrirPoste={ouvrirPoste} />
-  else if (route.startsWith('poste/')) screen = <Poste key={route} data={data} cle={route.split('/')[1]} go={go} openEl={setOpenEl} reload={() => load(data.evt)} />
+  else if (route.startsWith('poste/')) screen = <Poste key={route} data={data} cle={route.split('/')[1]} go={go} openEl={setOpenEl} reload={() => load(data.evt)} geste={geste} />
   else if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
   else if (route === 'corbeille' || route === 'corbeille/tout') screen = <Corbeille key={route} data={data} go={go} tout={route === 'corbeille/tout'} reload={() => load(data.evt)} />
   else if (route === 'comptes') screen = <Comptes go={go} />
