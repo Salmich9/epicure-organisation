@@ -34,7 +34,7 @@ let ko = 0
 const echec = (m) => { ko++; console.log('  ✗', m) }
 const b = await chromium.launch()
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
-await ctx.addInitScript(() => { localStorage.setItem('orga_token', '00000000-0000-0000-0000-000000000000'); localStorage.setItem('orga_evt', 'EVT-T-001') })
+await ctx.addInitScript(() => { localStorage.setItem('orga_token', '00000000-0000-0000-0000-000000000000'); localStorage.setItem('orga_evt', 'EVT-T-001'); localStorage.setItem('orga_seuil', new Date().toLocaleDateString('sv')) })
 await ctx.route('**/rest/v1/rpc/**', async route => {
   const fn = route.request().url().split('/rpc/')[1]; const body = JSON.parse(route.request().postData() || '{}'); appels.push([fn, body])
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RPC[fn] ? RPC[fn](body) : true) })
@@ -46,6 +46,25 @@ await ctx.route('**/functions/v1/orga-dicter', r => { const c = JSON.parse(r.req
 await ctx.addInitScript(() => { window.SpeechRecognition = window.webkitSpeechRecognition = class { start() { setTimeout(() => this.onresult?.({ results: [[{ transcript: window.__dit || 'test' }]] }), 100) } stop() { setTimeout(() => this.onend?.(), 30) } } })
 await ctx.route(u => !u.href.startsWith(`http://localhost:${port}`) && !u.href.includes('/rest/v1/') && !u.href.includes('/functions/v1/'), r => r.abort())
 const p = await ctx.newPage()
+
+// 0. Le seuil : la leçon du jour à la première ouverture, un toucher mène à Aujourd'hui avec le prénom ; pas une 2e fois le même jour
+{
+  const cs = await b.newContext({ viewport: { width: 390, height: 844 } })
+  await cs.addInitScript(() => { localStorage.setItem('orga_token', '00000000-0000-0000-0000-000000000000'); localStorage.setItem('orga_evt', 'EVT-T-001') })
+  await cs.route('**/rest/v1/rpc/**', r => { const fn = r.request().url().split('/rpc/')[1]; r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RPC[fn] ? RPC[fn](JSON.parse(r.request().postData() || '{}')) : true) }) })
+  await cs.route('**/functions/v1/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
+  const ps = await cs.newPage()
+  await ps.goto(`http://localhost:${port}/`); await ps.waitForTimeout(1200)
+  const lecon = await ps.locator('.se .se-t').textContent().catch(() => null)
+  const nom = await ps.locator('.se-haut').textContent().catch(() => '')
+  await ps.locator('.se').click(); await ps.waitForTimeout(1200)
+  const h1 = await ps.locator('h1').first().textContent().catch(() => '')
+  await ps.reload(); await ps.waitForTimeout(1000)
+  const encore = await ps.locator('.se').count()
+  if (!lecon || !/Salmane/.test(nom) || !/Salmane/.test(h1) || encore) echec(`seuil : leçon « ${lecon} », haut « ${nom} », titre « ${h1} », revu ${encore}`)
+  else console.log('  ✓ seuil : leçon du jour, prénom, entrée vers Aujourd\'hui, une fois par jour')
+  await cs.close()
+}
 let erreurs = []
 p.on('pageerror', e => erreurs.push(e.message))
 
