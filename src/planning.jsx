@@ -257,7 +257,8 @@ export function Planning({ data, reload, open, go }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div><h1>Planning</h1><div className="meta">{ev.nom}{ev.date ? ` · ${jour(ev.date)}` : ''}</div></div>
-        <button className="btn primary" style={{ flex: 'none', padding: '10px 16px', fontSize: 13.5 }} onClick={() => setShare(true)}>Partager</button>
+        <div style={{ display: 'flex', gap: 8 }}><button className="btn" style={{ flex: 'none', padding: '10px 14px', fontSize: 13.5 }} onClick={() => setEdit({ kind: 'planning', date: vue === 'jourj' ? evDate : data.aujourdhui })}>+ Créneau</button>
+          <button className="btn primary" style={{ flex: 'none', padding: '10px 14px', fontSize: 13.5 }} onClick={() => setShare(true)}>Partager</button></div>
       </div>
       <div className="scroller" style={{ padding: '14px 16px 0' }}>
         {[['tout', 'J-30 à J+5'], ['avenir', 'À venir'], ['semaine', 'Cette semaine'], ['jourj', 'Jour J'], ['apres', 'Après']].map(([k, l]) =>
@@ -307,7 +308,6 @@ export function Planning({ data, reload, open, go }) {
         ))}
       </div>
 
-      <motion.button className="fab" whileTap={{ scale: .9 }} onClick={() => setEdit({ kind: 'planning', date: vue === 'jourj' ? evDate : data.aujourdhui })} aria-label="Ajouter un créneau">+</motion.button>
 
       <Editeur item={edit} data={data} evDate={evDate} onClose={() => setEdit(null)} onSaved={enregistrer} onDelete={supprimer} onDup={dupliquer} />
 

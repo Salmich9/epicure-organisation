@@ -13,7 +13,7 @@ const srv = http.createServer((q, r) => { let p = q.url.split('?')[0]; if (p ===
 
 const appels = []
 const RPC = {
-  donnees: () => (globalThis.__equipe ? { ...donnees, moi: 'Ouadia', role: 'equipe', admin: false } : donnees), aujourdhui: () => aujourdhui, accueil: () => accueil,
+  donnees: () => (globalThis.__equipe ? { ...donnees, moi: 'Ouadia', role: 'equipe', admin: false } : globalThis.__rep ? { ...donnees, actions: donnees.actions.map(a => a.id === 'ACT-1' ? { ...a, reponse: 'Vernis acheté, demain matin' } : a) } : donnees), aujourdhui: () => aujourdhui, accueil: () => accueil,
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }),
   catalogue_liste: () => [{ id: 'CAT-1', element: 'Chafing dish', zone: 'Cuisine traiteur', prix_location: 120 }],
   staff_liste: () => [], staff_evt_liste: () => ({ postes: [], affectes: [] }), planning_liste: () => ({ planning: [] }),
@@ -134,6 +134,16 @@ await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/`); await 
 const okEq = !(await p.getByRole('button', { name: 'Client', exact: true }).count()) && !(await p.locator('h1 .ep:not(.fige)').count()) && (await p.locator('.pv-env.autre').count()) > 0
 if (!okEq) echec('vue équipe'); else console.log('  ✓ compte Équipe : ni Client, ni corrections de l\'événement, ni montants des autres')
 globalThis.__equipe = false
+
+// 4 sexies. Lot A : réponse du lien visible, réception notée depuis le ⋯ d'une ligne
+globalThis.__rep = true
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500); appels.length = 0
+if (!(await p.getByText('Vernis acheté').count())) echec('réponse du lien invisible'); else console.log('  ✓ la réponse envoyée depuis le lien s\'affiche sous l\'action')
+await p.locator('.pv-ln .pv-3').first().click(); await p.waitForTimeout(300); await p.getByRole('button', { name: 'Partiel', exact: true }).click(); await p.waitForTimeout(200)
+await p.locator('.rv-manque input').fill('6 assiettes'); await p.locator('.rv-manque .btn').click(); await p.waitForTimeout(400)
+const re = appels.find(a => a[0] === 'maj_element')
+if (!re || re[1].p?.reception !== 'Partiel' || re[1].p?.manque !== '6 assiettes') echec('réception depuis le ⋯ : ' + JSON.stringify(re?.[1])); else console.log('  ✓ réception partielle notée depuis le ⋯, avec ce qui manque')
+globalThis.__rep = false
 
 // 4 bis. En-tête de l'événement : corriger sur place, menu ⋯
 await p.goto(`http://localhost:${port}/#/accueil`); await p.waitForTimeout(400); await p.getByText('Mariage Test').first().click(); await p.waitForTimeout(500)

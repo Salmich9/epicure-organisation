@@ -317,7 +317,7 @@ export function Notes({ data, setData, listening, toggleMic, draft, setDraft, pl
       <div className="head"><h1>Notes</h1><div className="meta">Dites ou écrivez une idée, rien ne se perd.</div></div>
       <div style={{ padding: '16px 14px 0' }}>
         <textarea rows={3} value={draft} onChange={e => setDraft(e.target.value)} placeholder={listening ? 'Je vous écoute…' : 'Un changement, un oubli, une idée…'} />
-        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}><button className="btn" onClick={toggleMic}>{listening ? 'Arrêter' : 'Dicter'}</button><button className="btn primary" onClick={add}>Ajouter et ranger</button></div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}><button className="btn primary" style={{ flex: 1 }} onClick={add}>{listening ? 'J\'écoute… touche le micro pour finir' : 'Ajouter et ranger'}</button></div>
       </div>
       <div className="group">Boîte de réception <Info text="Le copilote propose où ranger chaque note et ce qu'elle change. Rien n'est appliqué sans votre accord." /></div>
       <div className="list">

@@ -92,7 +92,7 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
   if (!el) return <Sheet open={false} onClose={onClose} />
 
   const set = (k, v) => { setE(x => ({ ...x, [k]: v })); setChg(c => ({ ...c, [k]: v })) }
-  const besoin = e.qte_forcee !== null && e.qte_forcee !== undefined && e.qte_forcee !== '' ? n(e.qte_forcee) : (e.qte_calc === null ? null : n(e.qte_calc))
+  const besoin = e.qte_forcee !== null && e.qte_forcee !== undefined && e.qte_forcee !== '' ? n(e.qte_forcee) : (e.qte_calc == null ? (e.mode_ligne ? MODES.reduce((s, m) => s + n(e[m.k]), 0) : null) : n(e.qte_calc))
   const couvert = MODES.reduce((s, m) => s + n(e[m.k]), 0)
   const reste = besoin === null ? null : besoin - couvert
   const cout = MODES.reduce((s, m) => s + (m.p ? n(e[m.k]) * n(e[m.p]) : 0), 0)
@@ -133,7 +133,7 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
     <>
       <Sheet open onClose={() => save(true)}
         foot={<><button className="btn" onClick={delegate}>Déléguer{e.resp ? ` à ${e.resp}` : ''}</button><button className="btn primary" disabled={busy} onClick={() => save(true)}>{busy ? '…' : 'Valider'}</button></>}>
-        <div className="el-kicker">{e.zone}{e.sous_zone ? ` · ${e.sous_zone}` : ''}</div>
+        <div className="el-kicker">{(data.postes || []).find(p => p.cle === e.poste)?.nom || e.zone}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
           <div className="el-name">{e.element}</div>
           <span className={`pill ${etat.c}`} style={{ marginTop: 12 }}>{etat.l}</span>
@@ -141,7 +141,7 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
         {(e.description || e.moments) && <div className="el-sub">{[e.moments, e.description].filter(Boolean).join(' · ')}</div>}
         <MicFiche m={micro} pour="cette ligne" exemple="« 200 louées à 45 chez Atelier Lin »" />
 
-        <div className="label">Qui s'en charge ?</div>
+        <div className="label">Qui fournit ?</div>
         <div className="chips">{PERIMETRES.map(([v, l]) => <button key={v} className={`chip ${e.perimetre === v ? 'on' : ''}`} onClick={() => set('perimetre', v)}>{l}</button>)}</div>
         {e.perimetre === 'Tiers' && <button className="chip" style={{ marginTop: 10 }} onClick={() => setPicker('tiers')}>{e.fourni_par ? `Fourni par ${e.fourni_par}` : 'Choisir qui le fournit'}</button>}
 

@@ -69,49 +69,55 @@ function Login({ onIn }) {
   )
 }
 
-/* ---------- Vue d'un responsable (lien WhatsApp, sans compte) ---------- */
+/* ---------- Vue d'un responsable (lien WhatsApp, sans compte) : mêmes cartes que l'appli ---------- */
+const JOURS_L = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+const quandMot = d => { if (!d) return ''; const t = new Date(); t.setHours(12, 0, 0, 0); const x = new Date(d + 'T12:00:00'); const j = Math.round((x - t) / 864e5)
+  return j === 0 ? 'aujourd\'hui' : j === 1 ? 'demain' : j === -1 ? 'hier' : j < 0 ? `en retard (${ddmm(d)})` : j < 7 ? JOURS_L[x.getDay()] : `le ${ddmm(d)}` }
 function RespView({ lien }) {
   const ui = useUI()
   const [d, setD] = useState(null)
   const [err, setErr] = useState('')
+  const [rep, setRep] = useState(null)        // id de l'action dont on écrit la réponse
+  const [manque, setManque] = useState(null)  // { e, r, texte }
   const load = () => api.listeResponsable(lien).then(setD).catch(e => setErr(e.message))
   useEffect(() => { load() }, [])
   if (err) return <div className="login"><h1>Lien invalide</h1><p className="mute" style={{ marginTop: 12 }}>{err}</p></div>
   if (!d) return <div className="login"><p className="mute">Chargement…</p></div>
   async function toggle(a) { const st = a.statut === 'Fait' ? 'À faire' : 'Fait'; setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, statut: st } : y) })); await api.respAction(lien, a.id, st) }
-  async function recep(e, r) {
-    let manque = null
-    if (r !== 'Reçu') { manque = prompt('Qu\'est-ce qui manque ?'); if (!manque) return }
-    try { await api.respReception(lien, e.id, r, manque); ui.toast('Merci, c\'est noté'); load() } catch (er) { ui.toast(er.message) }
+  async function recep(e, r, texte) {
+    if (r !== 'Reçu' && !texte) { setManque({ e, r, texte: '' }); return }
+    try { await api.respReception(lien, e.id, r, texte || null); setManque(null); ui.toast('Merci, c\'est noté'); load() } catch (er) { ui.toast(er.message) }
   }
+  async function repondre(a, texte) { setRep(null); if (texte === (a.reponse || '')) return; setD(x => ({ ...x, actions: x.actions.map(y => y.id === a.id ? { ...y, reponse: texte } : y) })); await api.respAction(lien, a.id, null, texte); ui.toast('Envoyé') }
+  const reste = d.actions.filter(a => a.statut !== 'Fait').length
   return (
-    <div className="app">
-      <div className="head"><div className="when">{d.evenement?.nom}</div><h1>Bonjour {d.nom}</h1><div className="meta">Ta liste, à jour en direct.</div></div>
-      <div className="group">À faire · {d.actions.filter(a => a.statut !== 'Fait').length}</div>
-      <div className="list">
-        {!d.actions.length && <div className="empty">Rien pour l'instant.</div>}
+    <div className="app rv-app">
+      <div className="head"><div className="when">{d.evenement?.nom}</div><h1>Bonjour {d.nom}</h1><div className="meta">{reste ? `${reste} chose${reste > 1 ? 's' : ''} à faire` : 'Tout est fait, merci !'}</div></div>
+      <div className="px">
+        {!d.actions.length && <div className="pv-vide">Rien pour l'instant.</div>}
         {d.actions.map(a => (
-          <div key={a.id} className="act">
-            <motion.button whileTap={{ scale: .85 }} className={`check ${a.statut === 'Fait' ? 'on' : ''}`} onClick={() => toggle(a)}>{a.statut === 'Fait' ? '✓' : ''}</motion.button>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{a.quoi}</div>
-              {a.echeance && <div className="small mute" style={{ marginTop: 3 }}>Avant le {ddmm(a.echeance)}</div>}
-              <input defaultValue={a.reponse || ''} placeholder="Une réponse ou une remarque" style={{ marginTop: 8, padding: '9px 12px', fontSize: 14 }}
-                onBlur={ev => { if (ev.target.value !== (a.reponse || '')) api.respAction(lien, a.id, null, ev.target.value).then(() => ui.toast('Envoyé')) }} />
+          <div key={a.id}>
+            <div className={`au-ac ${a.statut === 'Fait' ? 'fait' : ''}`}>
+              <motion.button whileTap={{ scale: .85 }} className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={() => toggle(a)} aria-label="Fait" />
+              <div className="x"><b>{a.quoi}</b><span>{quandMot(a.echeance)}{a.heure ? ` · ${a.heure}` : ''}</span></div>
+              <button className="rv-rep" onClick={() => setRep(rep === a.id ? null : a.id)}>{a.reponse ? '💬' : 'Répondre'}</button>
             </div>
+            {a.reponse && rep !== a.id && <div className="pv-rp">« {a.reponse} »</div>}
+            {rep === a.id && <input autoFocus className="rv-in" defaultValue={a.reponse || ''} placeholder="Ta réponse ou une remarque" onBlur={ev => repondre(a, ev.target.value.trim())} onKeyDown={ev => ev.key === 'Enter' && ev.currentTarget.blur()} />}
           </div>
         ))}
+        {d.elements.length > 0 && <>
+          <div className="pv-st">À RECEVOIR · {d.elements.length}</div>
+          {d.elements.map(e => (
+            <div key={e.id} className="rv-el">
+              <div className="t"><b>{e.element}</b><span>{[e.besoin && `${e.besoin} pièces`, e.prochaine].filter(Boolean).join(' · ')}</span></div>
+              <div className="chips">{['Reçu', 'Partiel', 'Non reçu'].map(r => <button key={r} className={`chip ${e.reception === r ? 'on' : ''}`} onClick={() => recep(e, r)}>{r}</button>)}</div>
+              {manque?.e.id === e.id && <div className="rv-manque"><input autoFocus value={manque.texte} onChange={x => setManque(m => ({ ...m, texte: x.target.value }))} placeholder="Ce qui manque : ex. 40 tasses" />
+                <button className="btn primary" disabled={!manque.texte.trim()} onClick={() => recep(e, manque.r, manque.texte.trim())}>OK</button></div>}
+            </div>
+          ))}
+        </>}
       </div>
-      {d.elements.length > 0 && <>
-        <div className="group">Ce que tu suis · {d.elements.length}</div>
-        <div className="list">{d.elements.map(e => (
-          <div key={e.id} className="row" style={{ cursor: 'default' }}>
-            <div className="top"><span className="name">{e.element}</span><span className={`pill ${(ETATS[e.etat] || {}).c || ''}`}>{(ETATS[e.etat] || {}).l || e.etat}</span></div>
-            <div className="info">{[e.zone, e.besoin && `${e.besoin} pièces`, e.prochaine].filter(Boolean).join(' · ')}</div>
-            <div className="chips" style={{ marginTop: 10 }}>{['Reçu', 'Partiel', 'Non reçu'].map(r => <button key={r} className={`chip ${e.reception === r ? 'on' : ''}`} onClick={() => recep(e, r)}>{r}</button>)}</div>
-          </div>
-        ))}</div>
-      </>}
     </div>
   )
 }

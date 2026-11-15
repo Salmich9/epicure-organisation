@@ -27,13 +27,13 @@ const active = e => e.mode_ligne || n(e.cout) > 0 || n(e.facture) > 0 || ['stock
 const gens = data => [...new Set([...Object.values(data.equipe_evt || {}), data.moi, ...data.intervenants.filter(i => ['Équipe', 'Staff / extra'].includes(i.type)).map(i => i.nom)].filter(Boolean))]
 
 /* ---------- Compteur prévu / engagé / réel / reste ---------- */
-export function Compteur({ prevu, engage, reel, sans }) {
+export function Compteur({ prevu, engage, reel, sans, info }) {
   const reste = prevu - engage
   const k = kMeme(prevu, engage, reel, reste)
   return (
     <div className="pv-cpt">
       <div className="r">
-        <div><b>{k(prevu)}</b>prévu</div>
+        <div><b>{k(prevu)}</b>prévu{info && <> <Info text={info} /></>}</div>
         <div><b>{k(engage)}</b>engagé</div>
         {!sans && <div><b>{k(reel)}</b>réel</div>}
         <div className={reste < 0 ? 'neg' : ''}><b>{reste < 0 ? '+' : ''}{k(Math.abs(reste))}</b>{reste < 0 ? 'dépassé' : 'reste'}</div>
@@ -71,8 +71,7 @@ export function Enveloppes({ data, go, reload }) {
   return (
     <div className="pv">
       {equipe && <div className="pv-st" style={{ marginTop: 6 }}>TES ENVELOPPES</div>}
-      <Compteur {...t} />
-      <div className="pv-leg"><Info text="Prévu : la somme des enveloppes (chiffrage vocal, sinon un ratio par invité ; touche une enveloppe pour corriger). Engagé : ce que coûtent les lignes et les actions. Réel : les pièces imputées et les actions marquées payées." /></div>
+      <Compteur {...t} info="Prévu : la somme des enveloppes (chiffrage vocal, sinon un ratio par invité ; touche une enveloppe pour corriger). Engagé : ce que coûtent les lignes et les actions. Réel : les pièces imputées et les actions marquées payées." />
       {mat.length > 0 && <div className="pv-st">MATIÈRE PAR MOMENT</div>}
       {mat.map(p => <Ligne key={p.cle} p={p} />)}
       {!equipe && (mat.length > 0 || (ev.prestations || []).includes('Traiteur')) && manque.length > 0 && (
@@ -102,6 +101,14 @@ export function Poste({ data, cle, go, openEl, reload }) {
   const [respSheet, setRespSheet] = useState(false)
   const [menu, setMenu] = useState(null)      // { t: 'element' | 'action' | 'poste', o }
   const [depl, setDepl] = useState(null)      // ligne à déplacer
+  const [recManque, setRecManque] = useState(null)
+  async function recevoir(e, r, texte) {
+    if (r !== 'Reçu' && !texte) { setRecManque({ r, texte: e.manque || '' }); return }
+    setMenu(null); setRecManque(null)
+    const avant = { reception: e.reception || null, manque: e.manque || null }
+    try { await api.majElement(e.id, { reception: e.reception === r && !texte ? null : r, manque: r === 'Reçu' ? null : texte }); await reload()
+      ui.annulable(r === 'Reçu' ? `« ${e.element} » reçu` : `Noté : ${r.toLowerCase()}`, async () => { await api.majElement(e.id, avant); reload() }) } catch (er) { ui.toast(er.message) }
+  }
   const pNom = (data.postes || []).find(x => x.cle === cle)?.nom
   useCible(pNom ? { label: pNom, onTexte: t => setAct({ texte: t }) } : null)
   if (!p) return <div className="empty" style={{ paddingTop: 80 }}>Enveloppe introuvable. <button className="small" onClick={() => go('')}>Retour</button></div>
@@ -159,7 +166,7 @@ export function Poste({ data, cle, go, openEl, reload }) {
             <div className="pv-ln">
               <button className="pv-ln-b" onClick={() => openEl(e)}>
                 <Tag m={modeLigne(e)} />
-                <div className="x"><b>{e.element}</b><span>{[n(e.besoin) ? `${n(e.besoin)}` : null, e.fournisseur, e.perimetre === 'Tiers' ? `tiers${e.fourni_par ? ` · ${e.fourni_par}` : ''}` : null].filter(Boolean).join(' · ') || ' '}</span></div>
+                <div className="x"><b>{e.element}</b><span>{e.reception && <Recu e={e} />}{[n(e.besoin) ? `${n(e.besoin)}` : null, e.fournisseur, e.perimetre === 'Tiers' ? `tiers${e.fourni_par ? ` · ${e.fourni_par}` : ''}` : null].filter(Boolean).join(' · ') || ' '}</span></div>
                 <span className="p">{n(e.cout) ? k(e.cout) : '—'}</span>
               </button>
               <button className="pv-3" onClick={() => setMenu({ t: 'element', o: e })} aria-label="Plus d'actions">⋯</button>
@@ -180,9 +187,15 @@ export function Poste({ data, cle, go, openEl, reload }) {
         onDate={q => dater(menu.o, q)} onQui={q => attribuer(menu.o, q)} onModifier={() => { setAct({ a: menu.o }); setMenu(null) }}
         onDupliquer={() => dupliquer('action', menu.o.id)} onSupprimer={() => supprimer('action', menu.o.id, menu.o.quoi)}
         onDire={async t => { const a = menu.o; setMenu(null); try { await direAction({ ...a, evenement_id: data.evt }, t, ui, reload) } catch (e) { ui.toast(e.message) } }} />
-      <Sheet open={!!menu && menu.t !== 'action'} onClose={() => setMenu(null)}>
+      <Sheet open={!!menu && menu.t !== 'action'} onClose={() => { setMenu(null); setRecManque(null) }}>
         {menu && menu.t !== 'action' && <>
           <div className="el-name" style={{ fontSize: 24 }}>{menu.t === 'element' ? menu.o.element : menu.o.nom}</div>
+          {menu.t === 'element' && <>
+            <div className="am-l" >Réception</div>
+            <div className="chips" style={{ marginBottom: 12 }}>{['Reçu', 'Partiel', 'Non reçu'].map(r => <button key={r} className={`chip ${menu.o.reception === r ? 'on' : ''}`} onClick={() => recevoir(menu.o, r)}>{r}</button>)}</div>
+            {recManque && <div className="rv-manque" style={{ marginBottom: 12 }}><input autoFocus value={recManque.texte} onChange={x => setRecManque(m => ({ ...m, texte: x.target.value }))} placeholder="Ce qui manque : ex. 6 chaises" />
+              <button className="btn primary" disabled={!recManque.texte.trim()} onClick={() => recevoir(menu.o, recManque.r, recManque.texte.trim())}>OK</button></div>}
+          </>}
           <div className="ee-menu">
             {menu.t === 'element' && <>
               <button onClick={() => { setMenu(null); openEl(menu.o) }}>Modifier<span>›</span></button>
@@ -210,22 +223,25 @@ export function Poste({ data, cle, go, openEl, reload }) {
   )
 }
 
+const Recu = ({ e }) => <i className={`pv-rc ${e.reception === 'Reçu' ? 'ok' : e.reception === 'Partiel' ? 'mi' : 'ko'}`}>{e.reception === 'Reçu' ? 'reçu' : e.reception === 'Partiel' ? `partiel${e.manque ? ` · manque ${e.manque}` : ''}` : `non reçu${e.manque ? ` · ${e.manque}` : ''}`}</i>
 const Tag = ({ m }) => <span className={`pv-md ${m || 'vide'}`}>{m ? MODES_L[m] : 'Idée'}</span>
 const detailAction = (a, today) => [a.resp, jourCourt(a.echeance, today) + (a.heure ? ` ${a.heure}` : ''),
   a.logistique?.mode === 'livre' ? `livré${a.logistique.lieu ? ` ${a.logistique.lieu}` : ''}` : a.logistique?.mode === 'recuperer' ? `à récupérer${a.logistique.lieu ? ` ${a.logistique.lieu}` : ''}` : null,
   a.logistique?.retour_j1 ? 'retour J+1' : null].filter(Boolean).join(' · ')
+export const Reponse = ({ a }) => a.reponse ? <div className="pv-rp"><b>{a.resp}</b> « {a.reponse} »</div> : null
 function SousAction({ a, today, onTap, onCheck, onMenu }) {
-  return <div className={`pv-sa ${a.statut === 'Fait' ? 'fait' : ''}`}><button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" /><button className="t" onClick={onTap}><b>{a.quoi}</b> · {detailAction(a, today)}{n(a.cout) ? ` · ${k(a.cout)}` : ''}</button><button className="pv-3 petit" onClick={onMenu} aria-label="Plus d'actions">⋯</button></div>
+  return <><div className={`pv-sa ${a.statut === 'Fait' ? 'fait' : ''}`}><button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" /><button className="t" onClick={onTap}><b>{a.quoi}</b> · {detailAction(a, today)}{n(a.cout) ? ` · ${k(a.cout)}` : ''}</button><button className="pv-3 petit" onClick={onMenu} aria-label="Plus d'actions">⋯</button></div><Reponse a={a} /></>
 }
 function LigneAction({ a, today, onTap, onCheck, onMenu }) {
-  return (
+  return (<>
     <div className={`pv-ln ${a.statut === 'Fait' ? 'fait' : ''}`}>
       <button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" />
       <button className="x" onClick={onTap}><b>{a.quoi}</b><span>{detailAction(a, today)}</span></button>
       <span className="p">{n(a.cout) ? k(a.cout) : '—'}{a.paye ? <small>payé</small> : null}</span>
       <button className="pv-3" onClick={onMenu} aria-label="Plus d'actions">⋯</button>
     </div>
-  )
+    <Reponse a={a} />
+  </>)
 }
 
 // Ce qui est dit sur une action touchée : on applique ce qui change, avec Annuler
@@ -485,6 +501,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
         <div className="h">{n(a.cout) ? k(a.cout) : '—'}<small>{jourCourt(a.echeance, t)}</small></div>
         <Av nom={a.resp} onClick={() => setMenu(a)} />
         <button className="pv-3" onClick={() => setMenu(a)} aria-label="Plus d'actions">⋯</button>
+        {a.reponse && <div className="pv-rp au">{a.resp} : « {a.reponse} »</div>}
       </div>
     )
   }

@@ -57,8 +57,10 @@ export function Accueil({ go, ouvrir }) {
         <button className="ac-st ac-fin" onClick={() => setVoir(!voir)}>Clôturés et perdus · {fin.length} {voir ? '▾' : '›'}</button>
         {voir && fin.map(e => <Carte key={e.id} e={e} today={today} onClick={() => ouvrir(e.id)} />)}
       </>}
-      {a.role !== 'equipe' && <button className="ac-st ac-fin" onClick={() => go('corbeille/tout')}>🗑 Corbeille ›</button>}
-      {a.admin && <button className="ac-st ac-fin" onClick={() => go('comptes')}>🔑 Comptes de l'équipe ›</button>}
+      <div className="ac-bas">
+        {a.role !== 'equipe' && <button onClick={() => go('corbeille/tout')}>Corbeille</button>}
+        {a.admin && <button onClick={() => go('comptes')}>Comptes de l'équipe</button>}
+      </div>
     </motion.div>
   )
 }

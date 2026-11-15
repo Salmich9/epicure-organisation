@@ -47,15 +47,15 @@ export function Especes({ data, go }) {
   }
   async function remettre() {
     const v = Number(String(f.montant || '').replace(/\s/g, '').replace(',', '.'))
-    if (!f.nom) { ui.bubble('Choisis à qui tu confies l\'enveloppe.'); return }
-    if (!(v > 0)) { ui.bubble('Tape le montant de l\'enveloppe.'); return }
+    if (!f.nom) { ui.bubble('Choisis à qui tu confies les espèces.'); return }
+    if (!(v > 0)) { ui.bubble('Tape le montant confié.'); return }
     if (v > n(e.chez_salmane)) { ui.bubble(`Il ne reste que ${mad(e.chez_salmane)} MAD encaissés : note d'abord l'avance du client.`); return }
     setBusy(true)
     try {
       const r = await api.enveloppeRemettre(data.evt, f.nom, v)
       const p = porteur(f.nom)
       if (r.notifie) ui.toast(`${f.nom} doit confirmer sur le bot`)
-      else ui.bubble(p?.code ? `${f.nom} n'est pas encore relié au bot : il envoie le code ${p.code} au bot GroupeTreso, puis confirme la remise.` : `Enveloppe notée. Le bot n'a pas pu prévenir ${f.nom} (${r.raison || '?'}).`)
+      else ui.bubble(p?.code ? `${f.nom} n'est pas encore relié au bot : il envoie le code ${p.code} au bot GroupeTreso, puis confirme la remise.` : `Remise notée. Le bot n'a pas pu prévenir ${f.nom} (${r.raison || '?'}).`)
       setSheet(null); setF({}); await charger()
     } catch (err) { ui.toast(err.message) }
     setBusy(false)
@@ -75,11 +75,11 @@ export function Especes({ data, go }) {
         <div><b>{mad(encaisse)}</b>encaissé en espèces</div>
         <div><b>{mad(depense)}</b>dépensé</div>
         <div><b>{mad(enEnv - depense)}</b>chez les porteurs</div>
-        <div className="main"><b>{mad(e.chez_salmane)}</b>reste chez toi <Info text="Encaissé = dépensé + chez les porteurs + chez toi. Chez toi : l'encaissé, moins les enveloppes remises, plus ce qu'on t'a rendu." /></div>
+        <div className="main"><b>{mad(e.chez_salmane)}</b>reste chez toi <Info text="Encaissé = dépensé + chez les porteurs + chez toi. Chez toi : l'encaissé, moins les espèces confiées, plus ce qu'on t'a rendu." /></div>
       </div>
 
-      <div className="group">Enveloppes</div>
-      {!env.length && <div className="empty">Aucune enveloppe. Note d'abord l'avance du client, puis confie une enveloppe.</div>}
+      <div className="group">Espèces confiées</div>
+      {!env.length && <div className="empty">Rien de confié. Note d'abord ce que le client a payé, puis confie des espèces.</div>}
       {env.map(x => {
         const p = porteur(x.nom), base = x.remis || x.attente || 1
         return (
@@ -90,7 +90,7 @@ export function Especes({ data, go }) {
           </motion.button>
         )
       })}
-      <div className="two"><motion.button whileTap={{ scale: .97 }} onClick={() => { setF({}); setSheet('enc') }}>+ Encaissement</motion.button><motion.button whileTap={{ scale: .97 }} className="p" onClick={() => { setF({}); setSheet('env') }}>+ Enveloppe</motion.button></div>
+      <div className="two"><motion.button whileTap={{ scale: .97 }} onClick={() => { setF({}); setSheet('enc') }}>+ Encaissement</motion.button><motion.button whileTap={{ scale: .97 }} className="p" onClick={() => { setF({}); setSheet('env') }}>+ Confier</motion.button></div>
 
       {e.encaissements.length > 0 && <>
         <div className="group">Encaissements du client</div>
@@ -112,7 +112,7 @@ export function Especes({ data, go }) {
 
       <Sheet open={sheet === 'env'} onClose={() => setSheet(null)} foot={<button className="btn primary" disabled={busy} onClick={remettre}>{busy ? '…' : 'Confier'}</button>}>
         <div className="el-kicker">{ev.nom} · {mad(e.chez_salmane)} MAD chez toi</div>
-        <div className="el-name" style={{ fontSize: 28 }}>Nouvelle enveloppe</div>
+        <div className="el-name" style={{ fontSize: 28 }}>Confier des espèces</div>
         <div className="label">À qui ?</div>
         <div className="chips">{e.porteurs.map(p => <button key={p.nom} className={`chip ${f.nom === p.nom ? 'on' : ''}`} onClick={() => setF({ ...f, nom: p.nom })}>{p.nom}</button>)}</div>
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}><input value={f.nouveau || ''} onChange={x => setF({ ...f, nouveau: x.target.value })} placeholder="Autre personne" /><button className="chip" onClick={nouveauPorteur}>Ajouter</button></div>
