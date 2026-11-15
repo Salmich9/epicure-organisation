@@ -902,3 +902,14 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .hl-ban.envoi i { background: var(--accent); animation: hl-p 1s infinite alternate; }
 .hl-ban b { color: var(--gold); }
 @keyframes hl-p { to { opacity: .3 } }
+
+/* Comptes de l'équipe */
+.pv-env.autre { opacity: .55; cursor: default; }
+.ep.fige { cursor: default; }
+.cp-l .row { display: flex; align-items: center; gap: 12px; }
+.cp-l .row .x { flex: 1; min-width: 0; }
+.cp-l .row .x b { display: block; font-size: 15px; }
+.cp-l .row .x span { display: block; font-size: 12.5px; color: var(--mute); margin-top: 2px; }
+.cp-pin { font-family: var(--display); font-size: 44px; letter-spacing: 6px; text-align: center; margin: 18px 0 6px; }
+.lg-autre { margin-top: 14px; display: flex; gap: 8px; }
+.lg-autre input { flex: 1; }

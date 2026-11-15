@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
     const { data, error } = await sb.rpc('donnees', { p_token: token, p_evt: evt || null })
     if (error) return json({ error: 'Session expirée, reconnecte-toi.' }, 401)
+    if (data.role === 'equipe') return json({ error: 'Réservé à la direction.' }, 403)
     if (data.regles) { TVA = { ...TVA, ...(data.regles.tva || {}) }; IMP = Number(data.regles.imprevus_pct ?? 5) / 100; COEF = Number(data.regles.coef_defaut ?? 2.4) }
     const adm = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'orga' } })
 

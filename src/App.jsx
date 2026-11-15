@@ -19,6 +19,7 @@ import { Planning } from './planning'
 import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
 import { Corbeille, Historique } from './historique'
+import { Comptes } from './comptes'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
 import { synchroniser } from './api'
@@ -35,11 +36,15 @@ function Login({ onIn }) {
   const [nom, setNom] = useState(null)
   const [pin, setPin] = useState('')
   const [err, setErr] = useState('')
+  const [autre, setAutre] = useState(false)
+  const [saisi, setSaisi] = useState('')
+  const noms = (() => { try { return JSON.parse(localStorage.getItem('orga_noms')) || ['Salmane', 'Hamza', 'Ghali'] } catch { return ['Salmane', 'Hamza', 'Ghali'] } })()
+  const retenir = x => { try { localStorage.setItem('orga_noms', JSON.stringify([...new Set([x, ...noms])].slice(0, 8))) } catch {} }
   async function tap(k) {
     if (k === '⌫') return setPin(p => p.slice(0, -1))
     const p = (pin + k).slice(0, 6); setPin(p); setErr('')
     if (p.length === 6) {
-      try { const r = await api.connexion(nom, p); store.token = r.token; onIn() } catch (e) { setErr(e.message); setPin('') }
+      try { const r = await api.connexion(nom, p); store.token = r.token; retenir(r.nom || nom); onIn() } catch (e) { setErr(e.message); setPin('') }
     }
   }
   return (
@@ -50,7 +55,10 @@ function Login({ onIn }) {
       </div>
       {!nom ? <>
         <p className="mute" style={{ margin: '26px 0 12px' }}>Qui êtes-vous ?</p>
-        <div className="chips">{['Salmane', 'Hamza', 'Ghali'].map(x => <button key={x} className="chip" onClick={() => setNom(x)}>{x}</button>)}</div>
+        <div className="chips">{noms.map(x => <button key={x} className="chip" onClick={() => setNom(x)}>{x}</button>)}
+          {!autre && <button className="chip ghost" onClick={() => setAutre(true)}>Autre prénom</button>}</div>
+        {autre && <div className="lg-autre"><input autoFocus value={saisi} onChange={x => setSaisi(x.target.value)} placeholder="Ton prénom" onKeyDown={x => x.key === 'Enter' && saisi.trim() && setNom(saisi.trim())} />
+          <button className="btn primary" disabled={!saisi.trim()} onClick={() => setNom(saisi.trim())}>OK</button></div>}
       </> : <>
         <p className="mute" style={{ marginTop: 26 }}>{nom}, votre code à 6 chiffres <button className="small" style={{ textDecoration: 'underline' }} onClick={() => { setNom(null); setPin('') }}>changer</button></p>
         <div className="pin">{[0, 1, 2, 3, 4, 5].map(i => <i key={i} className={i < pin.length ? 'f' : ''} />)}</div>
@@ -187,6 +195,7 @@ export default function App() {
   else if (route.startsWith('poste/')) screen = <Poste key={route} data={data} cle={route.split('/')[1]} go={go} openEl={setOpenEl} reload={() => load(data.evt)} />
   else if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
   else if (route === 'corbeille' || route === 'corbeille/tout') screen = <Corbeille key={route} data={data} go={go} tout={route === 'corbeille/tout'} reload={() => load(data.evt)} />
+  else if (route === 'comptes') screen = <Comptes go={go} />
   else if (route === 'historique') screen = <Historique data={data} go={go} />
   else if (route === 'voix') screen = <Voix data={data} go={go} ouvrir={ouvrir} />
   else if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />

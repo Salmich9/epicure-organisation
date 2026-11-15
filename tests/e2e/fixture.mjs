@@ -25,7 +25,7 @@ const postes = [
   poste('logistique', 'achat', 'Logistique et transport', 'Ouadia', 6000, 0),
 ]
 export const donnees = {
-  moi: 'Salmane', aujourdhui: J, evt: evt.id, evenements: [evt, evt2], zones, listes: {},
+  moi: 'Salmane', role: 'direction', admin: true, aujourdhui: J, evt: evt.id, evenements: [evt, evt2], zones, listes: {},
   intervenants: ['Salmane', 'Ghali', 'Salima', 'Amina', 'Ouadia'].map(nom => ({ nom, type: 'Équipe', tel: null })),
   elements, actions, postes, equipe_evt: { cuisine: 'Salima', achats: 'Amina', production: 'Ouadia', coordination: 'Ghali' },
   notes: [], deroule: [], pieces: [], factures: [], depot: [], reserve: {},

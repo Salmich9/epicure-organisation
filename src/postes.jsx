@@ -47,8 +47,10 @@ export function Compteur({ prevu, engage, reel, sans }) {
 export function Enveloppes({ data, go, reload }) {
   const ui = useUI()
   const ev = data.evenements.find(x => x.id === data.evt) || {}
+  const equipe = data.role === 'equipe'
+  const miens = p => !equipe || p.resp === data.moi
   const ps = data.postes || []
-  const t = ps.reduce((s, p) => ({ prevu: s.prevu + n(p.prevu), engage: s.engage + n(p.engage), reel: s.reel + n(p.reel) }), { prevu: 0, engage: 0, reel: 0 })
+  const t = ps.filter(miens).reduce((s, p) => ({ prevu: s.prevu + n(p.prevu), engage: s.engage + n(p.engage), reel: s.reel + n(p.reel) }), { prevu: 0, engage: 0, reel: 0 })
   const mat = ps.filter(p => p.type === 'matiere'), ach = ps.filter(p => p.type === 'achat')
   const manque = MOMENTS.filter(([c]) => !ps.some(p => p.cle === c))
   const [ajout, setAjout] = useState(false)
@@ -57,7 +59,9 @@ export function Enveloppes({ data, go, reload }) {
     if (!nouv?.nom?.trim()) return
     try { const c = await api.posteCreer(data.evt, nouv.nom, nouv.type); setNouv(null); await reload(); go(`poste/${c}`) } catch (e) { ui.toast(e.message) }
   }
-  const Ligne = ({ p }) => (
+  const Ligne = ({ p }) => !miens(p) ? (
+    <div className="pv-env autre"><div className="l1"><Av nom={p.resp} /><div className="x"><b>{p.nom}</b><span>tenue par {p.resp || 'personne encore'}</span></div></div></div>
+  ) : (
     <motion.button whileTap={{ scale: .98 }} className="pv-env" onClick={() => go(`poste/${p.cle}`)}>
       <div className="l1"><Av nom={p.resp} /><div className="x"><b>{p.nom}{p.type === 'matiere' ? ` · ${String(n(p.prix_couvert)).replace('.', ',')} × ${ev.invites || '?'}` : ''}</b><span>{p.resp || 'à attribuer'}</span></div>
         <div className="m">{(f => `${f(p.engage)} / ${f(p.prevu)}`)(kMeme(p.engage, p.prevu))}<small>engagé / prévu</small></div><span className="go">›</span></div>
@@ -66,16 +70,17 @@ export function Enveloppes({ data, go, reload }) {
   )
   return (
     <div className="pv">
+      {equipe && <div className="pv-st" style={{ marginTop: 6 }}>TES ENVELOPPES</div>}
       <Compteur {...t} />
       <div className="pv-leg"><Info text="Prévu : la somme des enveloppes (chiffrage vocal, sinon un ratio par invité ; touche une enveloppe pour corriger). Engagé : ce que coûtent les lignes et les actions. Réel : les pièces imputées et les actions marquées payées." /></div>
       {mat.length > 0 && <div className="pv-st">MATIÈRE PAR MOMENT</div>}
       {mat.map(p => <Ligne key={p.cle} p={p} />)}
-      {(mat.length > 0 || (ev.prestations || []).includes('Traiteur')) && manque.length > 0 && (
+      {!equipe && (mat.length > 0 || (ev.prestations || []).includes('Traiteur')) && manque.length > 0 && (
         ajout ? <div className="chips" style={{ marginTop: 8 }}>{manque.map(([c, l]) => <button key={c} className="chip" onClick={() => api.posteMaj(data.evt, c, { retire: false }).then(() => { setAjout(false); reload() }).catch(e => ui.toast(e.message))}>+ {l}</button>)}</div>
           : <button className="pv-plus" onClick={() => setAjout(true)}>+ un moment</button>)}
       <div className="pv-st">ACHATS</div>
       {ach.map(p => <Ligne key={p.cle} p={p} />)}
-      <button className="pv-plus" onClick={() => setNouv({ nom: '', type: 'achat' })}>+ une enveloppe</button>
+      {!equipe && <button className="pv-plus" onClick={() => setNouv({ nom: '', type: 'achat' })}>+ une enveloppe</button>}
       <Sheet open={!!nouv} onClose={() => setNouv(null)} foot={<button className="btn primary" disabled={!nouv?.nom?.trim()} onClick={creer}>{nouv?.nom?.trim() ? 'Créer l\'enveloppe' : 'Il manque : nom'}</button>}>
         <div className="el-name" style={{ fontSize: 26 }}>Nouvelle enveloppe</div>
         <input autoFocus value={nouv?.nom || ''} onChange={x => setNouv(v => ({ ...v, nom: x.target.value }))} onKeyDown={x => x.key === 'Enter' && creer()} placeholder="Décoration, location du lieu…" style={{ marginTop: 14 }} />

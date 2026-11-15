@@ -10,7 +10,7 @@ begin
   select string_agg(p.proname, ', ') into msg
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'orga' and has_function_privilege('anon', p.oid, 'execute')
-    and pg_get_functiondef(p.oid) !~ '_qui(_voix)?\(|_bot_ok\(|from orga.liens'
+    and pg_get_functiondef(p.oid) !~ '_qui(_voix)?(_direction|_admin)?\(|_bot_ok\(|from orga.liens'
     and p.proname not in ('connexion', 'deconnexion', 'session_voix_fin', '_moment', '_poste_auto', '_postes_def')
     and p.prorettype <> 'trigger'::regtype;
   if msg is not null then raise exception 'ECHEC : fonctions ouvertes sans contrôle : %', msg; end if; ok := ok + 1;
@@ -82,6 +82,31 @@ begin
   if not exists (select 1 from jsonb_array_elements(orga.aujourdhui(tok)->'actions') y where y->>'id' = a->>'id' and y->>'evt_nom' = 'ZZ Test régression') then
     raise exception 'ECHEC : action absente de Aujourd''hui'; end if; ok := ok + 1;
 
+  -- 8 ter. Compte Équipe : seulement les événements confirmés où il a quelque chose, jamais le prix ni la marge
+  declare te uuid; d jsonb; c jsonb; begin
+    insert into orga.membres (nom, pin_hash, admin, role) values ('ZZTestEquipe', extensions.crypt('135790', extensions.gen_salt('bf')), false, 'equipe');
+    te := (orga.connexion('ZZTestEquipe', '135790')->>'token')::uuid;
+    if exists (select 1 from jsonb_array_elements(orga.donnees(te, ev)->'evenements') x where x->>'id' = ev) then raise exception 'ECHEC : événement non confirmé visible par l''équipe'; end if;
+    update orga.evenements set statut = 'Confirmé', prix_signe = 50000 where id = ev;
+    update orga.postes set resp = 'ZZTestEquipe' where evenement_id = ev and cle = 'materiel';
+    d := orga.donnees(te, ev);
+    if d->>'evt' <> ev or d->>'role' <> 'equipe' or (select x ? 'prix_signe' from jsonb_array_elements(d->'evenements') x where x->>'id' = ev)
+       or (select x->>'prevu' from jsonb_array_elements(d->'postes') x where x->>'cle' = 'staff') is not null
+       or (select x->>'prevu' from jsonb_array_elements(d->'postes') x where x->>'cle' = 'materiel') is null
+      then raise exception 'ECHEC : filtre équipe sur les données'; end if;
+    if exists (select 1 from jsonb_array_elements(orga.accueil(te)->'evenements') x where x ? 'prix_signe') then raise exception 'ECHEC : prix visible sur l''accueil équipe'; end if;
+    begin perform orga.especes_liste(te, ev); raise exception 'ECHEC : encaissements ouverts à l''équipe';
+    exception when others then if sqlerrm not like '%reserve_direction%' then raise; end if; end;
+    begin perform orga.evenement_maj(te, ev, '{"nom":"x"}'); raise exception 'ECHEC : événement modifiable par l''équipe';
+    exception when others then if sqlerrm not like '%reserve_direction%' then raise; end if; end;
+    begin perform orga.comptes_liste(te); raise exception 'ECHEC : comptes ouverts à l''équipe';
+    exception when others then if sqlerrm not like '%reserve_admin%' then raise; end if; end;
+    c := orga.compte_creer(tok, 'zz nouveau', 'equipe');
+    if c->>'pin' !~ '^\d{6}$' or orga.connexion('Zz Nouveau', c->>'pin')->>'token' is null then raise exception 'ECHEC : création de compte'; end if;
+    perform orga.compte_retirer(tok, 'Zz Nouveau');
+    if orga.connexion('Zz Nouveau', c->>'pin')->>'erreur' is null then raise exception 'ECHEC : accès retiré encore valable'; end if;
+    delete from orga.connexion_essais where nom = 'zz nouveau';
+  end; ok := ok + 1;
   -- 8 bis. Menu ⋯ : déplacer, dupliquer, supprimer puis restaurer, enveloppe personnalisée
   declare d text; cid bigint; pc text; begin
     d := orga.objet_dupliquer(tok, 'element', l->>'id');

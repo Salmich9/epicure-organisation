@@ -13,7 +13,7 @@ const srv = http.createServer((q, r) => { let p = q.url.split('?')[0]; if (p ===
 
 const appels = []
 const RPC = {
-  donnees: () => donnees, aujourdhui: () => aujourdhui, accueil: () => accueil,
+  donnees: () => (globalThis.__equipe ? { ...donnees, moi: 'Ouadia', role: 'equipe', admin: false } : donnees), aujourdhui: () => aujourdhui, accueil: () => accueil,
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }),
   catalogue_liste: () => [{ id: 'CAT-1', element: 'Chafing dish', zone: 'Cuisine traiteur', prix_location: 120 }],
   staff_liste: () => [], staff_evt_liste: () => ({ postes: [], affectes: [] }), planning_liste: () => ({ planning: [] }),
@@ -127,6 +127,13 @@ const avant = await p.getByText('prix signé HT').count()
 await p.getByRole('button', { name: 'Client', exact: true }).click(); await p.waitForTimeout(400)
 if (avant || !(await p.getByText('prix signé HT').count())) echec('onglets Budget / Client'); else console.log('  ✓ Budget d\'abord, argent client dans l\'onglet Client')
 await p.getByRole('button', { name: 'Budget', exact: true }).click()
+
+// 4 quinquies. Compte Équipe : pas d'onglet Client, en-tête figé, enveloppes des autres sans montant
+globalThis.__equipe = true
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/`); await p.waitForTimeout(600)
+const okEq = !(await p.getByRole('button', { name: 'Client', exact: true }).count()) && !(await p.locator('h1 .ep:not(.fige)').count()) && (await p.locator('.pv-env.autre').count()) > 0
+if (!okEq) echec('vue équipe'); else console.log('  ✓ compte Équipe : ni Client, ni corrections de l\'événement, ni montants des autres')
+globalThis.__equipe = false
 
 // 4 bis. En-tête de l'événement : corriger sur place, menu ⋯
 await p.goto(`http://localhost:${port}/#/accueil`); await p.waitForTimeout(400); await p.getByText('Mariage Test').first().click(); await p.waitForTimeout(500)

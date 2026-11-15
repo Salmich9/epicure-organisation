@@ -125,23 +125,24 @@ export function Plan({ data, go, mine, setMine, reload }) {
   const bulles = [...regles(data), ...ia]
   const [onglet, setOngletS] = useState(() => { try { return localStorage.getItem('orga_onglet') || 'budget' } catch { return 'budget' } })
   const setOnglet = o => { setOngletS(o); try { localStorage.setItem('orga_onglet', o) } catch {} }
-  const vue = mine ? 'budget' : onglet
+  const equipe = data.role === 'equipe'
+  const vue = mine || equipe ? 'budget' : onglet
   const [act, setAct] = useState(null)
   useCible({ label: ev.nom || 'l\'événement', onTexte: t => setAct({ texte: t }) })
   const cadre = ev.cadrage?.fait_le || ev.cadrage?.passe
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <EnteteEvt data={data} go={go} reload={reload} />
-      {!mine && <div className="au-seg ev-seg">
+      {!mine && !equipe && <div className="au-seg ev-seg">
         <button className={vue === 'budget' ? 'on' : ''} onClick={() => setOnglet('budget')}>Budget</button>
         <button className={vue === 'client' ? 'on' : ''} onClick={() => setOnglet('client')}>Client</button>
       </div>}
       {vue === 'budget' && <>
-        {!mine && !cadre && <CadrageBarre data={data} go={go} reload={reload} />}
+        {!mine && !equipe && !cadre && <CadrageBarre data={data} go={go} reload={reload} />}
         {!mine && <Enveloppes data={data} go={go} reload={reload} />}
         {nbImp > 0 && <motion.button className="imp" whileTap={{ scale: .98 }} onClick={() => go('pieces')}><span className="n">{nbImp}</span>pièce{nbImp > 1 ? 's' : ''} à imputer<span className="go">›</span></motion.button>}
         <div className="ev-org">
-          {[['planning', 'Planning'], ['menu', 'Menu'], ['equipe', 'Équipe'], ['staff-evt', 'Staff'], cadre && ['cadrage', 'Cadrage']].filter(Boolean).map(([r, l]) =>
+          {[['planning', 'Planning'], ['menu', 'Menu'], !equipe && ['equipe', 'Équipe'], !equipe && ['staff-evt', 'Staff'], !equipe && cadre && ['cadrage', 'Cadrage']].filter(Boolean).map(([r, l]) =>
             <button key={r} className="chip" onClick={() => go(r)}>{l}</button>)}
         </div>
         <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>

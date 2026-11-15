@@ -34,7 +34,7 @@ export function Accueil({ go, ouvrir }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head"><div className="when">{dateLongue(today)}</div><h1 style={{ fontSize: 36 }}>{h < 18 ? 'Bonjour' : 'Bonsoir'} {a.moi}</h1></div>
-      <div className="ac-money">
+      {a.role !== 'equipe' && <><div className="ac-money">
         <div><b>{mt(signe)}</b>signé à venir HT</div>
         <div className="l"><b>{mt(reste)}</b>reste à encaisser <Info text="TTC, sur les événements confirmés et à clôturer : prix signé plus TVA, moins tout ce qui est déjà encaissé." /></div>
       </div>
@@ -42,7 +42,7 @@ export function Accueil({ go, ouvrir }) {
         <motion.button whileTap={{ scale: .97 }} onClick={() => go('nouveau')}>+ Nouvel événement</motion.button>
         <motion.button whileTap={{ scale: .97 }} className="v" onClick={() => go('voix')}>🎙 Chiffrer à la voix</motion.button>
       </div>
-      <motion.button whileTap={{ scale: .98 }} className="ac-staff" onClick={() => go('staff')}><span>👥</span><b>Staff</b><em>fiches, rôles, notes ›</em></motion.button>
+      <motion.button whileTap={{ scale: .98 }} className="ac-staff" onClick={() => go('staff')}><span>👥</span><b>Staff</b><em>fiches, rôles, notes ›</em></motion.button></>}
       {GROUPES.map(([k, l]) => {
         const g = evs.filter(e => e.et === k)
         if (!g.length) return null
@@ -57,7 +57,8 @@ export function Accueil({ go, ouvrir }) {
         <button className="ac-st ac-fin" onClick={() => setVoir(!voir)}>Clôturés et perdus · {fin.length} {voir ? '▾' : '›'}</button>
         {voir && fin.map(e => <Carte key={e.id} e={e} today={today} onClick={() => ouvrir(e.id)} />)}
       </>}
-      <button className="ac-st ac-fin" onClick={() => go('corbeille/tout')}>🗑 Corbeille ›</button>
+      {a.role !== 'equipe' && <button className="ac-st ac-fin" onClick={() => go('corbeille/tout')}>🗑 Corbeille ›</button>}
+      {a.admin && <button className="ac-st ac-fin" onClick={() => go('comptes')}>🔑 Comptes de l'équipe ›</button>}
     </motion.div>
   )
 }
