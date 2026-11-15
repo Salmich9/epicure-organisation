@@ -29,7 +29,7 @@ begin
   -- Verrou : 5 échecs → bloqué, même avec le bon code ; on débloque pour la suite du test
   perform orga.connexion('ZZTestAdmin', '000000'); perform orga.connexion('ZZTestAdmin', '000000'); perform orga.connexion('ZZTestAdmin', '000000'); perform orga.connexion('ZZTestAdmin', '000000');
   if orga.connexion('ZZTestAdmin', '135790')->>'erreur' is distinct from 'compte_bloque' then raise exception 'ECHEC : pas de blocage après 5 échecs'; end if; ok := ok + 1;
-  delete from orga.connexion_essais where nom = 'ztestadmin';
+  delete from orga.connexion_essais where nom = 'zztestadmin';
   begin perform orga._qui(gen_random_uuid()); raise exception 'ECHEC : faux jeton accepté';
   exception when others then if sqlerrm not like '%session_expiree%' then raise; end if; end; ok := ok + 1;
   tok := (orga.connexion('ZZTestAdmin', '135790')->>'token')::uuid;
