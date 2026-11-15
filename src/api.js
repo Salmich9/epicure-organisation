@@ -1,25 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { copie, differer, estCoupure, garder, vider } from './reseau'
+import { MESSAGES, traduire } from './erreurs'
 
 const URL = 'https://daehifcdzrusxtzhtuxi.supabase.co'
 const KEY = 'sb_publishable_UP5yav1CuZBbkT57KrHbAA_N-9_VYps'
 
 const sb = createClient(URL, KEY, { auth: { persistSession: false }, db: { schema: 'orga' } })
 
-const MESSAGES = {
-  session_expiree: 'Session expirée, reconnectez-vous.',
-  code_incorrect: 'Code incorrect.',
-  compte_bloque: 'Trop d\'essais : réessaie dans 15 minutes.',
-  lien_invalide: 'Ce lien n\'est plus valide.',
-  manque_obligatoire: 'Il manque quoi, coût, qui ou quand.',
-  reserve_admin: 'Réservé aux administrateurs.',
-  reserve_direction: 'Réservé à la direction.',
-  nom_pris: 'Ce prénom a déjà un compte.',
-  photo_trop_lourde: 'Photo trop lourde, réessaie.',
-  merci_impossible: 'On remercie quelqu\'un d\'autre, pour une action faite.',
-  element_facture: 'Une facture est déjà rangée sur cet élément : retire-la d\'abord.',
-  enveloppe_non_vide: 'Déplace ou supprime d\'abord ses lignes et ses actions.',
-}
 
 async function brut(fn, args) {
   let r
@@ -27,11 +14,10 @@ async function brut(fn, args) {
   const { data, error } = r
   if (error) {
     if (estCoupure(error)) { const e = new Error('Pas de réseau : ce changement n\'est pas parti, refais-le quand le réseau revient.'); e.code = 'hors_ligne'; throw e }
-    const key = Object.keys(MESSAGES).find(k => (error.message || '').includes(k))
-    // Une erreur technique du serveur (délai, verrou…) reçoit une phrase lisible ; le texte d'origine part au journal
-    const tech = !key && error.code && error.code !== 'P0001'
-    const e = new Error(key ? MESSAGES[key] : tech ? 'Le serveur a eu un souci, réessaie dans un instant.' : error.message)
-    e.code = key || error.code; e.brut = error.message
+    // Code exact renvoyé par la base → phrase lisible ; le texte d'origine part au journal
+    const t = traduire(error)
+    const e = new Error(t.texte)
+    e.code = t.code; e.brut = t.brut
     throw e
   }
   return data

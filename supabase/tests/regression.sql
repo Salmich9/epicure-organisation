@@ -199,5 +199,11 @@ begin
       then raise exception 'ECHEC : erreurs mal regroupées'; end if;
     if orga.accueil(tok)->'sante' is null or orga.accueil(t2) ? 'sante' and orga.accueil(t2)->'sante' <> 'null'::jsonb then raise exception 'ECHEC : alerte santé mal ciblée'; end if;
   end; ok := ok + 1;
+  -- 11. Codes d'erreur : chaque code levé par la base a sa phrase dans src/erreurs.js (liste recopiée ici)
+  select string_agg(distinct m[1], ', ') into msg
+  from pg_proc p join pg_namespace s on s.oid = p.pronamespace,
+  lateral regexp_matches(pg_get_functiondef(p.oid), 'raise\s+exception\s+''([a-z][a-z_]*)(?::[^'']*)?''', 'gi') m
+  where s.nspname = 'orga' and m[1] not in ('session_expiree', 'code_incorrect', 'compte_bloque', 'code_trop_court', 'lien_invalide', 'manque_obligatoire', 'reserve_admin', 'reserve_direction', 'nom_pris', 'photo_trop_lourde', 'merci_impossible', 'element_facture', 'enveloppe_non_vide', 'introuvable', 'element_introuvable', 'evenement_introuvable', 'piece_introuvable', 'lecon_introuvable', 'article_introuvable', 'article_existe_deja', 'nom_ou_zone_manquant', 'deja_present', 'depasse_encaisse', 'montant_invalide', 'prix_invalide', 'role_inconnu', 'statut_inconnu', 'type_inconnu', 'mouvement_introuvable', 'non_autorise', 'pas_porteur', 'pas_pour_toi', 'reserve_salmane', 'transfert_impossible', 'ECHEC', 'REGRESSION');
+  if msg is not null then raise exception 'ECHEC : codes d''erreur sans phrase dans src/erreurs.js : %', msg; end if; ok := ok + 1;
   raise exception 'REGRESSION OK (% vérifications)', ok;
 end $$;
