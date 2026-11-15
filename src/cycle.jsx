@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from './api'
+import { coefDefaut, imprevus, tva } from './regles'
 import { Info, Sheet, dans, dateLongue, n, useUI } from './ui'
 
 /* Le rail de l'événement : chaque étape ouvre la suivante */
 const ETAPES = ['Demande', 'Devis', 'Confirmé', 'Réalisé', 'Clôturé']
 const RANG = { 'Demande': 0, 'Devis envoyé': 1, 'Confirmé': 2, 'En préparation': 2, 'Réalisé': 3, 'Clôturé': 4 }
 export const estVente = ev => !ev.statut || ev.statut === 'Demande' || ev.statut === 'Devis envoyé'
-const TVA = { Epicure: 20, 'Business Boys': 10 }
 const mt = v => Math.round(n(v)).toLocaleString('fr-FR')
 
 export function Rail({ statut }) {
@@ -25,8 +25,8 @@ export function Vente({ data, go, reload, openEvt }) {
   useEffect(() => { api.chiffrageContexte(data.evt).then(setCx).catch(() => setCx({})) }, [data.evt])
   const lignes = cx?.chiffrage?.lignes || []
   const cout = lignes.reduce((s, l) => s + n(l.quantite) * n(l.prix), 0)
-  const coef = n(cx?.chiffrage?.coef) || n(ev.coef) || 2.4
-  const prix = Math.round(cout * 1.03 * coef)
+  const coef = n(cx?.chiffrage?.coef) || n(ev.coef) || coefDefaut()
+  const prix = Math.round(cout * (1 + imprevus()) * coef)
 
   async function perdu() {
     try { await api.evenementStatut(data.evt, 'Perdu'); ui.toast('Événement marqué perdu'); await reload() } catch (e) { ui.toast(e.message) }
@@ -69,7 +69,7 @@ function Signature({ open, onClose, data, ev, prixPropose, cout, go, reload }) {
   useEffect(() => { if (open) setF({ prix: String(prixPropose || ''), avance: '', mode: ev.entite === 'Espèce' ? 'Espèces' : 'Virement', date: data.aujourdhui }) }, [open])
   const prix = n(String(f.prix || '').replace(/\s/g, '')), avance = n(String(f.avance || '').replace(/\s/g, ''))
   const remise = prixPropose ? (prix / prixPropose - 1) * 100 : 0
-  const marge = prix - cout * 1.03
+  const marge = prix - cout * (1 + imprevus())
   async function confirmer() {
     if (!(prix > 0)) { ui.bubble('Tape le prix signé HT.'); return }
     setBusy(true)
@@ -108,7 +108,7 @@ export function DevisClient({ data, go, reload }) {
     try { const d = await api.zoho('devis', { presentation: pres }); ui.toast(`${d.numero} ${d.mis_a_jour ? 'mis à jour' : 'créé'} dans Zoho`); window.open(d.url, '_blank'); await reload() } catch (e) { ui.toast(e.message) }
     setBusy(false)
   }
-  const tva = a?.tva ?? TVA[ev.entite] ?? 0
+  const taux = a?.tva ?? tva(ev.entite)
   return (
     <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}>
       <div className="head"><button className="back" onClick={() => go('')}>‹ {ev.nom}</button><h1 style={{ fontSize: 32 }}>Devis client</h1></div>
@@ -118,7 +118,7 @@ export function DevisClient({ data, go, reload }) {
           <div className="k">Ce que voit le client {ev.prix_signe ? <span className="pill ok" style={{ marginLeft: 6 }}>prix signé</span> : null}</div>
           {(a.lignes || []).map(l => <div key={l.nom} className="r2"><div>{l.nom}<span>{l.description}</span></div><b>{mt(l.montant)}</b></div>)}
           <div className="tot2"><span>Total HT</span><b>{mt(a.total)}</b></div>
-          {tva > 0 && <div className="r2 fin"><span>TVA {tva} % · {mt(a.total * tva / 100)}</span><span className="ttc">TTC {mt(a.total * (1 + tva / 100))}</span></div>}
+          {taux > 0 && <div className="r2 fin"><span>TVA {taux} % · {mt(a.total * taux / 100)}</span><span className="ttc">TTC {mt(a.total * (1 + taux / 100))}</span></div>}
         </div>
       )}
       <p className="small mute px" style={{ marginTop: 10 }}>Staff, logistique, lieu et technique sont répartis dans les prestations <Info text="Le client ne voit jamais ta structure de coûts. La logistique et le lieu sont répartis au prorata des prestations." /></p>
@@ -134,7 +134,7 @@ export function Argent({ data, go, reload }) {
   const [enc, setEnc] = useState(null)
   useEffect(() => { api.especesListe(data.evt).then(r => setEnc(r.encaissements || [])).catch(() => setEnc([])) }, [data.evt])
   if (!ev.prix_signe) return null
-  const ttc = n(ev.prix_signe) * (1 + (TVA[ev.entite] || 0) / 100)
+  const ttc = n(ev.prix_signe) * (1 + tva(ev.entite) / 100)
   const encaisse = (enc || []).reduce((s, x) => s + n(x.montant), 0)
   const budget = n(ev.budget)
   const marge = n(ev.prix_signe) - budget
@@ -146,7 +146,7 @@ export function Argent({ data, go, reload }) {
         <div><b>{mt(ev.prix_signe)}</b>prix signé HT</div>
         <div className={marge >= 0 ? 'ok' : 'ko'}><b>{budget ? mt(marge) : '—'}</b>marge prévue{budget && ev.prix_signe ? ` · ${Math.round(marge / n(ev.prix_signe) * 100)} %` : ''}</div>
         <button onClick={() => go('especes')}><b>{enc === null ? '…' : mt(encaisse)}</b>encaissé ›</button>
-        <div><b>{enc === null ? '…' : mt(Math.max(0, ttc - encaisse))}</b>reste à encaisser{TVA[ev.entite] ? ' TTC' : ''}</div>
+        <div><b>{enc === null ? '…' : mt(Math.max(0, ttc - encaisse))}</b>reste à encaisser{tva(ev.entite) ? ' TTC' : ''}</div>
       </div>
       {ev.statut === 'Confirmé' && passe && <motion.button whileTap={{ scale: .98 }} className="cta2 g" onClick={() => etape('Réalisé')}>L'événement a eu lieu : marquer réalisé</motion.button>}
       {(ev.statut === 'Réalisé' || ev.statut === 'Clôturé') && <motion.button whileTap={{ scale: .98 }} className={`cta2 ${ev.statut === 'Réalisé' ? '' : 'g'}`} onClick={() => go('bilan')}>{ev.statut === 'Réalisé' ? 'Faire le bilan et clôturer ›' : 'Voir le bilan ›'}</motion.button>}

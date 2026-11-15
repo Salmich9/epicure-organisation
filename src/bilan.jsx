@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from './api'
+import { tva } from './regles'
 import { Info, Sheet, dans, dateLongue, envZone, n, useUI } from './ui'
 import { Rail } from './cycle'
 
 /* Bilan de clôture : résultat, prévu / réel, leçons, check-list. Une seule source : les pièces imputées. */
-const TVA = { Epicure: 20, 'Business Boys': 10 }
 const mt = v => Math.round(n(v)).toLocaleString('fr-FR')
 const dec = v => Number(n(v)).toLocaleString('fr-FR', { maximumFractionDigits: 2 })
 const pc = (a, b) => (b ? Math.round((a / b) * 100) : 0)
@@ -14,7 +14,7 @@ const slide = { initial: { x: 40, opacity: 0 }, animate: { x: 0, opacity: 1 }, t
 export function calculBilan(data, b) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const prix = n(ev.prix_signe || ev.prix)
-  const ttc = prix * (1 + (TVA[ev.entite] || 0) / 100)
+  const ttc = prix * (1 + tva(ev.entite) / 100)
   const zones = data.zones.map((z, i) => {
     const els = data.elements.filter(e => e.zone === z.nom)
     const reel = els.reduce((s, e) => s + n(e.facture), 0), engage = els.reduce((s, e) => s + n(e.cout), 0)
@@ -30,7 +30,7 @@ export function calculBilan(data, b) {
   const env = (b?.enveloppes || []).filter(x => Math.round(n(x.reste)) !== 0 || x.attente)
   const coche = ev.bilan || {}
   const checks = [
-    { k: 'enc', ok: ttc > 0 && reste <= Math.max(1, ttc * 0.005), t: reste ? `Reste ${mt(reste)} à encaisser` : 'Tout est encaissé', s: `${mt(encaisse)}${TVA[ev.entite] ? ' TTC' : ''} sur ${mt(ttc)}`, go: 'especes' },
+    { k: 'enc', ok: ttc > 0 && reste <= Math.max(1, ttc * 0.005), t: reste ? `Reste ${mt(reste)} à encaisser` : 'Tout est encaissé', s: `${mt(encaisse)}${tva(ev.entite) ? ' TTC' : ''} sur ${mt(ttc)}`, go: 'especes' },
     { k: 'pieces', ok: !n(b?.pieces_a_imputer), t: n(b?.pieces_a_imputer) ? `${b.pieces_a_imputer} pièce${b.pieces_a_imputer > 1 ? 's' : ''} à imputer` : 'Toutes les pièces imputées', s: sansPiece.length ? `sans pièce : ${sansPiece.map(z => z.nom).join(', ')}` : 'le coût réel est complet', go: 'pieces' },
     { k: 'env', ok: !env.length, t: env.length ? `${env.length === 1 ? 'Enveloppe' : 'Enveloppes'} pas ${env.length === 1 ? 'rendue' : 'rendues'}` : 'Enveloppes soldées', s: env.length ? env.map(x => x.attente ? `${x.nom} : à confirmer` : n(x.reste) < 0 ? `on doit ${mt(-x.reste)} à ${x.nom}` : `${x.nom} : ${mt(x.reste)}`).join(' · ') : 'rien ne traîne chez les porteurs', go: 'especes' },
     { k: 'retours', manuel: true, ok: !!coche.retours?.ok, t: 'Retours de location comptés', s: coche.retours?.note || 'casse et manquants notés' },
@@ -78,7 +78,7 @@ function Resultat({ r, data, go, b, recharger }) {
         {r.estime > 0 && <div className="r"><span>Sans pièce, compté au prévu · {r.sansPiece.map(z => z.nom).join(', ')}</span><b>{mt(r.estime)}</b></div>}
       </div>
       <div className="kpi">
-        <button onClick={() => go('especes')}><b className={r.reste ? '' : 'ok-c'}>{mt(r.encaisse)}</b>encaissé{TVA[ev.entite] ? ' TTC' : ''}{r.reste ? '' : ' ✓'}</button>
+        <button onClick={() => go('especes')}><b className={r.reste ? '' : 'ok-c'}>{mt(r.encaisse)}</b>encaissé{tva(ev.entite) ? ' TTC' : ''}{r.reste ? '' : ' ✓'}</button>
         <div className={r.reste ? 'ko' : ''}><b>{mt(r.reste)}</b>reste à encaisser</div>
       </div>
       <div className="etapes">

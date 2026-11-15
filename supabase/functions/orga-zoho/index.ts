@@ -6,8 +6,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
 const COMPTES = 'https://accounts.zoho.com'
 const NOMS: Record<string, RegExp> = { Epicure: /epicure/i, 'Business Boys': /business\s*boys|barom/i }
-const TVA: Record<string, number> = { Epicure: 20, 'Business Boys': 10 }
-const IMPREVUS = 0.03
+// Règles (TVA, imprévus, coefficient) : lues dans orga.parametres('regles') via donnees ; valeurs de repli ci-dessous
+let TVA: Record<string, number> = { Epicure: 20, 'Business Boys': 10 }
+let IMP = 0.05, COEF = 2.4
 // Conditions maison, reprises telles quelles sur chaque devis (sauf autres conditions dictées)
 const CONDITIONS = "Devis H.T /Le bon pour accord de ce devis moyennant une avance de 50% vient acter la phase de prestation.\nLe solde de 50% est dû à J-7 avant l'événement.\nLorsque le devis est validé, sa totalité est due.\nDevis valable 15 jours.\nZone de 5x5m mise à disposition en back office + arrivée d'eau et éléctricité."
 // Une seule ligne de devis : Zoho accepte au moins 4 865 caractères (testé le 28/10). Au-delà, la suite part sur une ligne à 0 MAD juste en dessous
@@ -27,7 +28,7 @@ function prestations(ev: any, lignes: any[], coef: number, presentation: string)
   const zone: Record<string, number> = {}
   for (const l of lignes) zone[l.zone] = (zone[l.zone] || 0) + (Number(l.quantite) || 0) * (Number(l.prix) || 0)
   const cout = Object.values(zone).reduce((a, b) => a + b, 0)
-  const total = Math.round(Number(ev.prix_signe) || cout * 1.03 * coef)
+  const total = Math.round(Number(ev.prix_signe) || cout * (1 + IMP) * coef)
   if (presentation === 'forfait' || !cout) return { total, lignes: [{ nom: `Prestation ${(ev.prestations || ['traiteur']).join(' et ').toLowerCase()}`, description: `${ev.nom} · ${inv} invités${ev.format ? ` · ${ev.format}` : ''}${ev.date ? ` · le ${String(ev.date).split('-').reverse().join('/')}` : ''}`, montant: total }] }
   const connus = new Set(GROUPES.flatMap(g => g.zones).concat(REPARTIS))
   const g = GROUPES.map(x => ({ nom: x.nom(ev), description: x.description(ev, inv), base: x.zones.reduce((a, z) => a + (zone[z] || 0), 0) }))
@@ -50,6 +51,7 @@ Deno.serve(async (req) => {
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
     const { data, error } = await sb.rpc('donnees', { p_token: token, p_evt: evt || null })
     if (error) return json({ error: 'Session expirée, reconnecte-toi.' }, 401)
+    if (data.regles) { TVA = { ...TVA, ...(data.regles.tva || {}) }; IMP = Number(data.regles.imprevus_pct ?? 5) / 100; COEF = Number(data.regles.coef_defaut ?? 2.4) }
     const adm = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'orga' } })
 
     // ---------- branchement : le code du Self Client contre un jeton longue durée ----------
@@ -76,7 +78,7 @@ Deno.serve(async (req) => {
     const { data: ch } = await adm.from('chiffrages').select('lignes, coef').eq('evenement_id', ev.id).maybeSingle()
     const lignes: any[] = ch?.lignes || []
     if (!parle && !lignes.length) return json({ error: 'Chiffre d\'abord l\'événement.' }, 400)
-    const prest = parle ? { total: parle.reduce((a: number, l: any) => a + l.montant, 0), lignes: parle } : prestations(ev, lignes, Number(ch?.coef || ev.coef) || 2.4, presentation)
+    const prest = parle ? { total: parle.reduce((a: number, l: any) => a + l.montant, 0), lignes: parle } : prestations(ev, lignes, Number(ch?.coef || ev.coef) || COEF, presentation)
     // Sans facture (espèces) : le devis est quand même fait chez Epicure, TVA affichée
     const soc = TVA[ev.entite] ? ev.entite : 'Epicure'
     if (mode === 'apercu') return json({ presentation, lignes: prest.lignes, total: prest.total, tva: TVA[soc] })

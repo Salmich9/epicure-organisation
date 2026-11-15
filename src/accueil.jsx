@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api, store } from './api'
+import { setRegles, tva } from './regles'
 import { Info, dans, dateLongue, n, useUI } from './ui'
 
 /* Accueil : tous les événements par étape, l'argent en jeu et ce qui presse */
-const TVA = { Epicure: 20, 'Business Boys': 10 }
 const mt = v => Math.round(n(v)).toLocaleString('fr-FR')
 const AGENT = 'agent_7201m5t5aynbfdcsexzx82j4mprz'
 
@@ -17,13 +17,13 @@ export function etape(e, today) {
   return 'demande'
 }
 const GROUPES = [['a_cloturer', 'À clôturer'], ['confirme', 'Confirmés'], ['devis', 'Devis envoyés'], ['demande', 'Demandes à chiffrer']]
-const resteTTC = e => Math.max(0, n(e.prix_signe) * (1 + (TVA[e.entite] || 0) / 100) - n(e.encaisse))
+const resteTTC = e => Math.max(0, n(e.prix_signe) * (1 + tva(e.entite) / 100) - n(e.encaisse))
 
 export function Accueil({ go, ouvrir }) {
   const ui = useUI()
   const [a, setA] = useState(null)
   const [voir, setVoir] = useState(false)
-  useEffect(() => { api.accueil().then(setA).catch(e => ui.toast(e.message)) }, [])
+  useEffect(() => { api.accueil().then(a => { setRegles(a.regles); setA(a) }).catch(e => ui.toast(e.message)) }, [])
   if (!a) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
   const today = a.aujourdhui
   const evs = a.evenements.map(e => ({ ...e, et: etape(e, today) }))
@@ -69,7 +69,7 @@ function Carte({ e, today, onClick }) {
     tags.push(e.n_elements ? [n(e.n_revus) === n(e.n_elements) ? 'g' : 'o', `Revue ${e.n_revus} / ${e.n_elements}`] : ['o', 'Revue à commencer'])
   }
   if (n(e.pieces_a_imputer)) tags.push(['r', `${e.pieces_a_imputer} pièce${e.pieces_a_imputer > 1 ? 's' : ''} à imputer`])
-  if (n(e.prix_signe) && e.et !== 'cloture') { const r = resteTTC(e); tags.push(r > 1 ? ['', `reste ${mt(r)}${TVA[e.entite] ? ' TTC' : ''}`] : ['g', 'tout encaissé']) }
+  if (n(e.prix_signe) && e.et !== 'cloture') { const r = resteTTC(e); tags.push(r > 1 ? ['', `reste ${mt(r)}${tva(e.entite) ? ' TTC' : ''}`] : ['g', 'tout encaissé']) }
   const prog = e.n_elements ? n(e.n_revus) / n(e.n_elements) : 0
   return (
     <motion.button whileTap={{ scale: .98 }} className="ac-ev" onClick={onClick}>

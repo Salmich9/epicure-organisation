@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
+import { coefDefaut, imprevus as imprevusTaux, imprevusPct, tva as tvaDe } from './regles'
 import { Icon, mad, n, useUI } from './ui'
 import { estVente } from './cycle'
 
 const ENTITES = [
-  { k: 'Epicure', tva: 20, sous: 'TVA 20 %' },
-  { k: 'Business Boys', tva: 10, sous: 'TVA 10 %' },
-  { k: 'Espèce', tva: 0, sous: 'aucun nom' },
+  { k: 'Epicure', sous: 'TVA 20 %' },
+  { k: 'Business Boys', sous: 'TVA 10 %' },
+  { k: 'Espèce', sous: 'aucun nom' },
 ]
 const FORMATS = ['Dîner assis', 'Cocktail dînatoire', 'Buffet']
 const DOSSIER = { Epicure: 'Evenements Epicure', 'Business Boys': 'Evenements Business Boys', 'Espèce': 'Evenements Espece' }
-const IMPREVUS = 0.03
 const glisse = { initial: { x: 40, opacity: 0 }, animate: { x: 0, opacity: 1 }, transition: { type: 'spring', damping: 30, stiffness: 300 } }
 
 /* Dictée locale (même moteur que les notes) */
@@ -127,7 +127,7 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
     } catch (e) { setDevis(ev.zoho_devis?.numero || null); ui.toast(e.message) }
   }
 
-  const coefPalier = (ps, inv) => (ps.find(p => n(inv) <= n(p.jusqua)) || ps[ps.length - 1] || { coef: 2.4 }).coef
+  const coefPalier = (ps, inv) => (ps.find(p => n(inv) <= n(p.jusqua)) || ps[ps.length - 1] || { coef: coefDefaut() }).coef
 
   async function demander(note) {
     setCalcul(true)
@@ -160,9 +160,9 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
     return Object.values(g).sort((a, b) => (ordre.indexOf(a.nom) + 99 * (ordre.indexOf(a.nom) < 0)) - (ordre.indexOf(b.nom) + 99 * (ordre.indexOf(b.nom) < 0)))
   }, [lignes])
   const cout = zones.reduce((s, z) => s + z.total, 0)
-  const imprevus = cout * IMPREVUS
+  const imprevus = cout * imprevusTaux()
   const prixHT = (cout + imprevus) * n(coef)
-  const tva = (ENTITES.find(x => x.k === ev.entite) || {}).tva || 0
+  const tva = tvaDe(ev.entite)
   const palier = paliers.find(p => n(ev.invites) <= n(p.jusqua))
 
   const vente = estVente(ev)
@@ -220,7 +220,7 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
 
         <div className="totaux">
           <div className="t-l"><span>Coût</span><b>{mad(cout)}</b></div>
-          <div className="t-l"><span>Imprévus 3 %</span><b>{mad(imprevus)}</b></div>
+          <div className="t-l"><span>Imprévus {imprevusPct()} %</span><b>{mad(imprevus)}</b></div>
           <div className="t-l"><span>Coef {palier ? `(palier ≤ ${palier.jusqua >= 100000 ? '∞' : palier.jusqua})` : ''}</span>
             <span className="coef"><button onClick={() => changerCoef(-0.05)}>−</button><b>× {n(coef).toFixed(2).replace('.', ',')}</b><button onClick={() => changerCoef(0.05)}>+</button></span></div>
           <div className="t-l big"><span>Prix proposé HT</span><b>{mad(prixHT)}</b></div>
@@ -284,7 +284,7 @@ function Budget({ data, ev, zones, imprevus, prix, coef, retour, go, reload }) {
           </div>
         )
       })}
-        <div className="row"><div className="top"><span className="name">Imprévus</span><span className="small"><b>{mad(imprevus)}</b> · 3 %</span></div></div>
+        <div className="row"><div className="top"><span className="name">Imprévus</span><span className="small"><b>{mad(imprevus)}</b> · {imprevusPct()} %</span></div></div>
       </div>
       <div className="dossier" style={{ margin: '18px 14px 0' }}>
         <span className="ic ok">✓</span>

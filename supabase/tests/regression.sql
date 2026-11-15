@@ -51,6 +51,8 @@ begin
   -- 4. Un événement créé reçoit ses enveloppes (4 achats + matière si traiteur)
   ev := orga.evenement_creer(tok, '{"nom":"ZZ Test régression","date":"2030-06-01","invites":100,"prestations":["Boissons","Traiteur"],"entite":"Epicure"}')->>'id';
   v := orga._postes_evt(ev);
+  -- Règles de calcul : une seule source, servie avec les données
+  if (orga.donnees(tok, ev)->'regles'->>'imprevus_pct') is null or (orga.accueil(tok)->'regles'->'tva'->>'Epicure') is null then raise exception 'ECHEC : règles absentes des données'; end if; ok := ok + 1;
   if jsonb_array_length(v) < 7 then raise exception 'ECHEC : % enveloppes au lieu de 7', jsonb_array_length(v); end if; ok := ok + 1;
   if (select (x->>'prevu')::numeric from jsonb_array_elements(v) x where x->>'cle' = 'diner') <> 15000 then raise exception 'ECHEC : prévu dîner ≠ 150 × 100'; end if; ok := ok + 1;
 

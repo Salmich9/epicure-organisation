@@ -1,5 +1,5 @@
 // Agent vocal « Epicure · Chiffrage devis » branché sur l'appli Organisation.
-// L'appli lance l'appel avec le jeton de session (variable orga_token) : rien ne s'écrit sans lui.
+// L'appli lance l'appel avec un jeton d'appel (variable orga_token, 2 h, limité à l'agent) : rien ne s'écrit sans lui.
 // En fin d'appel : l'événement est créé, le devis Zoho brouillon reprend les lignes validées à l'oral,
 // puis le dossier Drive et le chiffrage détaillé (lignes d'organisation) se font en arrière-plan.
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     } })
     if (c.error) return json({ ok: false, message: `Création refusée : ${c.error.message}` })
     const evt = c.data.id
-    await sb.rpc('evenement_maj', { p_token: token, p_evt: evt, p: { prix, ...(cout > 0 && prix > 0 ? { coef: Math.round((prix / (cout * 1.05)) * 100) / 100 } : {}) } })
+    await sb.rpc('evenement_maj', { p_token: token, p_evt: evt, p: { prix, ...(cout > 0 && prix > 0 ? { coef: Math.round((prix / (cout * (1 + Number(d0.data?.regles?.imprevus_pct ?? 5) / 100))) * 100) / 100 } : {}) } })
 
     // Devis Zoho brouillon avec les lignes validées pendant l'appel
     let devis: any = null
