@@ -10,8 +10,8 @@ begin
   select string_agg(p.proname, ', ') into msg
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'orga' and has_function_privilege('anon', p.oid, 'execute')
-    and pg_get_functiondef(p.oid) !~ '_qui\(|_bot_ok\(|from orga.liens'
-    and p.proname not in ('connexion', 'deconnexion', '_moment', '_poste_auto', '_postes_def')
+    and pg_get_functiondef(p.oid) !~ '_qui(_voix)?\(|_bot_ok\(|from orga.liens'
+    and p.proname not in ('connexion', 'deconnexion', 'session_voix_fin', '_moment', '_poste_auto', '_postes_def')
     and p.prorettype <> 'trigger'::regtype;
   if msg is not null then raise exception 'ECHEC : fonctions ouvertes sans contrôle : %', msg; end if; ok := ok + 1;
 
@@ -39,6 +39,14 @@ begin
   begin perform orga._qui(tok_simple); raise exception 'ECHEC : session encore valide après déconnexion';
   exception when others then if sqlerrm not like '%session_expiree%' then raise; end if; end; ok := ok + 1;
   tok_simple := (orga.connexion('ZZTestSimple', '135790')->>'token')::uuid;
+  -- Jeton d'appel vocal : accepté pour lire l'événement, refusé ailleurs, et ne crée pas de jeton à son tour
+  declare tv uuid := orga.session_voix(tok); begin
+    perform orga.donnees(tv, null);
+    begin perform orga.aujourdhui(tv); raise exception 'ECHEC : jeton d''appel accepté hors agent vocal';
+    exception when others then if sqlerrm not like '%session_expiree%' then raise; end if; end;
+    begin perform orga.session_voix(tv); raise exception 'ECHEC : un jeton d''appel en crée un autre';
+    exception when others then if sqlerrm not like '%session_expiree%' then raise; end if; end;
+  end; ok := ok + 1;
 
   -- 4. Un événement créé reçoit ses enveloppes (4 achats + matière si traiteur)
   ev := orga.evenement_creer(tok, '{"nom":"ZZ Test régression","date":"2030-06-01","invites":100,"prestations":["Boissons","Traiteur"],"entite":"Epicure"}')->>'id';

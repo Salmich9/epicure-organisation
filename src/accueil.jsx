@@ -93,7 +93,10 @@ export function Voix({ data, go, ouvrir }) {
   const conv = useRef(null)
   const avant = useRef(null)
   const outil = useRef(false)
-  useEffect(() => () => { conv.current?.endSession?.() }, [])
+  const jeton = useRef(null)
+  // Jeton d'appel : valable 2 h, fermé 10 min après le raccrochage ; jamais le jeton de session
+  const fermerJeton = () => { if (jeton.current) { api.sessionVoixFin(jeton.current).catch(() => {}); jeton.current = null } }
+  useEffect(() => () => { conv.current?.endSession?.(); fermerJeton() }, [])
   // Après l'appel : l'événement créé par l'agent est celui qui n'existait pas avant
   useEffect(() => {
     if (etat !== 'fini' || !avant.current) return
@@ -110,20 +113,21 @@ export function Voix({ data, go, ouvrir }) {
     try {
       avant.current = new Set((await api.accueil()).evenements.map(e => e.id)); outil.current = false
       await navigator.mediaDevices.getUserMedia({ audio: true })
+      jeton.current = await api.sessionVoix()
       const { Conversation } = await import('@elevenlabs/client')
       conv.current = await Conversation.startSession({
         agentId: AGENT, connectionType: 'webrtc',
-        dynamicVariables: { orga_token: store.token || '', qui: data.moi || '' },
+        dynamicVariables: { orga_token: jeton.current, qui: data.moi || '' },
         onConnect: () => setEtat('appel'),
-        onDisconnect: () => setEtat('fini'),
+        onDisconnect: () => { fermerJeton(); setEtat('fini') },
         onError: m => ui.toast(String(m)),
         onModeChange: m => setMode(m.mode),
         onMessage: m => { if (m.source === 'ai') setDit(m.message); else setEntendu(m.message) },
         onAgentToolResponse: r => { if (r?.agent_tool_response?.tool_name === 'creer_dans_appli' && !r.agent_tool_response.is_error) outil.current = true },
       })
-    } catch (e) { setEtat('pret'); ui.bubble(/Permission|NotAllowed/i.test(String(e)) ? 'Autorise le micro pour parler à l\'agent.' : `L'agent ne répond pas : ${e.message || e}`) }
+    } catch (e) { fermerJeton(); setEtat('pret'); ui.bubble(/Permission|NotAllowed/i.test(String(e)) ? 'Autorise le micro pour parler à l\'agent.' : `L'agent ne répond pas : ${e.message || e}`) }
   }
-  async function raccrocher() { try { await conv.current?.endSession() } catch {} setEtat('fini') }
+  async function raccrocher() { try { await conv.current?.endSession() } catch {} fermerJeton(); setEtat('fini') }
   function basculerMicro() { const m = !muet; setMuet(m); try { conv.current?.setMicMuted(m) } catch {} }
   return (
     <div className="vo">

@@ -40,6 +40,8 @@ export const api = {
     return r
   },
   deconnexion: () => rpc('deconnexion', { p_token: store.token }),
+  sessionVoix: () => rpc('session_voix', { p_token: store.token }),
+  sessionVoixFin: (t) => rpc('session_voix_fin', { p_token: t }),
   donnees: (evt) => rpc('donnees', { p_token: store.token, p_evt: evt || null }),
   majElement: (id, patch) => rpc('maj_element', { p_token: store.token, p_id: id, p: patch }),
   ajoutElement: (evt, zone, nom) => rpc('ajout_element', { p_token: store.token, p_evt: evt, p_zone: zone, p_nom: nom }),

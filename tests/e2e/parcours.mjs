@@ -21,12 +21,12 @@ const RPC = {
   equipe_liste: () => ({ equipe: donnees.equipe_evt, defaut: donnees.equipe_evt, compte: {} }), chiffrage_contexte: () => ({ catalogue: [], references: [], chiffrage: null }),
   action_enregistrer: b => ({ id: 'ACT-NEW', ...b.p }),
   connexion: b => (b.p_pin === '111111' ? { token: '00000000-0000-0000-0000-000000000000', nom: 'Salmane' } : { erreur: b.p_pin === '999999' ? 'compte_bloque' : 'code_incorrect' }),
-  deconnexion: () => true,
+  deconnexion: () => true, session_voix: () => '11111111-1111-1111-1111-111111111111', session_voix_fin: () => true,
 }
 const ROUTES = [
   ['aujourdhui', "Aujourd'hui"], ['mapart', 'Ma part'], ['accueil', 'Mariage Test'], ['', 'Mariage Test'],
   ['poste/materiel', 'Matériel et équipement'], ['poste/diner', 'Dîner'], ['cadrage', ''], ['menu', 'Menu'], ['equipe', ''],
-  ['revue', ''], ['biblio', ''], ['staff', 'Staff'], ['notes', ''], ['planning', ''], ['bilan', ''], ['especes', ''], ['pieces', ''], ['nouveau', ''], ['chiffrer', ''], ['devis', ''],
+  ['revue', ''], ['biblio', ''], ['staff', 'Staff'], ['notes', ''], ['planning', ''], ['bilan', ''], ['especes', ''], ['pieces', ''], ['nouveau', ''], ['chiffrer', ''], ['devis', ''], ['voix', 'Démarrer'],
 ]
 let ko = 0
 const echec = (m) => { ko++; console.log('  ✗', m) }
