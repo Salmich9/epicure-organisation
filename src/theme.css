@@ -1094,3 +1094,21 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .pt-x.nv i { background: var(--gold); color: #fff; }
 .tabs button.pt-dot { position: relative; }
 .tabs button.pt-dot::after { content: ''; position: absolute; top: 2px; right: 18px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); border: 2px solid var(--bg); }
+
+/* État de l'appli */
+.sa-etat { margin: 6px 16px 14px; padding: 16px; border-radius: 18px; display: flex; gap: 14px; align-items: center; background: var(--surface); }
+.sa-etat b { display: block; font-size: 18px; color: var(--ink); } .sa-etat span:not(.sa-gros) { font-size: 13px; color: var(--mute); }
+.sa-gros { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; flex: none; background: var(--line); color: var(--mute); }
+.sa-etat.ok .sa-gros { background: var(--ok); color: var(--bg); }
+.sa-etat.ko { background: var(--red-bg); } .sa-etat.ko .sa-gros { background: var(--red); color: #fff; animation: pulse-red 1.6s infinite; }
+.sa-etat.vx .sa-gros { background: var(--gold); color: #fff; }
+.sa-pt { width: 10px; height: 10px; border-radius: 50%; flex: none; margin: 0 4px; background: var(--ok); }
+.sa-pt.ko { background: var(--red); } .sa-pt.nb { background: var(--line); }
+.sa-l .x span.sa-err { color: var(--red); }
+.sa-nb { font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 10px; background: var(--red-bg); color: var(--red); }
+.sa-ban { display: flex; gap: 12px; align-items: center; width: calc(100% - 32px); margin: 0 16px 14px; padding: 12px 14px; border-radius: 16px; border: 0; text-align: left; background: var(--red-bg); color: var(--ink); font: inherit; }
+.sa-ban > span { width: 26px; height: 26px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-weight: 900; background: var(--red); color: #fff; animation: pulse-red 1.6s infinite; }
+.sa-ban b { display: block; font-size: 14.5px; } .sa-ban em { font-style: normal; font-size: 12.5px; color: var(--red); }
+.sa-l .row { display: flex; align-items: center; gap: 12px; }
+.sa-l .x { flex: 1; min-width: 0; } .sa-l .x b { display: block; font-size: 15px; font-weight: 650; } .sa-l .x span { display: block; font-size: 12.5px; color: var(--mute); margin-top: 3px; }
+.sa-l .x b { overflow-wrap: anywhere; }

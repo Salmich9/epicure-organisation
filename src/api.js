@@ -34,11 +34,22 @@ async function brut(fn, args) {
   }
   return data
 }
+// Journal des erreurs : les pannes (pas les refus normaux) partent vers orga.journal, sans jamais bloquer l'écran
+const dejaNote = new Map()
+export function noter(source, message, detail) {
+  try {
+    const cle = source + '|' + message, t = Date.now()
+    if (!store.token || t - (dejaNote.get(cle) || 0) < 60000) return
+    dejaNote.set(cle, t)
+    sb.rpc('journal_ecrire', { p_token: store.token, p_source: String(source).slice(0, 60), p_message: String(message || '?').slice(0, 300),
+      p_detail: { ...(detail || {}), ecran: location.hash.slice(0, 80), version: import.meta.env?.VITE_VERSION || null } }).then(() => {}, () => {})
+  } catch {}
+}
 const LECTURE = /^(donnees|aujourdhui|accueil|historique|corbeille_liste|catalogue_liste|.*_liste|bulles.*)$/
 async function rpc(fn, args) {
   try { const data = await brut(fn, args); garder(fn, args, data); return data }
   catch (e) {
-    if (e.code !== 'hors_ligne') throw e
+    if (e.code !== 'hors_ligne') { if (!(e.code in MESSAGES) && fn !== 'journal_ecrire') noter(`rpc:${fn}`, e.message, { code: e.code }); throw e }
     const c = copie(fn, args); if (c !== null) return c
     const d = differer(fn, args); if (d) return d
     if (LECTURE.test(fn)) { const l = new Error('Pas de réseau, et cet écran n\'a pas encore été ouvert sur ce téléphone.'); l.code = 'hors_ligne'; throw l }
@@ -48,6 +59,20 @@ async function rpc(fn, args) {
 // Retour du réseau : la file d'attente part toute seule
 export const synchroniser = () => vider(brut)
 if (typeof window !== 'undefined') { addEventListener('online', synchroniser); setInterval(synchroniser, 30000) }
+
+// Appel d'une fonction de l'appli (copilote, Zoho, Drive…) : une panne serveur ou réseau est notée au journal
+async function fonction(nom, body, defaut) {
+  let r
+  try { r = await fetch(`${URL}/functions/v1/${nom}`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify(body) }) }
+  catch (e) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('Pas de réseau.')
+    noter(nom, 'injoignable', { erreur: String(e?.message || e) }); throw new Error(defaut)
+  }
+  const d = await r.json().catch(() => ({}))
+  if (r.status >= 500) noter(nom, d.error || `erreur ${r.status}`, { statut: r.status })
+  if (!r.ok || d.error) throw new Error(d.error || defaut)
+  return d
+}
 
 export const store = {
   get token() { try { return localStorage.getItem('orga_token') } catch { return null } },
@@ -86,37 +111,13 @@ export const api = {
   equipeMaj: (evt, role, nom, defaut) => rpc('equipe_maj', { p_token: store.token, p_evt: evt, p_role: role, p_nom: nom, p_defaut: !!defaut }),
   elementRespAuto: (id) => rpc('element_resp_auto', { p_token: store.token, p_id: id }),
   menuMaj: (evt, p) => rpc('menu_maj', { p_token: store.token, p_evt: evt, p }),
-  menuFichier: async (nom, type, base64) => {
-    const r = await fetch(`${URL}/functions/v1/orga-fichier`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY },
-      body: JSON.stringify({ token: store.token, evt: store.evt, nom, type, base64 }) })
-    const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Envoi impossible.'); return d
-  },
+  menuFichier: (nom, type, base64) => fonction('orga-fichier', { token: store.token, evt: store.evt, nom, type, base64 }, 'Envoi impossible.'),
   elementSupprimer: (id) => rpc('element_supprimer', { p_token: store.token, p_id: id }),
   cadrageMaj: (evt, p) => rpc('cadrage_maj', { p_token: store.token, p_evt: evt, p }),
-  copilote: async (mode, extra = {}) => {
-    const r = await fetch(`${URL}/functions/v1/orga-copilote`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: KEY },
-      body: JSON.stringify({ token: store.token, evt: store.evt, mode, ...extra }),
-    })
-    const d = await r.json().catch(() => ({}))
-    if (!r.ok || d.error) throw new Error(d.error || 'Le copilote ne répond pas.')
-    return d
-  },
-  zoho: async (mode, extra = {}) => {
-    const r = await fetch(`${URL}/functions/v1/orga-zoho`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY },
-      body: JSON.stringify({ token: store.token, evt: store.evt, mode, ...extra }),
-    })
-    const d = await r.json().catch(() => ({}))
-    if (!r.ok || d.error) throw new Error(d.error || 'Zoho ne répond pas.')
-    return d
-  },
+  copilote: (mode, extra = {}) => fonction('orga-copilote', { token: store.token, evt: store.evt, mode, ...extra }, 'Le copilote ne répond pas.'),
+  zoho: (mode, extra = {}) => fonction('orga-zoho', { token: store.token, evt: store.evt, mode, ...extra }, 'Zoho ne répond pas.'),
   pieceImputer: (id, element) => rpc('piece_imputer', { p_token: store.token, p_id: id, p_element: element }),
-  suggestionsPieces: async (pieces) => {
-    const r = await fetch(`${URL}/functions/v1/orga-imputer`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt: store.evt, pieces }) })
-    const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Le copilote ne répond pas.'); return d
-  },
+  suggestionsPieces: (pieces) => fonction('orga-imputer', { token: store.token, evt: store.evt, pieces }, 'Le copilote ne répond pas.'),
   especesListe: (evt) => rpc('especes_liste', { p_token: store.token, p_evt: evt }),
   encaissementAjouter: (evt, montant, date, note, mode) => rpc('encaissement_ajouter', { p_token: store.token, p_evt: evt, p_montant: montant, p_date: date, p_note: note, p_mode: mode || 'Espèces' }),
   evenementConfirmer: (evt, prix, avance, mode, date) => rpc('evenement_confirmer', { p_token: store.token, p_evt: evt, p_prix: prix, p_avance: avance || 0, p_mode: mode, p_date: date }),
@@ -147,10 +148,7 @@ export const api = {
   objetDupliquer: (type, id) => rpc('objet_dupliquer', { p_token: store.token, p_type: type, p_id: id }),
   ligneDeplacer: (id, poste) => rpc('ligne_deplacer', { p_token: store.token, p_id: id, p_poste: poste }),
   posteCreer: (evt, nom, type) => rpc('poste_creer', { p_token: store.token, p_evt: evt, p_nom: nom, p_type: type || 'achat' }),
-  dicter: async (texte, poste, cible, evt) => {
-    const r = await fetch(`${URL}/functions/v1/orga-dicter`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt: evt || store.evt, texte, poste, cible }) })
-    const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Dictée non comprise.'); return d
-  },
+  dicter: (texte, poste, cible, evt) => fonction('orga-dicter', { token: store.token, evt: evt || store.evt, texte, poste, cible }, 'Dictée non comprise.'),
   elementRevoir: (id, p) => rpc('element_revoir', { p_token: store.token, p_id: id, p: p || {} }),
   catalogueListe: () => rpc('catalogue_liste', { p_token: store.token }),
   elementDepuisCatalogue: (evt, cat) => rpc('element_depuis_catalogue', { p_token: store.token, p_evt: evt, p_cat: cat }),
@@ -162,10 +160,9 @@ export const api = {
   evenementCloturer: (evt, raison) => rpc('evenement_cloturer', { p_token: store.token, p_evt: evt, p_raison: raison || '' }),
   evenementStatut: (evt, statut) => rpc('evenement_statut', { p_token: store.token, p_evt: evt, p_statut: statut }),
   porteurAjouter: (nom) => rpc('porteur_ajouter', { p_token: store.token, p_nom: nom }),
-  enveloppeRemettre: async (evt, nom, montant) => {
-    const r = await fetch(`${URL}/functions/v1/orga-especes`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt, nom, montant }) })
-    const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Remise impossible.'); return d
-  },
+  enveloppeRemettre: (evt, nom, montant) => fonction('orga-especes', { token: store.token, evt, nom, montant }, 'Remise impossible.'),
+  santeEtat: () => rpc('sante_etat', { p_token: store.token }),
+  santeVerifier: () => fonction('orga-sante', { token: store.token }, 'Le contrôle n\'a pas pu se faire.'),
   planningListe: (evt) => rpc('planning_liste', { p_token: store.token, p_evt: evt }),
   planningEnregistrer: (evt, id, p) => rpc('planning_enregistrer', { p_token: store.token, p_evt: evt, p_id: id, p }),
   planningSupprimer: (id) => rpc('planning_supprimer', { p_token: store.token, p_id: id }),

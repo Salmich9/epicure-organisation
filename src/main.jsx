@@ -3,12 +3,13 @@ import { createRoot } from 'react-dom/client'
 import './theme.css'
 import App from './App'
 import { UIProvider } from './ui'
+import { noter } from './api'
 
 // Filet de sécurité : un écran qui plante n'emporte plus toute l'appli
 class Filet extends React.Component {
   constructor(p) { super(p); this.state = { err: null } }
   static getDerivedStateFromError(err) { return { err } }
-  componentDidCatch(err) { console.error(err) }
+  componentDidCatch(err, info) { console.error(err); noter('ecran', String(err?.message || err), { pile: String(err?.stack || '').slice(0, 800), composant: String(info?.componentStack || '').slice(0, 400) }) }
   render() {
     if (!this.state.err) return this.props.children
     return (
@@ -20,6 +21,10 @@ class Filet extends React.Component {
     )
   }
 }
+
+// Les plantages hors écran (promesses oubliées, scripts) partent aussi au journal
+addEventListener('error', e => { if (e.message) noter('appli', e.message, { fichier: e.filename, ligne: e.lineno }) })
+addEventListener('unhandledrejection', e => { const r = e.reason; if (r?.code !== 'hors_ligne') noter('appli', String(r?.message || r).slice(0, 300), { pile: String(r?.stack || '').slice(0, 800) }) })
 
 createRoot(document.getElementById('root')).render(<UIProvider><Filet><App /></Filet></UIProvider>)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
