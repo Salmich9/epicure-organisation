@@ -19,7 +19,7 @@ const RPC = {
   maj_element: b => { const e = D.elements.find(x => x.id === b.p_id); Object.assign(e, b.p); return [ECRIT, e] },
 }
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
-await ctx.addInitScript(() => { localStorage.setItem('orga_token', '00000000-0000-0000-0000-000000000000'); localStorage.setItem('orga_evt', 'EVT-T-001') })
+await ctx.addInitScript(() => { localStorage.setItem('orga_token', '00000000-0000-0000-0000-000000000000'); localStorage.setItem('orga_evt', 'EVT-T-001'); localStorage.setItem('orga_seuil', new Date().toLocaleDateString('sv')) })
 await ctx.route('**/rest/v1/rpc/**', async r => { const fn = r.request().url().split('/rpc/')[1]; const [ms, body, st] = RPC[fn] ? RPC[fn](JSON.parse(r.request().postData() || '{}')) : [ECRIT, true]
   await new Promise(z => setTimeout(z, ms)); r.fulfill({ status: st || 200, contentType: 'application/json', body: JSON.stringify(body) }) })
 await ctx.route('**/functions/v1/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))

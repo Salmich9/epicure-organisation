@@ -1112,3 +1112,21 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .sa-l .row { display: flex; align-items: center; gap: 12px; }
 .sa-l .x { flex: 1; min-width: 0; } .sa-l .x b { display: block; font-size: 15px; font-weight: 650; } .sa-l .x span { display: block; font-size: 12.5px; color: var(--mute); margin-top: 3px; }
 .sa-l .x b { overflow-wrap: anywhere; }
+
+/* Le seuil : la leçon du jour à l'ouverture */
+.se { position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 28px) 28px calc(env(safe-area-inset-bottom) + 28px); cursor: pointer; overflow: hidden; }
+.se .se-date { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.se .se-btn { border: 0; font: inherit; font-weight: 700; font-size: 16px; border-radius: 18px; padding: 17px; width: 100%; }
+/* C · Zellige : la carte du jour sur motif */
+.se-c { background: linear-gradient(160deg, #1F6F6B 0%, #164F4C 55%, #0E2B2C 100%); color: #F4F1EA; }
+.se-c .se-zel { position: absolute; inset: -10%; width: 120%; height: 120%; color: #C8A46B; opacity: .14; }
+.se-c .se-haut { position: relative; display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; opacity: .85; }
+.se-c .se-haut span:last-child { text-transform: capitalize; }
+.se-c .se-centre { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; }
+.se-c .se-cat { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: #E2C68F; }
+.se-c .se-t { font-family: 'Bodoni Moda', Georgia, serif; font-size: 33px; line-height: 1.2; margin: 22px 4px 18px; }
+.se-c .se-au { font-size: 14px; font-style: italic; opacity: .85; }
+.se-c .se-bas { position: relative; text-align: center; }
+.se-c .se-jour { font-size: 14px; line-height: 1.6; opacity: .9; }
+.se-c .se-glisse { margin-top: 20px; font-size: 20px; color: #E2C68F; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.se-c .se-glisse b { font-size: 13px; font-weight: 700; color: #F4F1EA; }

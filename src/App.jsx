@@ -12,6 +12,7 @@ import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
 import { Sante } from './sante'
+import { Seuil, seuilDuJour } from './seuil'
 import { Chargement, Retour, Tournees } from './terrain'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
@@ -149,6 +150,7 @@ export default function App() {
   const [data, setData] = useState(null)
   const dataRef = useRef(null); dataRef.current = data
   const [route, go] = useHash()
+  const [seuil, setSeuil] = useState(seuilDuJour)
   const [openEl, setOpenEl] = useState(null)
   const [addSheet, setAddSheet] = useState(null)
   const [newName, setNewName] = useState('')
@@ -201,6 +203,8 @@ export default function App() {
 
   if (lien) return <RespView lien={lien} />
   if (!logged) return <Login onIn={() => setLogged(true)} />
+  // Le seuil : la leçon du jour à la première ouverture, puis Aujourd'hui (les données se chargent derrière)
+  if (seuil) return <Seuil entrer={() => { setSeuil(false); go('aujourdhui') }} />
   if (!data) return <div className="login"><p className="mute">Chargement de l'événement…</p></div>
 
   const putEl = (fresh, action) => setData(d => ({ ...d, elements: fresh._supprime ? d.elements.filter(x => x.id !== fresh.id) : d.elements.map(x => x.id === fresh.id ? fresh : x), actions: action ? [...d.actions, action] : d.actions }))
