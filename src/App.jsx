@@ -20,6 +20,7 @@ import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
 import { Corbeille, Historique } from './historique'
 import { Comptes } from './comptes'
+import { Sante } from './sante'
 import { Chargement, Retour, Tournees } from './terrain'
 import { JourJ } from './jourj'
 import { useCibleActive, useMicro } from './micro'
@@ -204,6 +205,7 @@ export default function App() {
   else if (route === 'accueil') screen = <Accueil key={data.evt + (data.evenements.length)} go={go} ouvrir={ouvrir} />
   else if (route === 'corbeille' || route === 'corbeille/tout') screen = <Corbeille key={route} data={data} go={go} tout={route === 'corbeille/tout'} reload={() => load(data.evt)} />
   else if (route === 'comptes') screen = <Comptes go={go} />
+  else if (route === 'sante') screen = <Sante go={go} />
   else if (route === 'tournees') screen = <Tournees go={go} />
   else if (route === 'jourj') screen = <JourJ data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'chargement') screen = <Chargement data={data} go={go} reload={() => load(data.evt)} />

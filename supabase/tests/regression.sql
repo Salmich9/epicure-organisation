@@ -189,5 +189,15 @@ begin
       then raise exception 'ECHEC : événement mal restauré'; end if;
     perform orga.evenement_supprimer(tok, ev);
   end; ok := ok + 1;
+  -- 10. Santé : journal limité à 30 par heure, état réservé aux admins, alerte sur l'accueil des admins
+  declare t2 uuid := (orga.connexion('ZZTestSimple', '135790')->>'token')::uuid; begin
+    for i in 1..30 loop perform orga.journal_ecrire(t2, 'test', 'ZZ erreur', jsonb_build_object('i', i)); end loop;
+    if orga.journal_ecrire(t2, 'test', 'ZZ erreur', null) then raise exception 'ECHEC : journal non limité'; end if;
+    begin perform orga.sante_etat(t2); raise exception 'ECHEC : état de santé ouvert à un non-admin';
+    exception when others then if sqlerrm not like '%reserve_admin%' then raise; end if; end;
+    if not exists (select 1 from jsonb_array_elements(orga.sante_etat(tok)->'erreurs') x where x->>'message' = 'ZZ erreur' and (x->>'nb')::int = 30)
+      then raise exception 'ECHEC : erreurs mal regroupées'; end if;
+    if orga.accueil(tok)->'sante' is null or orga.accueil(t2) ? 'sante' and orga.accueil(t2)->'sante' <> 'null'::jsonb then raise exception 'ECHEC : alerte santé mal ciblée'; end if;
+  end; ok := ok + 1;
   raise exception 'REGRESSION OK (% vérifications)', ok;
 end $$;

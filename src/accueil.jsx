@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { AlerteSante } from './sante'
 import { motion } from 'framer-motion'
 import { api, store } from './api'
 import { setRegles, tva } from './regles'
@@ -35,6 +36,7 @@ export function Accueil({ go, ouvrir }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head"><div className="when">{dateLongue(today)}</div><h1 style={{ fontSize: 36 }}>{h < 18 ? 'Bonjour' : 'Bonsoir'} {a.moi}</h1></div>
+      {a.admin && <AlerteSante s={a.sante} go={go} />}
       {a.role !== 'equipe' && <><div className="ac-money">
         <div><b>{mt(signe)}</b>signé à venir HT</div>
         <div className="l"><b>{mt(reste)}</b>reste à encaisser <Info text="TTC, sur les événements confirmés et à clôturer : prix signé plus TVA, moins tout ce qui est déjà encaissé." /></div>
@@ -61,6 +63,7 @@ export function Accueil({ go, ouvrir }) {
       <div className="ac-bas">
         {a.role !== 'equipe' && <button onClick={() => go('corbeille/tout')}>Corbeille</button>}
         {a.admin && <button onClick={() => go('comptes')}>Comptes de l'équipe</button>}
+        {a.admin && <button onClick={() => go('sante')}>État de l'appli</button>}
       </div>
     </motion.div>
   )
