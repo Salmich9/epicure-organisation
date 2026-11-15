@@ -17,10 +17,14 @@ export const reseau = { get: () => etat, abonner: f => { abonnes.add(f); return 
 export const estCoupure = err => (typeof navigator !== 'undefined' && !navigator.onLine) || /fetch|network|load failed|ERR_INTERNET|connexion/i.test(String(err?.message || err))
 
 // Une lecture réussie est gardée ; une lecture sans réseau rend la dernière copie
-export function garder(fn, args, data) { if (LECTURES.includes(fn)) ecrire(cle(fn, args), { t: Date.now(), data }); if (!etat.enLigne) changer({ enLigne: true }) }
+// La copie est liée à la session qui l'a lue : sur un téléphone partagé, personne ne voit la copie d'un autre
+const sceau = t => { let h = 0; for (const c of String(t || '')) h = (h * 31 + c.charCodeAt(0)) | 0; return h }
+export function garder(fn, args, data) { if (LECTURES.includes(fn)) ecrire(cle(fn, args), { t: Date.now(), s: sceau(args?.p_token), data }); if (!etat.enLigne) changer({ enLigne: true }) }
+const lireCopie = (fn, args) => { const c = LECTURES.includes(fn) ? lire(cle(fn, args), null) : null; return c && c.s === sceau(args?.p_token) ? c : null }
+// Ouverture immédiate : la dernière copie s'affiche pendant que la version fraîche arrive (sans passer en « hors ligne »)
+export function apercu(fn, args) { return lireCopie(fn, args)?.data ?? null }
 export function copie(fn, args) {
-  if (!LECTURES.includes(fn)) return null
-  const c = lire(cle(fn, args), null)
+  const c = lireCopie(fn, args)
   if (!c) return null
   changer({ enLigne: false, vuLe: c.t })
   return c.data

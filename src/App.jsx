@@ -25,7 +25,7 @@ import { Chargement, Retour, Tournees } from './terrain'
 import { JourJ } from './jourj'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
-import { synchroniser } from './api'
+import { synchroniser, vite } from './api'
 import { ETATS, Icon, Sheet, ddmm, n, useUI } from './ui'
 
 // Stock du dépôt : chargé à part, gardé 5 minutes (il change rarement et pèse lourd)
@@ -139,6 +139,7 @@ export default function App() {
   const lien = new URLSearchParams(location.search).get('l')
   const [logged, setLogged] = useState(!!store.token)
   const [data, setData] = useState(null)
+  const dataRef = useRef(null); dataRef.current = data
   const [route, go] = useHash()
   const [openEl, setOpenEl] = useState(null)
   const [addSheet, setAddSheet] = useState(null)
@@ -162,6 +163,11 @@ export default function App() {
   const vol = useRef(0), tour = useRef(0)
   const load = useCallback(async (evt, discret) => {
     const n0 = ++tour.current
+    // Ouverture immédiate : si l'événement demandé n'est pas déjà à l'écran, on montre sa dernière copie en attendant
+    if (!discret && dataRef.current?.evt !== (evt || store.evt)) {
+      const c = vite.donnees(evt || store.evt)
+      if (c?.evenements) { setRegles(c.regles); setData({ ...c, depot: DEPOT.liste || c.depot || [] }) }
+    }
     try {
       if (evt) store.evt = evt
       const [d0, depot] = await Promise.all([api.donnees(evt || store.evt), depotFrais(!!evt)])

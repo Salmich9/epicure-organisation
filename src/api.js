@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { copie, differer, estCoupure, garder, vider } from './reseau'
+import { apercu, copie, differer, estCoupure, garder, vider } from './reseau'
 import { MESSAGES, traduire } from './erreurs'
 
 const URL = 'https://daehifcdzrusxtzhtuxi.supabase.co'
@@ -64,9 +64,24 @@ async function fonction(nom, body, defaut) {
 
 export const store = {
   get token() { try { return localStorage.getItem('orga_token') } catch { return null } },
-  set token(v) { try { v ? localStorage.setItem('orga_token', v) : localStorage.removeItem('orga_token') } catch {} },
+  set token(v) {
+    try {
+      if (v) localStorage.setItem('orga_token', v)
+      else { // déconnexion : on efface aussi les copies gardées sur ce téléphone
+        localStorage.removeItem('orga_token')
+        Object.keys(localStorage).filter(k => k.startsWith('orga_cache:')).forEach(k => localStorage.removeItem(k))
+      }
+    } catch {}
+  },
   get evt() { try { return localStorage.getItem('orga_evt') } catch { return null } },
   set evt(v) { try { localStorage.setItem('orga_evt', v) } catch {} },
+}
+
+// Dernière version gardée sur le téléphone, pour afficher un écran tout de suite (null si rien)
+export const vite = {
+  donnees: (evt) => apercu('donnees', { p_token: store.token, p_evt: evt || null }),
+  accueil: () => apercu('accueil', { p_token: store.token }),
+  aujourdhui: () => apercu('aujourdhui', { p_token: store.token }),
 }
 
 export const api = {
