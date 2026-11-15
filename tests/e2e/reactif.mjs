@@ -15,6 +15,7 @@ let panne = false
 const RPC = {
   donnees: () => [LIT, D], accueil: () => [LIT, accueil], depot_liste: () => [LIT, []], bulles_liste: () => [ECRIT, { bulles: [] }],
   action_enregistrer: b => { if (panne) return [ECRIT, { message: 'canceling statement due to statement timeout', code: '57014' }, 500]; const a = D.actions.find(x => x.id === b.p_id); if (b.p.fait !== undefined) a.statut = b.p.fait ? 'Fait' : 'À faire'; return [ECRIT, a] },
+  element_revoir: b => { const e = D.elements.find(x => x.id === b.p_id); Object.assign(e, b.p, { revu_le: new Date().toISOString() }); return [ECRIT, e] },
   maj_element: b => { const e = D.elements.find(x => x.id === b.p_id); Object.assign(e, b.p); return [ECRIT, e] },
 }
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
@@ -34,7 +35,15 @@ await mesure('Décocher', () => p.locator('.pv-sa .pv-ck').first().click(), () =
 await p.waitForTimeout(1500)
 await p.locator('.pv-3').first().click(); await p.waitForTimeout(500)
 await mesure('Ligne reçue', () => p.locator('.sheet .chip', { hasText: /^Reçu$/ }).first().click(), () => !!document.querySelector('.pv-rc.ok'))
-await p.keyboard.press('Escape'); await p.waitForTimeout(1500)
+// Revue : « Valider » passe tout de suite à l'élément suivant
+await p.keyboard.press('Escape'); await p.waitForTimeout(800)
+await p.goto(`http://localhost:${port}/#/revue/${D.zones.findIndex(z => z.nom === 'Art de table')}`); await p.waitForSelector('.rv-card .nm'); await p.waitForTimeout(1200)
+const titre = () => p.evaluate(() => document.querySelector('.rv-card .nm')?.textContent)
+const t0 = await titre()
+await mesure('Revue : valider et passer au suivant', () => p.locator('button.p', { hasText: 'Valider' }).first().click(), `(document.querySelector('.rv-card .nm')?.textContent || '') !== ${JSON.stringify(t0)}`)
+await p.waitForTimeout(1500)
+if (!D.elements.find(x => x.zone === 'Art de table')?.revu_le) echec('revue : validation non envoyée'); else console.log('  ✓ revue : validation bien envoyée')
+await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForSelector('.pv-sa .pv-ck'); await p.waitForTimeout(1500)
 // Double toucher rapide : l'état final est celui du dernier toucher, même après les rechargements
 const avant = await coche()
 await p.locator('.pv-sa .pv-ck').first().click(); await p.waitForTimeout(80); await p.locator('.pv-sa .pv-ck').first().click()

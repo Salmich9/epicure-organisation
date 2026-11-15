@@ -61,7 +61,7 @@ export function DepotPicker({ open, onClose, depot, reserve, element, onPick, li
 }
 
 /* Fiche d'un élément */
-export function ElementSheet({ el, data, onClose, onSaved }) {
+export function ElementSheet({ el, data, onClose, onSaved, geste }) {
   const ui = useUI()
   const [e, setE] = useState(el)
   const [chg, setChg] = useState({})
@@ -109,6 +109,12 @@ export function ElementSheet({ el, data, onClose, onSaved }) {
   async function save(close = true) {
     if (['Partiel', 'Non reçu'].includes(e.reception) && !e.manque) { ui.bubble('Réception incomplète : notez ce qui manque avant de valider.'); setSuivi(true); return null }
     if (!Object.keys(chg).length) { if (close) onClose(); return el }
+    // Geste instantané : la fiche se ferme tout de suite, l'envoi part derrière
+    if (close && geste) {
+      const id = e.id, p = chg
+      geste(d => ({ ...d, elements: d.elements.map(x => x.id === id ? { ...x, ...p } : x) }), () => api.majElement(id, p))
+      setChg({}); ui.toast('Enregistré'); onClose(); return { ...el, ...p }
+    }
     setBusy(true)
     try {
       const fresh = await api.majElement(e.id, chg)

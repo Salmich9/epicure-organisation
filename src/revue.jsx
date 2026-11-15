@@ -83,8 +83,14 @@ export function Revue({ data, go, putEl, reload }) {
 }
 
 /* ---------- Une chose à la fois ---------- */
-export function RevueZone({ data, go, idx, elId, putEl, reload }) {
+export function RevueZone({ data, go, idx, elId, putEl, reload, geste }) {
   const ui = useUI()
+  // Geste instantané : on passe tout de suite à l'élément suivant, l'envoi part derrière (sinon : comme avant, on attend)
+  const envoyer = async (changer, faire) => {
+    if (geste) { geste(changer, faire); return true }
+    try { await faire(); reload(); return true } catch (err) { ui.toast(err.message); return false }
+  }
+  const revu = (id, p) => d => ({ ...d, elements: d.elements.map(x => x.id === id ? { ...x, ...p, revu_le: x.revu_le || new Date().toISOString(), a_revoir_revue: false } : x) })
   const [voix, setVoix] = useState(false)
   const z = data.zones[idx] || data.zones[0]
   const liste = useMemo(() => ordre(data).filter(e => e.zone === z?.nom), [data.elements, z?.nom])
@@ -124,25 +130,23 @@ export function RevueZone({ data, go, idx, elId, putEl, reload }) {
     set(m.k, reste || besoin || 1)
   }
   async function enregistrer(dir) {
-    setBusy(true)
-    try {
-      const fresh = await api.elementRevoir(e.id, chg)
-      putEl(fresh)
-      if (dir > 0 && i === liste.length - 1) {
-        const prochaine = data.zones.findIndex((zz, k) => k > idx && data.elements.some(x => x.zone === zz.nom && etatRevue(x) !== 'revu'))
-        ui.toast(`${z.nom} revue`)
-        go(prochaine >= 0 ? `revue/${prochaine}` : 'revue')
-      } else setI(Math.max(0, i + dir))
-    } catch (err) { ui.toast(err.message) }
-    setBusy(false)
+    const id = e.id, p = chg
+    if (!geste) setBusy(true)
+    const ok = await envoyer(revu(id, p), () => api.elementRevoir(id, p))
+    if (!geste) setBusy(false)
+    if (!ok) return
+    if (dir > 0 && i === liste.length - 1) {
+      const prochaine = data.zones.findIndex((zz, k) => k > idx && data.elements.some(x => x.zone === zz.nom && x.id !== id && etatRevue(x) !== 'revu'))
+      ui.toast(`${z.nom} revue`)
+      go(prochaine >= 0 ? `revue/${prochaine}` : 'revue')
+    } else setI(Math.max(0, i + dir))
   }
   async function toutValider() {
-    setBusy(true)
-    try {
-      for (const x of liste.slice(i)) if (etatRevue(x) !== 'revu') putEl(await api.elementRevoir(x.id, x.id === e.id ? chg : propose(x)))
-      ui.toast(`${z.nom} validée telle quelle`); go('revue')
-    } catch (err) { ui.toast(err.message) }
-    setBusy(false)
+    const lot = liste.slice(i).filter(x => etatRevue(x) !== 'revu').map(x => [x.id, x.id === e.id ? chg : propose(x)])
+    if (!geste) setBusy(true)
+    const ok = await envoyer(d => lot.reduce((acc, [id, p]) => revu(id, p)(acc), d), async () => { for (const [id, p] of lot) await api.elementRevoir(id, p) })
+    if (!geste) setBusy(false)
+    if (ok) { ui.toast(`${z.nom} validée telle quelle`); go('revue') }
   }
   async function supprimer() {
     if (!suppr) return setSuppr(true)
