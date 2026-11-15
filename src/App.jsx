@@ -1,40 +1,32 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
 import { ElementSheet, sendWa } from './element'
+import { Chiffrer, Nouveau } from './creation'
 import { Pieces } from './pieces'
+import { Especes } from './especes'
+import { Bilan } from './bilan'
 import { Bibliotheque, Revue, RevueZone } from './revue'
 import { Cadrage } from './cadrage'
 import { Equipe } from './equipe'
+import { Menu } from './menu'
+import { StaffEvt, StaffFiche, StaffListe, StaffNoter } from './staff'
 import { Accueil, Voix } from './accueil'
 import { DevisClient, Vente, estVente } from './cycle'
 import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
+import { Copilote, Proposition, prechargerChallenge } from './copilote'
+import { Planning } from './planning'
 import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
+import { Corbeille, Historique } from './historique'
+import { Comptes } from './comptes'
 import { Sante } from './sante'
 import { Chargement, Retour, Tournees } from './terrain'
+import { JourJ } from './jourj'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
 import { synchroniser, vite } from './api'
 import { ETATS, Icon, Sheet, ddmm, n, useUI } from './ui'
-
-// Écrans chargés à la première ouverture : le démarrage ne télécharge que l'essentiel
-const tard = (charger, nom) => lazy(() => charger().then(m => ({ default: m[nom] })))
-const creation = () => import('./creation'), staff = () => import('./staff'), copilote = () => import('./copilote'), historique = () => import('./historique')
-const Chiffrer = tard(creation, 'Chiffrer'), Nouveau = tard(creation, 'Nouveau')
-const Especes = tard(() => import('./especes'), 'Especes')
-const Bilan = tard(() => import('./bilan'), 'Bilan')
-const Menu = tard(() => import('./menu'), 'Menu')
-const StaffEvt = tard(staff, 'StaffEvt'), StaffFiche = tard(staff, 'StaffFiche'), StaffListe = tard(staff, 'StaffListe'), StaffNoter = tard(staff, 'StaffNoter')
-const Copilote = tard(copilote, 'Copilote'), Proposition = tard(copilote, 'Proposition')
-const prechargerChallenge = evt => copilote().then(m => m.prechargerChallenge(evt)).catch(() => {})
-const Planning = tard(() => import('./planning'), 'Planning')
-const Corbeille = tard(historique, 'Corbeille'), Historique = tard(historique, 'Historique')
-const Comptes = tard(() => import('./comptes'), 'Comptes')
-const JourJ = tard(() => import('./jourj'), 'JourJ')
-const Patience = () => <div className="empty" style={{ paddingTop: 80 }}>…</div>
-// Une fois l'appli affichée, les autres écrans se téléchargent en douce : ils s'ouvriront vite, même hors connexion
-if (typeof window !== 'undefined') addEventListener('load', () => setTimeout(() => [creation, staff, copilote, historique, () => import('./especes'), () => import('./bilan'), () => import('./menu'), () => import('./planning'), () => import('./comptes'), () => import('./jourj')].forEach(f => f().catch(() => {})), 4000))
 
 // Stock du dépôt : chargé à part, gardé 5 minutes (il change rarement et pèse lourd)
 const DEPOT = { liste: null, le: 0 }
@@ -282,7 +274,7 @@ export default function App() {
         <i />{net.enLigne ? `Envoi de ${net.attente} changement${net.attente > 1 ? 's' : ''}…`
           : <>Hors connexion{net.vuLe ? ` · copie de ${new Date(net.vuLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}{net.attente ? <b> · {net.attente} en attente</b> : ''}</>}
       </button>}
-      <Suspense fallback={<Patience />}><AnimatePresence mode="wait">{screen}</AnimatePresence></Suspense>
+      <AnimatePresence mode="wait">{screen}</AnimatePresence>
 
       {(micro.ecoute || micro.lit) && <div className="mi-live"><b>{micro.lit ? 'Je comprends…' : `Pour ${cible?.label || ''}`}</b><span>{micro.dit ? `« ${micro.dit} »` : 'Je t\'écoute… touche le micro quand tu as fini'}</span></div>}
       <nav className="tabs">
@@ -296,7 +288,7 @@ export default function App() {
         <button className={tab === 'notes' ? 'on' : ''} onClick={() => go('notes')}>{Icon.notes}Notes</button>
       </nav>
 
-      {prop && <Suspense fallback={null}><Proposition prop={prop} data={data} onClose={() => setProp(null)} onDone={() => { setProp(null); load(data.evt) }} /></Suspense>}
+      <Proposition prop={prop} data={data} onClose={() => setProp(null)} onDone={() => { setProp(null); load(data.evt) }} />
 
       {openEl && <ElementSheet el={openEl} data={data} geste={geste} onClose={() => { setOpenEl(null); if (route.startsWith('poste/')) load(data.evt, true) }} onSaved={putEl} />}
 

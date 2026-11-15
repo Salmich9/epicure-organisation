@@ -1,12 +1,11 @@
-import { PostgrestClient } from '@supabase/postgrest-js'
+import { createClient } from '@supabase/supabase-js'
 import { apercu, copie, differer, estCoupure, garder, vider } from './reseau'
 import { MESSAGES, traduire } from './erreurs'
 
 const URL = 'https://daehifcdzrusxtzhtuxi.supabase.co'
 const KEY = 'sb_publishable_UP5yav1CuZBbkT57KrHbAA_N-9_VYps'
 
-// L'appli n'appelle que des fonctions de la base : le client léger suffit (pas de connexion Supabase, de stockage ni de temps réel)
-const sb = new PostgrestClient(`${URL}/rest/v1`, { schema: 'orga', headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } })
+const sb = createClient(URL, KEY, { auth: { persistSession: false }, db: { schema: 'orga' } })
 
 
 async function brut(fn, args) {
