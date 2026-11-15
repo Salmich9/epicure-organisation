@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from './api'
 import { coefDefaut, imprevus, tva } from './regles'
+import { EnteteEvt } from './entete'
 import { Info, Sheet, dans, dateLongue, n, useUI } from './ui'
 
 /* Le rail de l'événement : chaque étape ouvre la suivante */
@@ -17,7 +18,7 @@ export function Rail({ statut }) {
 }
 
 /* ---------- Avant la signature : on vend ---------- */
-export function Vente({ data, go, reload, openEvt }) {
+export function Vente({ data, go, reload }) {
   const ui = useUI()
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const [cx, setCx] = useState(null)
@@ -33,12 +34,7 @@ export function Vente({ data, go, reload, openEvt }) {
   }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="head" onClick={openEvt}>
-        <button className="back" onClick={x => { x.stopPropagation(); go('accueil') }}>‹ Événements</button>
-        <div className="when">{dateLongue(ev.date)}{ev.date ? ` · ${dans(ev.date, data.aujourdhui)}` : ''}</div>
-        <h1>{ev.nom}</h1>
-        <div className="meta">{ev.invites ? `${ev.invites} invités` : 'Invités à fixer'} · {ev.entite || 'Epicure'}</div>
-      </div>
+      <EnteteEvt data={data} go={go} reload={reload} />
       <Rail statut={ev.statut} />
       {cx === null ? <div className="empty">Chargement…</div> : !lignes.length ? (
         <div className="dv"><div className="k">Chiffrage</div><p className="small mute">Pas encore chiffré.</p></div>

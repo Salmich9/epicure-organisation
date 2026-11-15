@@ -92,6 +92,20 @@ await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeou
 await p.getByText('+ Action').click(); await p.waitForTimeout(300); await p.getByRole('button', { name: 'Carte', exact: true }).click()
 if (await p.getByText('Carte Business Boys').count()) echec('choix de carte proposé hors événement espèces'); else console.log('  ✓ pas de choix de carte hors espèces')
 
+// 4 bis. En-tête de l'événement : corriger sur place, menu ⋯
+await p.goto(`http://localhost:${port}/#/accueil`); await p.waitForTimeout(400); await p.getByText('Mariage Test').first().click(); await p.waitForTimeout(500)
+appels.length = 0
+await p.locator('h1 .ep').click(); await p.locator('h1 .ep-in').fill('Mariage Test renommé'); await p.keyboard.press('Enter'); await p.waitForTimeout(400)
+if (!appels.some(a => a[0] === 'evenement_maj' && a[1].p.nom === 'Mariage Test renommé')) echec('renommer sur place ne part pas'); else console.log('  ✓ nom corrigé sur place')
+appels.length = 0
+await p.getByRole('button', { name: '200 invités' }).click(); await p.locator('.ee-meta .ep-in').fill('230'); await p.keyboard.press('Enter'); await p.waitForTimeout(400)
+if (!appels.some(a => a[0] === 'maj_invites' && a[1].p_n === 230)) echec('invités corrigés sur place : pas envoyé'); else console.log('  ✓ invités corrigés sur place')
+appels.length = 0
+await p.getByText('+ lieu').click(); await p.locator('.ee-meta .ep-in').fill('Villa Test'); await p.keyboard.press('Escape'); await p.waitForTimeout(300)
+if (appels.some(a => a[0] === 'evenement_maj')) echec('Échap a enregistré'); else console.log('  ✓ Échap annule la saisie')
+await p.getByRole('button', { name: "Plus d'actions" }).click(); await p.waitForTimeout(400)
+if (!(await p.getByText('Supprimer l\'événement').count())) echec('menu ⋯ sans Supprimer'); else console.log('  ✓ menu ⋯ : chiffrage, Drive, supprimer')
+
 // 5. Connexion : mauvais code refusé, compte bloqué annoncé, bon code accepté
 const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 } })
 await ctx2.route('**/rest/v1/rpc/**', async route => { const fn = route.request().url().split('/rpc/')[1]; const body = JSON.parse(route.request().postData() || '{}'); route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RPC[fn] ? RPC[fn](body) : true) }) })

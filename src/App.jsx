@@ -13,7 +13,7 @@ import { Menu } from './menu'
 import { StaffEvt, StaffFiche, StaffListe, StaffNoter } from './staff'
 import { Accueil, Voix } from './accueil'
 import { DevisClient, Vente, estVente } from './cycle'
-import { Decider, Deleguer, Notes, Perimetre, Plan, SupprimerEvt, Zone } from './screens'
+import { Decider, Deleguer, Notes, Perimetre, Plan, Zone } from './screens'
 import { Copilote, Proposition, prechargerChallenge } from './copilote'
 import { Planning } from './planning'
 import { Aujourdhui, Poste } from './postes'
@@ -112,7 +112,6 @@ export default function App() {
   const [data, setData] = useState(null)
   const [route, go] = useHash()
   const [openEl, setOpenEl] = useState(null)
-  const [evtSheet, setEvtSheet] = useState(false)
   const [addSheet, setAddSheet] = useState(null)
   const [newName, setNewName] = useState('')
   const [draft, setDraft] = useState('')
@@ -200,8 +199,8 @@ export default function App() {
   else if (route === 'decider') screen = <Decider data={view} open={setOpenEl} />
   else if (route === 'deleguer') screen = <Deleguer data={view} setData={setData} />
   else if (route === 'notes') screen = <Notes data={data} setData={setData} listening={listening} toggleMic={toggleMic} draft={draft} setDraft={setDraft} placer={placer} />
-  else if (estVente(ev)) screen = <Vente data={data} go={go} reload={() => load(data.evt)} openEvt={() => setEvtSheet(true)} />
-  else screen = <Plan data={view} go={go} openEvt={() => setEvtSheet(true)} mine={mine} setMine={setMine} reload={() => load(data.evt)} />
+  else if (estVente(ev)) screen = <Vente data={data} go={go} reload={() => load(data.evt)} />
+  else screen = <Plan data={view} go={go} mine={mine} setMine={setMine} reload={() => load(data.evt)} />
 
   return (
     <div className="app">
@@ -226,25 +225,6 @@ export default function App() {
         <p className="small mute" style={{ marginTop: 10 }}>S'il existe au catalogue, ses prix et ses moments sont repris. Sinon il y est ajouté pour la prochaine fois.</p>
       </Sheet>
 
-      <Sheet open={evtSheet} onClose={() => setEvtSheet(false)}>
-        <div className="el-name" style={{ fontSize: 28 }}>Événements</div>
-        <div className="list" style={{ margin: '14px 0 0' }}>{data.evenements.map(x => (
-          <button key={x.id} className="row" onClick={() => { setEvtSheet(false); go(''); load(x.id) }}>
-            <div className="top"><span className="name" style={{ fontWeight: x.id === data.evt ? 800 : 600 }}>{x.nom}</span><span className="small mute">{x.date ? ddmm(x.date) : 'date ?'}</span></div>
-            <div className="info">{x.invites || '?'} invités · {x.statut}{x.entite ? ` · ${x.entite}` : ''}</div>
-          </button>
-        ))}</div>
-        <button className="btn primary block" style={{ marginTop: 12 }} onClick={() => { setEvtSheet(false); go('nouveau') }}>+ Nouvel événement</button>
-        {ev.drive_url && <a className="btn block" style={{ marginTop: 8 }} href={ev.drive_url} target="_blank" rel="noreferrer">📁 Dossier Drive</a>}
-        <button className="btn block" style={{ marginTop: 8 }} onClick={() => { setEvtSheet(false); go('chiffrer') }}>{ev.budget ? 'Revoir le chiffrage' : 'Chiffrer cet événement'}</button>
-        <div className="label">Invités pour {ev.nom}</div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <input inputMode="numeric" defaultValue={ev.invites || ''} id="inv" />
-          <button className="btn primary" style={{ flex: 'none' }} onClick={async () => { const v = Number(document.getElementById('inv').value); if (!v) return; await api.majInvites(data.evt, v); setEvtSheet(false); ui.toast('Quantités recalculées'); load(data.evt) }}>Mettre à jour</button>
-        </div>
-        <SupprimerEvt data={data} go={go} apres={() => setEvtSheet(false)} />
-        <button className="btn block" style={{ marginTop: 22 }} onClick={async () => { try { await api.deconnexion() } catch {} store.token = null; location.reload() }}>Se déconnecter ({data.moi})</button>
-      </Sheet>
     </div>
   )
 }

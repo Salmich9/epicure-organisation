@@ -9,6 +9,7 @@ import { Argent, Rail } from './cycle'
 import { compteRevue } from './revue'
 import { CadrageBarre } from './cadrage'
 import { Enveloppes } from './postes'
+import { EnteteEvt } from './entete'
 
 export function zoneStats(data, z) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
@@ -116,7 +117,7 @@ export function SupprimerEvt({ data, go, apres }) {
 }
 
 /* ---------- Plan de salle (accueil) ---------- */
-export function Plan({ data, go, openEvt, mine, setMine, reload }) {
+export function Plan({ data, go, mine, setMine, reload }) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const nbImp = mine ? 0 : aImputer(data).length
   const ia = useBulles(data)
@@ -125,12 +126,7 @@ export function Plan({ data, go, openEvt, mine, setMine, reload }) {
   const marque = z => bulles.some(b => b.type === 'avertissement' && b.zone === z) ? 'warn' : bulles.some(b => b.zone === z) ? 'idea' : null
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="head" onClick={openEvt}>
-        <button className="back" onClick={x => { x.stopPropagation(); go('accueil') }}>‹ Événements</button>
-        <div className="when">{dateLongue(ev.date)}{ev.date ? ` · ${dans(ev.date, data.aujourdhui)}` : ''}</div>
-        <h1>{ev.nom}</h1>
-        <div className="meta">{[ev.invites ? `${ev.invites} invités` : 'Invités à fixer', ev.entite, ev.lieu].filter(Boolean).join(' · ')}</div>
-      </div>
+      <EnteteEvt data={data} go={go} reload={reload} />
       {!mine && <><Rail statut={ev.statut} /><Argent data={data} go={go} reload={reload} /></>}
       {!mine && <CadrageBarre data={data} go={go} reload={reload} />}
       {!mine && <Enveloppes data={data} go={go} reload={reload} />}
@@ -161,7 +157,6 @@ export function Plan({ data, go, openEvt, mine, setMine, reload }) {
           )
         })}
       </div></>}
-      {!mine && <SupprimerEvt data={data} go={go} />}
     </motion.div>
   )
 }
