@@ -21,7 +21,7 @@ const RPC = {
   equipe_liste: () => ({ equipe: donnees.equipe_evt, defaut: donnees.equipe_evt, compte: {} }), chiffrage_contexte: () => ({ catalogue: [], references: [], chiffrage: null }),
   action_enregistrer: b => ({ id: 'ACT-NEW', ...b.p }),
   connexion: b => (b.p_pin === '111111' ? { token: '00000000-0000-0000-0000-000000000000', nom: 'Salmane' } : { erreur: b.p_pin === '999999' ? 'compte_bloque' : 'code_incorrect' }),
-  deconnexion: () => true, session_voix: () => '11111111-1111-1111-1111-111111111111', session_voix_fin: () => true,
+  deconnexion: () => true, objet_supprimer: () => 77, objet_restaurer: () => true, objet_dupliquer: () => 'EL-9', ligne_deplacer: () => ({}), session_voix: () => '11111111-1111-1111-1111-111111111111', session_voix_fin: () => true,
 }
 const ROUTES = [
   ['aujourdhui', "Aujourd'hui"], ['mapart', 'Ma part'], ['accueil', 'Mariage Test'], ['', 'Mariage Test'],
@@ -105,6 +105,19 @@ await p.getByText('+ lieu').click(); await p.locator('.ee-meta .ep-in').fill('Vi
 if (appels.some(a => a[0] === 'evenement_maj')) echec('Échap a enregistré'); else console.log('  ✓ Échap annule la saisie')
 await p.getByRole('button', { name: "Plus d'actions" }).click(); await p.waitForTimeout(400)
 if (!(await p.getByText('Supprimer l\'événement').count())) echec('menu ⋯ sans Supprimer'); else console.log('  ✓ menu ⋯ : chiffrage, Drive, supprimer')
+
+// 4 ter. Menu ⋯ : déplacer une ligne, supprimer une action puis Annuler, dupliquer
+await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500); appels.length = 0
+await p.locator('.pv-ln .pv-3').first().click(); await p.waitForTimeout(300); await p.getByText('Déplacer vers…').click(); await p.waitForTimeout(300)
+await p.locator('.sheet .ee-menu button', { hasText: 'Consommables' }).click(); await p.waitForTimeout(400)
+if (!appels.some(a => a[0] === 'ligne_deplacer' && a[1].p_poste === 'consommables')) echec('déplacer une ligne : pas envoyé'); else console.log('  ✓ ⋯ → déplacer une ligne vers une autre enveloppe')
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/poste/materiel`); await p.waitForTimeout(500); appels.length = 0
+await p.locator('.pv-sa .pv-3').first().click(); await p.waitForTimeout(300); await p.locator('.sheet .danger').click(); await p.waitForTimeout(500)
+if (!appels.some(a => a[0] === 'objet_supprimer' && a[1].p_type === 'action')) echec('supprimer une action : pas envoyé')
+else { await p.getByRole('button', { name: 'Annuler' }).click(); await p.waitForTimeout(400); if (!appels.some(a => a[0] === 'objet_restaurer' && a[1].p_corbeille === 77)) echec('Annuler ne restaure pas'); else console.log('  ✓ supprimer puis Annuler restaure') }
+appels.length = 0
+await p.locator('.pv-ln .pv-3').first().click(); await p.waitForTimeout(300); await p.getByText('Dupliquer').click(); await p.waitForTimeout(400)
+if (!appels.some(a => a[0] === 'objet_dupliquer' && a[1].p_type === 'element')) echec('dupliquer : pas envoyé'); else console.log('  ✓ dupliquer une ligne')
 
 // 5. Connexion : mauvais code refusé, compte bloqué annoncé, bon code accepté
 const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 } })

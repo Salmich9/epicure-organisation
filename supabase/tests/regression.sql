@@ -77,6 +77,25 @@ begin
   if not exists (select 1 from jsonb_array_elements(orga.aujourdhui(tok)->'actions') y where y->>'id' = a->>'id' and y->>'evt_nom' = 'ZZ Test régression') then
     raise exception 'ECHEC : action absente de Aujourd''hui'; end if; ok := ok + 1;
 
+  -- 8 bis. Menu ⋯ : déplacer, dupliquer, supprimer puis restaurer, enveloppe personnalisée
+  declare d text; cid bigint; pc text; begin
+    d := orga.objet_dupliquer(tok, 'element', l->>'id');
+    perform orga.ligne_deplacer(tok, d, 'consommables');
+    if (select poste from orga.elements where id = d) <> 'consommables' then raise exception 'ECHEC : déplacement'; end if;
+    cid := orga.objet_supprimer(tok, 'element', d);
+    if exists (select 1 from orga.elements where id = d) then raise exception 'ECHEC : ligne non supprimée'; end if;
+    perform orga.objet_restaurer(tok, cid);
+    if not exists (select 1 from orga.elements where id = d) then raise exception 'ECHEC : ligne non restaurée'; end if;
+    begin perform orga.objet_supprimer(tok, 'poste', 'materiel', ev); raise exception 'ECHEC : enveloppe pleine retirée';
+    exception when others then if sqlerrm not like '%enveloppe_non_vide%' then raise; end if; end;
+    pc := orga.poste_creer(tok, ev, 'ZZ Décoration');
+    if not exists (select 1 from jsonb_array_elements(orga._postes_evt(ev)) x where x->>'cle' = pc and x->>'nom' = 'ZZ Décoration') then raise exception 'ECHEC : enveloppe perso absente'; end if;
+    perform orga.poste_maj(tok, ev, pc, '{"nom":"ZZ Déco"}');
+    cid := orga.objet_supprimer(tok, 'poste', pc, ev);
+    perform orga.objet_restaurer(tok, cid);
+    if not exists (select 1 from jsonb_array_elements(orga._postes_evt(ev)) x where x->>'cle' = pc and x->>'nom' = 'ZZ Déco') then raise exception 'ECHEC : enveloppe perso non restaurée'; end if;
+  end; ok := ok + 1;
+
   -- 9. Suppression : refusée à un non-admin, faite par un admin avec copie en corbeille
   begin perform orga.evenement_supprimer(tok_simple, ev); raise exception 'ECHEC : suppression permise à un non-admin';
   exception when others then if sqlerrm not like '%reserve_admin%' then raise; end if; end; ok := ok + 1;

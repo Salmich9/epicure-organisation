@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from './api'
 import { Info, Sheet, dateLongue, ddmm, n, useUI } from './ui'
+import { EnPlace } from './entete'
 
 /* Du général au particulier : enveloppes (prévu) → lignes (engagé) → actions (qui, quand, combien) */
 export const k = v => { v = n(v); return Math.abs(v) >= 10000 ? `${(v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: v >= 100000 ? 0 : 1 })} k` : Math.round(v).toLocaleString('fr-FR') }
@@ -50,6 +51,11 @@ export function Enveloppes({ data, go, reload }) {
   const mat = ps.filter(p => p.type === 'matiere'), ach = ps.filter(p => p.type === 'achat')
   const manque = MOMENTS.filter(([c]) => !ps.some(p => p.cle === c))
   const [ajout, setAjout] = useState(false)
+  const [nouv, setNouv] = useState(null)
+  async function creer() {
+    if (!nouv?.nom?.trim()) return
+    try { const c = await api.posteCreer(data.evt, nouv.nom, nouv.type); setNouv(null); await reload(); go(`poste/${c}`) } catch (e) { ui.toast(e.message) }
+  }
   const Ligne = ({ p }) => (
     <motion.button whileTap={{ scale: .98 }} className="pv-env" onClick={() => go(`poste/${p.cle}`)}>
       <div className="l1"><Av nom={p.resp} /><div className="x"><b>{p.nom}{p.type === 'matiere' ? ` · ${String(n(p.prix_couvert)).replace('.', ',')} × ${ev.invites || '?'}` : ''}</b><span>{p.resp || 'à attribuer'}</span></div>
@@ -68,6 +74,12 @@ export function Enveloppes({ data, go, reload }) {
           : <button className="pv-plus" onClick={() => setAjout(true)}>+ un moment</button>)}
       <div className="pv-st">ACHATS</div>
       {ach.map(p => <Ligne key={p.cle} p={p} />)}
+      <button className="pv-plus" onClick={() => setNouv({ nom: '', type: 'achat' })}>+ une enveloppe</button>
+      <Sheet open={!!nouv} onClose={() => setNouv(null)} foot={<button className="btn primary" disabled={!nouv?.nom?.trim()} onClick={creer}>{nouv?.nom?.trim() ? 'Créer l\'enveloppe' : 'Il manque : nom'}</button>}>
+        <div className="el-name" style={{ fontSize: 26 }}>Nouvelle enveloppe</div>
+        <input autoFocus value={nouv?.nom || ''} onChange={x => setNouv(v => ({ ...v, nom: x.target.value }))} onKeyDown={x => x.key === 'Enter' && creer()} placeholder="Décoration, location du lieu…" style={{ marginTop: 14 }} />
+        <div className="chips" style={{ marginTop: 12 }}>{[['achat', 'Achats'], ['matiere', 'Matière (par couvert)']].map(([c, l]) => <button key={c} className={`chip ${nouv?.type === c ? 'on' : ''}`} onClick={() => setNouv(v => ({ ...v, type: c }))}>{l}</button>)}</div>
+      </Sheet>
     </div>
   )
 }
@@ -83,6 +95,8 @@ export function Poste({ data, cle, go, openEl, reload }) {
   const [edit, setEdit] = useState(false)
   const [val, setVal] = useState('')
   const [respSheet, setRespSheet] = useState(false)
+  const [menu, setMenu] = useState(null)      // { t: 'element' | 'action' | 'poste', o }
+  const [depl, setDepl] = useState(null)      // ligne à déplacer
   if (!p) return <div className="empty" style={{ paddingTop: 80 }}>Enveloppe introuvable. <button className="small" onClick={() => go('')}>Retour</button></div>
   const els = data.elements.filter(e => p.lignes.includes(e.id))
   const lignes = els.filter(active), autres = els.filter(e => !active(e))
@@ -96,11 +110,30 @@ export function Poste({ data, cle, go, openEl, reload }) {
     try { await api.posteMaj(data.evt, cle, mat ? { prix_couvert: v } : { montant: v }); setEdit(false); reload() } catch (e) { ui.toast(e.message) }
   }
   async function cocher(a) { try { await api.actionEnregistrer(data.evt, a.id, { fait: a.statut !== 'Fait' }); reload() } catch (e) { ui.toast(e.message) } }
+  async function supprimer(t, id, nom) {
+    setMenu(null)
+    try {
+      const cid = await api.objetSupprimer(t, id, data.evt)
+      if (t === 'poste') go('')
+      await reload()
+      ui.annulable(`« ${nom} » supprimé`, async () => { try { await api.objetRestaurer(cid); await reload(); if (t === 'poste') go(`poste/${id}`) } catch (e) { ui.toast(e.message) } })
+    } catch (e) { ui.toast(e.message) }
+  }
+  async function dupliquer(t, id) { setMenu(null); try { await api.objetDupliquer(t, id); await reload(); ui.toast('Dupliqué') } catch (e) { ui.toast(e.message) } }
+  async function deplacer(e, vers) {
+    setDepl(null)
+    try { await api.ligneDeplacer(e.id, vers.cle); await reload(); ui.annulable(`Déplacé vers ${vers.nom}`, async () => { await api.ligneDeplacer(e.id, cle); reload() }) } catch (er) { ui.toast(er.message) }
+  }
+  async function repousser(a, jours) {
+    setMenu(null)
+    const avant = a.echeance, base = jours === 1 ? data.aujourdhui : (a.echeance && a.echeance > data.aujourdhui ? a.echeance : data.aujourdhui)
+    try { await api.actionEnregistrer(data.evt, a.id, { quand: plus(base, jours) }); await reload(); ui.annulable(`Repoussé au ${ddmm(plus(base, jours))}`, async () => { await api.actionEnregistrer(data.evt, a.id, { quand: avant }); reload() }) } catch (e) { ui.toast(e.message) }
+  }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head">
-        <div className="pv-top"><button className="back" onClick={() => go('')}>‹ {ev.nom}</button><Av nom={p.resp} size={34} onClick={() => setRespSheet(true)} /></div>
-        <h1 style={{ fontSize: 34 }}>{mat ? `${p.nom} · matière` : p.nom}</h1>
+        <div className="pv-top"><button className="back" onClick={() => go('')}>‹ {ev.nom}</button><span className="pv-top-d"><Av nom={p.resp} size={34} onClick={() => setRespSheet(true)} /><button className="ee-plus" onClick={() => setMenu({ t: 'poste', o: p })} aria-label="Plus d'actions">⋯</button></span></div>
+        <h1 style={{ fontSize: 34 }}><EnPlace valeur={p.nom} large onSave={nom => api.posteMaj(data.evt, cle, { nom }).then(reload).catch(e => ui.toast(e.message))} />{mat ? ' · matière' : ''}</h1>
         <div className="meta">{p.resp || 'à attribuer'}{mat ? ` · ${String(n(p.prix_couvert)).replace('.', ',')} MAD × ${ev.invites || '?'} invités` : ''} · <button className="pv-lien" onClick={() => { setVal(mat ? p.prix_couvert : p.prevu); setEdit(true) }}>corriger le prévu</button>
           <Info text={p.source === 'chiffrage' ? 'Prévu repris du chiffrage vocal.' : p.source === 'manuel' ? 'Prévu corrigé à la main.' : 'Prévu calculé avec un ratio par invité : corrige-le si tu as mieux.'} /></div>
       </div>
@@ -111,16 +144,19 @@ export function Poste({ data, cle, go, openEl, reload }) {
         {lignes.length + directes.length === 0 && <div className="pv-vide">Rien encore. Ajoute une ligne quand tu sais, ou une action.</div>}
         {lignes.length > 0 && <div className="pv-sub">{lignes.map(e => (
           <div key={e.id}>
-            <button className="pv-ln" onClick={() => openEl(e)}>
-              <Tag m={modeLigne(e)} />
-              <div className="x"><b>{e.element}</b><span>{[n(e.besoin) ? `${n(e.besoin)}` : null, e.fournisseur, e.perimetre === 'Tiers' ? `tiers${e.fourni_par ? ` · ${e.fourni_par}` : ''}` : null].filter(Boolean).join(' · ') || ' '}</span></div>
-              <span className="p">{n(e.cout) ? k(e.cout) : '—'}</span>
-            </button>
-            {sous(e.id).map(a => <SousAction key={a.id} a={a} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} />)}
+            <div className="pv-ln">
+              <button className="pv-ln-b" onClick={() => openEl(e)}>
+                <Tag m={modeLigne(e)} />
+                <div className="x"><b>{e.element}</b><span>{[n(e.besoin) ? `${n(e.besoin)}` : null, e.fournisseur, e.perimetre === 'Tiers' ? `tiers${e.fourni_par ? ` · ${e.fourni_par}` : ''}` : null].filter(Boolean).join(' · ') || ' '}</span></div>
+                <span className="p">{n(e.cout) ? k(e.cout) : '—'}</span>
+              </button>
+              <button className="pv-3" onClick={() => setMenu({ t: 'element', o: e })} aria-label="Plus d'actions">⋯</button>
+            </div>
+            {sous(e.id).map(a => <SousAction key={a.id} a={a} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}
           </div>
         ))}</div>}
         {directes.length > 0 && <><div className="pv-st">ACTIONS · {directes.length}</div>
-          <div className="pv-sub">{directes.map(a => <LigneAction key={a.id} a={a} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} />)}</div></>}
+          <div className="pv-sub">{directes.map(a => <LigneAction key={a.id} a={a} today={data.aujourdhui} onTap={() => setAct({ a })} onCheck={() => cocher(a)} onMenu={() => setMenu({ t: 'action', o: a })} />)}</div></>}
         <div className="pv-add">
           <motion.button whileTap={{ scale: .96 }} onClick={() => setAct({ voix: true })}>🎙 Dire</motion.button>
           <motion.button whileTap={{ scale: .96 }} onClick={() => setLig(true)}>+ Ligne</motion.button>
@@ -133,6 +169,35 @@ export function Poste({ data, cle, go, openEl, reload }) {
       </div>
       <ActionSheet open={!!act} init={act} data={data} poste={cle} onClose={() => setAct(null)} onDone={() => { setAct(null); reload() }} />
       <LigneSheet open={lig} data={data} poste={cle} onClose={() => setLig(false)} onDone={() => { setLig(false); reload() }} />
+      <Sheet open={!!menu} onClose={() => setMenu(null)}>
+        {menu && <>
+          <div className="el-name" style={{ fontSize: 24 }}>{menu.t === 'element' ? menu.o.element : menu.t === 'action' ? menu.o.quoi : menu.o.nom}</div>
+          <div className="ee-menu">
+            {menu.t === 'element' && <>
+              <button onClick={() => { setMenu(null); openEl(menu.o) }}>Modifier<span>›</span></button>
+              <button onClick={() => { setDepl(menu.o); setMenu(null) }}>Déplacer vers…<span>›</span></button>
+              <button onClick={() => dupliquer('element', menu.o.id)}>Dupliquer<span>⧉</span></button>
+              <button className="danger" onClick={() => supprimer('element', menu.o.id, menu.o.element)}>Supprimer</button>
+            </>}
+            {menu.t === 'action' && <>
+              <button onClick={() => { setAct({ a: menu.o }); setMenu(null) }}>Modifier<span>›</span></button>
+              <button onClick={() => repousser(menu.o, 1)}>Repousser à demain<span>›</span></button>
+              <button onClick={() => repousser(menu.o, 3)}>Repousser de 3 jours<span>›</span></button>
+              <button onClick={() => dupliquer('action', menu.o.id)}>Dupliquer<span>⧉</span></button>
+              <button className="danger" onClick={() => supprimer('action', menu.o.id, menu.o.quoi)}>Supprimer</button>
+            </>}
+            {menu.t === 'poste' && <>
+              <button onClick={() => { setMenu(null); setVal(mat ? p.prix_couvert : p.prevu); setEdit(true) }}>Corriger le prévu<span>›</span></button>
+              <button onClick={() => { setMenu(null); setRespSheet(true) }}>Qui tient l'enveloppe<span>›</span></button>
+              <button className="danger" onClick={() => supprimer('poste', cle, p.nom)}>Retirer l'enveloppe</button>
+            </>}
+          </div>
+        </>}
+      </Sheet>
+      <Sheet open={!!depl} onClose={() => setDepl(null)}>
+        <div className="el-name" style={{ fontSize: 24 }}>Déplacer « {depl?.element} » vers</div>
+        <div className="ee-menu">{(data.postes || []).filter(x => x.cle !== cle).map(x => <button key={x.cle} onClick={() => deplacer(depl, x)}>{x.type === 'matiere' ? `Matière ${x.nom.toLowerCase()}` : x.nom}<span>›</span></button>)}</div>
+      </Sheet>
       <Sheet open={respSheet} onClose={() => setRespSheet(false)}>
         <div className="el-name" style={{ fontSize: 26 }}>Qui tient l'enveloppe ?</div>
         <div className="chips" style={{ marginTop: 14 }}>{gens(data).map(g => <button key={g} className={`chip ${g === p.resp ? 'on' : ''}`} onClick={() => api.posteMaj(data.evt, cle, { resp: g }).then(() => { setRespSheet(false); reload() }).catch(e => ui.toast(e.message))}>{g}</button>)}</div>
@@ -145,15 +210,16 @@ const Tag = ({ m }) => <span className={`pv-md ${m || 'vide'}`}>{m ? MODES_L[m] 
 const detailAction = (a, today) => [a.resp, jourCourt(a.echeance, today) + (a.heure ? ` ${a.heure}` : ''),
   a.logistique?.mode === 'livre' ? `livré${a.logistique.lieu ? ` ${a.logistique.lieu}` : ''}` : a.logistique?.mode === 'recuperer' ? `à récupérer${a.logistique.lieu ? ` ${a.logistique.lieu}` : ''}` : null,
   a.logistique?.retour_j1 ? 'retour J+1' : null].filter(Boolean).join(' · ')
-function SousAction({ a, today, onTap, onCheck }) {
-  return <div className={`pv-sa ${a.statut === 'Fait' ? 'fait' : ''}`}><button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" /><button className="t" onClick={onTap}><b>{a.quoi}</b> · {detailAction(a, today)}{n(a.cout) ? ` · ${k(a.cout)}` : ''}</button></div>
+function SousAction({ a, today, onTap, onCheck, onMenu }) {
+  return <div className={`pv-sa ${a.statut === 'Fait' ? 'fait' : ''}`}><button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" /><button className="t" onClick={onTap}><b>{a.quoi}</b> · {detailAction(a, today)}{n(a.cout) ? ` · ${k(a.cout)}` : ''}</button><button className="pv-3 petit" onClick={onMenu} aria-label="Plus d'actions">⋯</button></div>
 }
-function LigneAction({ a, today, onTap, onCheck }) {
+function LigneAction({ a, today, onTap, onCheck, onMenu }) {
   return (
     <div className={`pv-ln ${a.statut === 'Fait' ? 'fait' : ''}`}>
       <button className={`pv-ck ${a.statut === 'Fait' ? 'on' : ''}`} onClick={onCheck} aria-label="Fait" />
       <button className="x" onClick={onTap}><b>{a.quoi}</b><span>{detailAction(a, today)}</span></button>
       <span className="p">{n(a.cout) ? k(a.cout) : '—'}{a.paye ? <small>payé</small> : null}</span>
+      <button className="pv-3" onClick={onMenu} aria-label="Plus d'actions">⋯</button>
     </div>
   )
 }

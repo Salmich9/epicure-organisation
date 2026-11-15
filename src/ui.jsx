@@ -33,12 +33,12 @@ const Ctx = createContext(null)
 export function UIProvider({ children }) {
   const [toast, setToast] = useState(null)
   const [bubble, setBubble] = useState(null)
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2000); return () => clearTimeout(t) }, [toast])
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), toast?.annuler ? 5000 : 2000); return () => clearTimeout(t) }, [toast])
   return (
-    <Ctx.Provider value={{ toast: setToast, bubble: setBubble }}>
+    <Ctx.Provider value={{ toast: setToast, bubble: setBubble, annulable: (texte, annuler) => setToast({ texte, annuler }) }}>
       {children}
       <AnimatePresence>
-        {toast && <motion.div key="t" className="toast" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>{toast}</motion.div>}
+        {toast && <motion.div key="t" className={`toast ${toast?.annuler ? 'avec' : ''}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>{toast?.annuler ? <><span>{toast.texte}</span><button onClick={() => { const f = toast.annuler; setToast(null); f() }}>Annuler</button></> : toast}</motion.div>}
         {bubble && <motion.div key="b" className="bubble" onClick={() => setBubble(null)} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }}>{bubble}</motion.div>}
       </AnimatePresence>
     </Ctx.Provider>

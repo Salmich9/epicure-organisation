@@ -13,6 +13,7 @@ const MESSAGES = {
   manque_obligatoire: 'Il manque quoi, coût, qui ou quand.',
   reserve_admin: 'Seuls Salmane, Hamza et Ghali peuvent supprimer un événement.',
   element_facture: 'Une facture est déjà rangée sur cet élément : retire-la d\'abord.',
+  enveloppe_non_vide: 'Déplace ou supprime d\'abord ses lignes et ses actions.',
 }
 
 async function rpc(fn, args) {
@@ -103,6 +104,11 @@ export const api = {
   ligneAjouter: (evt, p) => rpc('ligne_ajouter', { p_token: store.token, p_evt: evt, p }),
   actionEnregistrer: (evt, id, p) => rpc('action_enregistrer', { p_token: store.token, p_evt: evt, p_id: id || null, p }),
   actionSupprimer: (id) => rpc('action_supprimer', { p_token: store.token, p_id: id }),
+  objetSupprimer: (type, id, evt) => rpc('objet_supprimer', { p_token: store.token, p_type: type, p_id: id, p_evt: evt || null }),
+  objetRestaurer: (cid) => rpc('objet_restaurer', { p_token: store.token, p_corbeille: cid }),
+  objetDupliquer: (type, id) => rpc('objet_dupliquer', { p_token: store.token, p_type: type, p_id: id }),
+  ligneDeplacer: (id, poste) => rpc('ligne_deplacer', { p_token: store.token, p_id: id, p_poste: poste }),
+  posteCreer: (evt, nom, type) => rpc('poste_creer', { p_token: store.token, p_evt: evt, p_nom: nom, p_type: type || 'achat' }),
   dicter: async (texte, poste) => {
     const r = await fetch(`${URL}/functions/v1/orga-dicter`, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ token: store.token, evt: store.evt, texte, poste }) })
     const d = await r.json().catch(() => ({})); if (!r.ok || d.error) throw new Error(d.error || 'Dictée non comprise.'); return d

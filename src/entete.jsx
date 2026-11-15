@@ -7,7 +7,7 @@ import { SupprimerEvt } from './screens'
 const SOCIETES = ['Epicure', 'Business Boys', 'Espèce']
 
 // Une valeur qui devient un champ quand on la touche ; Entrée ou sortie du champ enregistre, Échap annule
-function EnPlace({ valeur, type = 'text', placeholder, className = '', affichage, onSave, large }) {
+export function EnPlace({ valeur, type = 'text', placeholder, className = '', affichage, onSave, large }) {
   const [edit, setEdit] = useState(false)
   const [v, setV] = useState(valeur ?? '')
   const ref = useRef(null)
