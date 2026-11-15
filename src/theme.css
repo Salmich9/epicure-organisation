@@ -1018,3 +1018,46 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .rt-ec { background: var(--red-bg); border-radius: 16px; padding: 12px 14px; margin-bottom: 6px; }
 .rt-ec b { display: block; font-size: 13.5px; margin-bottom: 4px; }
 .rt-ec span { display: block; font-size: 12.5px; }
+
+/* Lot D : le jour J */
+.jj-now { background: var(--ink); color: var(--bg); border-radius: 20px; padding: 14px 16px; margin: 12px 0 6px; }
+.jj-now .t { font-size: 12px; font-weight: 750; opacity: .7; }
+.jj-now > b { display: block; font-family: var(--display); font-size: 26px; font-weight: 400; margin-top: 4px; }
+.jj-now > b small { font-family: var(--body); font-size: 12px; opacity: .7; margin-left: 6px; }
+.jj-now span { display: block; font-size: 13px; margin-top: 8px; opacity: .9; }
+.jj-now span b { color: var(--gold); }
+.jj-f { margin-top: 8px; }
+.jj-i { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.jj-i .h { width: 44px; flex: none; font-size: 13px; font-weight: 800; align-self: flex-start; padding-top: 2px; }
+.jj-i .b { flex: 1; min-width: 0; border-left: 3px solid var(--line); padding-left: 10px; }
+.jj-i.livraison .b { border-color: var(--gold); }
+.jj-i.creneau .b { border-color: var(--accent); }
+.jj-i.moment .b { border-color: var(--achat); }
+.jj-i.action .b { border-color: var(--mute); }
+.jj-i .l1 b { font-size: 14px; }
+.jj-i .b span { display: block; font-size: 11.5px; color: var(--mute); font-weight: 600; margin-top: 2px; }
+.jj-i.fait .l1 b { text-decoration: line-through; color: var(--mute); }
+.jj-i.passe { opacity: .55; }
+.jj-t { font-style: normal; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; color: var(--mute); margin-right: 6px; }
+.jj-t.livraison { color: var(--gold); } .jj-t.creneau { color: var(--accent); } .jj-t.moment { color: var(--achat); }
+.jj-ban { display: flex; align-items: center; gap: 10px; width: 100%; margin: 10px 0 2px; padding: 12px 14px; border-radius: 16px; background: color-mix(in srgb, var(--gold) 18%, var(--surface)); text-align: left; }
+.jj-ban b { font-size: 14px; }
+.jj-ban em { margin-left: auto; font-style: normal; font-size: 12px; font-weight: 650; }
+.bf-c { background: var(--surface); border-radius: 20px; padding: 14px; margin-top: 12px; }
+.bf-lieu { display: flex; justify-content: space-between; font-weight: 750; font-size: 14.5px; color: var(--ink); padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.bf-lieu span { color: var(--accent); font-size: 12.5px; }
+.bf-k { display: flex; justify-content: space-around; padding-top: 10px; text-align: center; font-size: 11.5px; color: var(--mute); font-weight: 650; }
+.bf-k b { display: block; font-family: var(--display); font-size: 26px; font-weight: 400; color: var(--ink); }
+.bf-p { display: flex; gap: 12px; background: var(--surface); border-radius: 16px; padding: 12px; margin-top: 8px; }
+.bf-p .x { flex: 1; min-width: 0; }
+.bf-p .x b { display: block; font-size: 15px; }
+.bf-p .env { display: block; font-size: 12px; color: var(--accent); font-weight: 700; margin: 1px 0 4px; }
+.bf-p .q { display: block; font-size: 13px; margin-top: 3px; }
+.bf-p .q em { font-style: normal; font-weight: 800; margin-right: 6px; }
+.bf-s { display: flex; flex-wrap: wrap; gap: 8px; }
+.bf-s span { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border-radius: 999px; padding: 4px 10px 4px 4px; font-size: 13px; font-weight: 650; }
+.bf-s em { font-style: normal; color: var(--mute); font-size: 11.5px; }
+.bf-w { background: var(--red-bg); border-radius: 12px; padding: 10px 12px; margin-top: 6px; font-size: 13px; font-weight: 650; }
+.bf-w.neutre { background: var(--surface); }
+.bf-w span { display: block; font-size: 11.5px; color: var(--mute); font-weight: 600; }
+.jj-ban b { white-space: nowrap; }

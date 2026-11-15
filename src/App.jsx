@@ -21,6 +21,7 @@ import { setRegles } from './regles'
 import { Corbeille, Historique } from './historique'
 import { Comptes } from './comptes'
 import { Chargement, Retour, Tournees } from './terrain'
+import { JourJ } from './jourj'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
 import { synchroniser } from './api'
@@ -204,6 +205,7 @@ export default function App() {
   else if (route === 'corbeille' || route === 'corbeille/tout') screen = <Corbeille key={route} data={data} go={go} tout={route === 'corbeille/tout'} reload={() => load(data.evt)} />
   else if (route === 'comptes') screen = <Comptes go={go} />
   else if (route === 'tournees') screen = <Tournees go={go} />
+  else if (route === 'jourj') screen = <JourJ data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'chargement') screen = <Chargement data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'retour') screen = <Retour data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'historique') screen = <Historique data={data} go={go} />

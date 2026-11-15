@@ -126,6 +126,9 @@ begin
     perform orga.compte_retirer(tok, 'Zz Nouveau');
     if orga.connexion('Zz Nouveau', c->>'pin')->>'erreur' is null then raise exception 'ECHEC : accès retiré encore valable'; end if;
     delete from orga.connexion_essais where nom = 'zz nouveau';
+    if not (orga.brief(tok, ev) ? 'staff') or not (orga.brief(te, ev) ? 'staff') then raise exception 'ECHEC : brief'; end if;
+    begin perform orga.brief(te, 'EVT-hors-equipe'); raise exception 'ECHEC : brief ouvert hors de ses événements';
+    exception when others then if sqlerrm not like '%reserve_direction%' then raise; end if; end;
   end; ok := ok + 1;
   -- 8 bis. Menu ⋯ : déplacer, dupliquer, supprimer puis restaurer, enveloppe personnalisée
   declare d text; cid bigint; pc text; begin

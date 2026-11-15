@@ -17,7 +17,7 @@ const RPC = {
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }),
   catalogue_liste: () => [{ id: 'CAT-1', element: 'Chafing dish', zone: 'Cuisine traiteur', prix_location: 120 }],
   staff_liste: () => [], staff_evt_liste: () => ({ postes: [], affectes: [] }), planning_liste: () => ({ planning: [] }),
-  bilan_liste: () => ({ lecons: [], encaissements: [], enveloppes: [], pieces_a_imputer: [] }), especes_liste: () => ({ mouvements: [], porteurs: [], encaissements: [], soldes: [] }),
+  brief: () => ({ staff: [{ nom: 'Youssef', poste: 'Serveur' }] }), bilan_liste: () => ({ lecons: [], encaissements: [], enveloppes: [], pieces_a_imputer: [] }), especes_liste: () => ({ mouvements: [], porteurs: [], encaissements: [], soldes: [] }),
   equipe_liste: () => ({ equipe: donnees.equipe_evt, defaut: donnees.equipe_evt, compte: {} }), chiffrage_contexte: () => ({ catalogue: [], references: [], chiffrage: null }),
   action_enregistrer: b => ({ id: 'ACT-NEW', ...b.p }),
   connexion: b => (b.p_pin === '111111' ? { token: '00000000-0000-0000-0000-000000000000', nom: 'Salmane' } : { erreur: b.p_pin === '999999' ? 'compte_bloque' : 'code_incorrect' }),
@@ -153,6 +153,11 @@ if (!appels.some(a => a[0] === 'action_enregistrer' && a[1].p.logistique?.vehicu
 await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/chargement`); await p.waitForTimeout(600); appels.length = 0
 await p.locator('.ch-l .pv-ck').first().click(); await p.waitForTimeout(300)
 if (!appels.some(a => a[0] === 'ligne_terrain' && a[1].p.charge > 0)) echec('cocher une ligne au chargement'); else console.log('  ✓ chargement : cocher une ligne l\'enregistre')
+
+// 4 octies. Lot D : jour J heure par heure et brief
+await p.goto('about:blank'); await p.goto(`http://localhost:${port}/#/jourj`); await p.waitForTimeout(600)
+await p.getByRole('button', { name: "Brief de l'équipe" }).click(); await p.waitForTimeout(400)
+if (!(await p.getByText('Youssef').count()) || !(await p.getByText('Envoyer le brief sur WhatsApp').count())) echec('brief du jour J'); else console.log('  ✓ jour J : le brief montre l\'équipe et les extras')
 
 // 4 bis. En-tête de l'événement : corriger sur place, menu ⋯
 await p.goto(`http://localhost:${port}/#/accueil`); await p.waitForTimeout(400); await p.getByText('Mariage Test').first().click(); await p.waitForTimeout(500)

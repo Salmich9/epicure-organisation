@@ -70,7 +70,7 @@ export function Journee({ mapart }) {
   const h = new Date().getHours()
   const mercis = j.mercis || []
   if (mapart) return mercis.length ? <div className="jr mercis"><b>👏 {mercis.length} merci{mercis.length > 1 ? 's' : ''} cette semaine</b><span>{[...new Set(mercis.map(x => x.de))].join(', ')} · {[...new Set(mercis.map(x => x.quoi))].slice(0, 2).map(q => `« ${q} »`).join(', ')}</span></div> : null
-  if (h < 17 && !n(j.faites)) return null
+  if (!n(j.faites) && !n(j.repoussees) && !mercis.length) return null
   return (
     <div className="jr">
       <div className="t">{h >= 17 ? 'Ta journée' : 'Aujourd\'hui, déjà'}</div>
