@@ -273,3 +273,88 @@ export function PersonneSheet({ ouvert, params, onClose, onSave }) {
     </Sheet>
   )
 }
+
+/* ---------- Clôture : nouveaux prix proposés par l'IA, décidés un à un ---------- */
+function Courbe({ pts }) {
+  const v = (pts || []).map(Number).filter(x => x > 0)
+  if (v.length < 2) return null
+  const mi = Math.min(...v), ma = Math.max(...v), h = 16, w = 60
+  const d = v.map((x, i) => `${2 + (i * (w - 4)) / (v.length - 1)},${ma === mi ? h / 2 : h - 2 - ((x - mi) / (ma - mi)) * (h - 4)}`).join(' ')
+  return <svg width={w} height={h + 2} viewBox={`0 0 ${w} ${h + 2}`} style={{ verticalAlign: 'middle', marginLeft: 6 }}><polyline fill="none" stroke="#9A6416" strokeWidth="2" points={d} /></svg>
+}
+const valTexte = (q, v) => (q.champ === 'ratio' && q.calcul === 'un_pour' ? `1 pour ${fr(v)}` : `${fr(v)}${q.champ === 'ratio' ? '' : ` ${String(q.unite || '').replace(/^MAD/, 'MAD')}`}`)
+const STATUT = { acceptee: 'accepté', modifiee: 'modifié', gardee: 'gardé' }
+
+export function NouveauxPrix({ r, data, go, props, setProps, complet }) {
+  const ui = useUI()
+  const [busy, setBusy] = useState(false)
+  const [modif, setModif] = useState(null)
+  const ps = props?.propositions || [], aD = ps.filter(p => p.statut === 'proposee'), faits = ps.filter(p => p.statut !== 'proposee')
+  const peut = !!props?.peut_modifier
+  async function demander() {
+    setBusy(true)
+    try { const x = await api.copilote('prix', {}); setProps(x); ui.toast(x.propositions?.filter(p => p.statut === 'proposee').length ? 'Propositions prêtes' : 'Rien à changer : le réel colle aux paramètres') }
+    catch (e) { ui.toast(e.message) }
+    setBusy(false)
+  }
+  async function decider(q, decision, valeur, raison) {
+    try { setProps(await api.propositionDecider(q.id, decision, valeur, raison)); setModif(null); ui.toast(decision === 'garder' ? 'Gardé' : 'Référence changée : le prochain chiffrage la prend') }
+    catch (e) { ui.toast(e.message) }
+  }
+  const prevu = r.budget, reel = r.reel + r.estime, ecart = prevu ? (reel / prevu - 1) * 100 : 0
+  return (
+    <motion.div {...glisse}>
+      <div className="head"><button className="back" onClick={() => go('bilan')}>‹ Bilan</button>
+        <div className="when">{r.ev.nom}{complet ? ' · toutes les pièces inscrites' : ''}</div>
+        <h1 style={{ fontSize: 34, display: 'flex', alignItems: 'center', gap: 10 }}>Nouveaux prix <Info text="L'IA compare le prévu de chaque paramètre au réel des pièces et aux derniers événements. Tu acceptes, tu modifies ou tu gardes, une proposition à la fois." /></h1></div>
+      <div className="cf-tot"><div><b>{mad(prevu)}</b>prévu</div><div><b>{mad(reel)}</b>réel</div><div><b style={{ color: ecart > 0 ? '#F3B37A' : undefined }}>{ecart > 0 ? '+' : ''}{fr(Math.round(ecart * 10) / 10)} %</b>écart</div></div>
+      {!complet && <div className="cf-vieux"><span>Il manque des pièces{r.sansPiece.length ? ` : ${r.sansPiece.map(z => z.nom).join(', ')}` : ''}. Les propositions viendront quand tout sera inscrit.</span></div>}
+      {complet && !ps.length && <div className="px" style={{ marginTop: 16 }}><button className="btn primary block" disabled={busy} onClick={demander}>{busy ? 'L\'IA compare…' : 'Demander les propositions à l\'IA'}</button></div>}
+      {aD.length > 0 && <>
+        <div className="cf-grp"><span>À DÉCIDER · {aD.length}</span></div>
+        <div className="list">{aD.map(q => (
+          <div key={q.id} className="cf-prop">
+            <div className="t"><b>{q.libelle} · {q.champ === 'ratio' ? 'ratio' : 'prix'}</b><span className="ar"><s>{q.champ === 'ratio' && q.calcul === 'un_pour' ? `1 pour ${fr(q.actuel)}` : fr(q.actuel)}</s>→ {valTexte(q, q.propose)}</span></div>
+            {q.raison && <div className="w">{q.raison}</div>}
+            {(q.tendance || (q.points || []).length > 1) && <div className="w">{q.tendance}<Courbe pts={q.points} /></div>}
+            {peut ? <div className="bt">
+              <button className="ok" onClick={() => decider(q, 'accepter')}>Accepter</button>
+              <button onClick={() => setModif(q)}>Modifier</button>
+              <button onClick={() => decider(q, 'garder')}>Garder</button>
+            </div> : <div className="w" style={{ marginTop: 8 }}>Seul Salmane décide.</div>}
+          </div>
+        ))}</div>
+      </>}
+      {faits.length > 0 && <>
+        <div className="cf-grp"><span>DÉJÀ DÉCIDÉES</span></div>
+        <div className="list">{faits.map(q => (
+          <div key={q.id} className="cf-l"><div className="x"><b>{q.libelle}</b>
+            <span>{q.statut === 'gardee' ? `gardé à ${valTexte(q, q.ancien)} · proposé ${valTexte(q, q.propose)}` : `${valTexte(q, q.ancien)} → ${valTexte(q, q.valeur_finale)}`}{q.decide_par ? ` · ${q.decide_par}` : ''}</span></div>
+            <div className="cf-v" style={{ fontSize: 14, color: q.statut === 'gardee' ? 'var(--mute)' : 'var(--accent)' }}>{STATUT[q.statut]}</div></div>
+        ))}</div>
+      </>}
+      {complet && ps.length > 0 && !aD.length && <div className="px" style={{ marginTop: 14 }}><button className="chip" disabled={busy} onClick={demander}>{busy ? '…' : 'Redemander à l\'IA'}</button></div>}
+      <ModifSheet q={modif} onClose={() => setModif(null)} onSave={(v, raison) => decider(modif, 'modifier', v, raison)} />
+    </motion.div>
+  )
+}
+
+function ModifSheet({ q, onClose, onSave }) {
+  const ui = useUI()
+  const [v, setV] = useState(''), [raison, setRaison] = useState('')
+  useEffect(() => { if (q) { setV(fr(q.propose)); setRaison('') } }, [q?.id])
+  if (!q) return <Sheet open={false} onClose={onClose} />
+  const x = num(v)
+  return (
+    <Sheet open={!!q} onClose={onClose} foot={<button className="btn primary" onClick={() => (x > 0 ? onSave(x, raison) : ui.toast('Il manque le chiffre'))}>Enregistrer la référence à {x > 0 ? fr(x) : '…'}</button>}>
+      <div className="el-kicker">{SECTIONS.find(([k]) => k === q.section)?.[1]} · {q.groupe}</div>
+      <div className="el-name" style={{ fontSize: 28 }}>{q.libelle}</div>
+      <div className="cf-lbl">{q.champ === 'ratio' ? (q.calcul === 'un_pour' ? 'Nouveau ratio (1 pour…)' : 'Nouveau ratio') : 'Nouveau prix'}</div>
+      <div className="cf-in"><input inputMode="decimal" value={v} onChange={e => setV(e.target.value)} autoFocus /><span>{q.champ === 'ratio' ? q.ratio_unite : q.unite}</span></div>
+      <div className="cf-src">Proposé par l'IA : <b>{valTexte(q, q.propose)}</b> · actuel <b>{valTexte(q, q.actuel)}</b>
+        <div className="h">{[q.reel ? `réel ici ${fr(q.reel)}` : '', q.tendance, q.nb_modifs ? `modifié ${q.nb_modifs} fois` : ''].filter(Boolean).join(' · ')}</div></div>
+      <div className="cf-lbl">Raison (facultatif)</div>
+      <input placeholder="ex. nouveau fournisseur" value={raison} onChange={e => setRaison(e.target.value)} />
+    </Sheet>
+  )
+}

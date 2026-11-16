@@ -59,6 +59,13 @@ const lignes = (chefs = 20) => [
 ]
 const BASE = { invites: 200, traiteur: true, bar: true, moments: ['accueil', 'cocktail', 'diner_assis', 'desserts'], alcool: [], surcharges: {}, effectifs: {}, personnes: {} }
 let peut = true
+const Q = (id, cle, libelle, champ, actuel, propose, raison, tendance, points, extra = {}) => ({ id, cle, libelle, champ, ancien: actuel, actuel, propose, raison, tendance, points, statut: 'proposee',
+  calcul: champ === 'ratio' ? 'un_pour' : 'par_base', unite: 'MAD', ratio_unite: 'couverts', section: 'moments', groupe: 'Matière par invité', nb_modifs: 3, ...extra })
+const PROPS = { peut_modifier: true, propositions: [
+  Q(1, 'm_cocktail', 'Cocktail dînatoire', 'valeur', 5.5, 5.9, 'Réel ici 6,1 la pièce (facture Traiteur X)', '3 derniers : 5,5 → 5,8 → 6,1', [5.5, 5.8, 6.1], { unite: 'MAD / pièce', reel: 6.1 }),
+  Q(2, 's_commis', 'Commis de cuisine', 'ratio', 30, 25, '8 commis payés pour 200 couverts, 7 prévus', '2e fois de suite', [30, 26, 25], { section: 'staff', groupe: 'Cuisine' }),
+  Q(3, 't_navette', 'Navette staff A/R', 'valeur', 1050, 1150, 'Facture Transport Atlas : 1 150 par véhicule', 'stable', [1150, 1150], { unite: 'MAD / véhicule', section: 'transport', groupe: 'Transport du personnel' }),
+  { ...Q(4, 'b_glace', 'Glace', 'valeur', 4, 4.5, '', '', []), statut: 'gardee', unite: 'MAD / kg', decide_par: 'Salmane' }] }
 const RPC = {
   aujourdhui: () => aujourdhui, accueil: () => accueil, donnees: () => donnees, depot_liste: () => [],
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }), pour_toi: () => ({ non_vus: 0, items: [] }),
@@ -68,6 +75,8 @@ const RPC = {
   chiffrage_calculer: b => ({ lignes: lignes(), base: { ...BASE, ...(b.p_base || {}) } }),
   chiffrage_surcharger: b => ({ lignes: lignes(b.p.ratio ? Math.ceil(200 / b.p.ratio) : 20), base: { ...BASE, surcharges: b.p_reference ? {} : { [b.p_cle]: { ratio: b.p.ratio } } } }),
   chiffrage_personne: () => ({ lignes: lignes(), base: BASE }), chiffrage_enregistrer: () => true,
+  bilan_liste: () => ({ pieces_a_imputer: 0, encaissements: 0, enveloppes: [], lecons: [] }),
+  propositions_liste: () => PROPS, proposition_decider: b => ({ peut_modifier: true, propositions: PROPS.propositions.map(q => q.id === b.p_id ? { ...q, statut: b.p_decision === 'garder' ? 'gardee' : 'acceptee', valeur_finale: b.p_valeur ?? q.propose, decide_par: 'Salmane' } : q) }),
   staff_liste: () => [{ id: 'S1', prenom: 'Mohamed', nom: 'Bijar' }, { id: 'S2', prenom: 'Youssef', nom: 'Alami' }, { id: 'S3', prenom: 'Karim', nom: 'Idrissi' }],
 }
 let ko = 0
@@ -139,6 +148,24 @@ peut = false
 await p.reload(); await p.waitForTimeout(1500)
 await p.click('.cf-l:has-text("Dîner assis")'); await p.waitForTimeout(500)
 if (!(await p.locator('.cf-choix button:has-text("Aussi la référence")').isDisabled())) echec('référence ouverte à tous')
+
+// 8. Clôture : nouveaux prix
+peut = true
+await voir('bilan', 1400)
+if (!(await p.locator('.etapes button:has-text("Nouveaux prix")').count())) echec('étape Nouveaux prix absente')
+await photo('c9-bilan.png')
+await voir('bilan/prix', 1200)
+if ((await p.locator('.cf-prop').count()) !== 3) echec('3 propositions à décider')
+await photo('c10-nouveaux-prix.png')
+await p.locator('.cf-prop').first().locator('button:has-text("Accepter")').click(); await p.waitForTimeout(400)
+const de = appels.find(a => a[0] === 'proposition_decider')?.[1]
+if (!de || de.p_id !== 1 || de.p_decision !== 'accepter') echec(`accepter : ${JSON.stringify(de)}`)
+await p.locator('.cf-prop').first().locator('button:has-text("Modifier")').click(); await p.waitForTimeout(500)
+await p.locator('.sheet input[inputmode=decimal]').fill('27')
+await photo('c11-modifier.png')
+await p.click('.sheet button:has-text("Enregistrer la référence")'); await p.waitForTimeout(400)
+const de2 = appels.filter(a => a[0] === 'proposition_decider').pop()?.[1]
+if (!de2 || de2.p_id !== 2 || de2.p_decision !== 'modifier' || de2.p_valeur !== 27) echec(`modifier : ${JSON.stringify(de2)}`)
 
 await b.close(); srv.close()
 console.log(ko ? `${ko} échec(s)` : 'CHIFFRAGE OK')

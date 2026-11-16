@@ -4,6 +4,7 @@ import { api } from './api'
 import { tva } from './regles'
 import { Info, Sheet, dans, dateLongue, envZone, n, useUI } from './ui'
 import { Rail } from './cycle'
+import { NouveauxPrix } from './chiffrage'
 
 /* Bilan de clôture : résultat, prévu / réel, leçons, check-list. Une seule source : les pièces imputées. */
 const mt = v => Math.round(n(v)).toLocaleString('fr-FR')
@@ -42,24 +43,31 @@ export function calculBilan(data, b) {
 export function Bilan({ data, go, reload, sous }) {
   const ui = useUI()
   const [b, setB] = useState(null)
-  const charger = () => api.bilanListe(data.evt).then(setB).catch(e => { ui.toast(e.message); setB({}) })
+  const [props, setProps] = useState(null)
+  const charger = () => Promise.all([
+    api.bilanListe(data.evt).then(setB).catch(e => { ui.toast(e.message); setB({}) }),
+    api.propositionsListe(data.evt).then(setProps).catch(() => setProps({ propositions: [] })),
+  ])
   useEffect(() => { charger() }, [data.evt])
   const r = calculBilan(data, b)
   const recharger = async () => { await Promise.all([charger(), reload()]) }
   if (!b) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
   if (sous === 'zones') return <Zones r={r} data={data} go={go} recharger={recharger} b={b} />
   if (sous === 'cloturer') return <Cloturer r={r} data={data} go={go} recharger={recharger} />
+  if (sous === 'prix') return <NouveauxPrix r={r} data={data} go={go} props={props} setProps={setProps} complet={!n(b?.pieces_a_imputer) && !r.sansPiece.length} />
   if (sous === 'lecons') return <Lecons r={r} data={data} go={go} b={b} setB={setB} recharger={recharger} />
-  return <Resultat r={r} data={data} go={go} b={b} recharger={recharger} />
+  return <Resultat r={r} data={data} go={go} b={b} recharger={recharger} props={props} />
 }
 
-function Resultat({ r, data, go, b, recharger }) {
+function Resultat({ r, data, go, b, recharger, props }) {
   const ui = useUI()
   const { ev } = r
   const clos = ev.statut === 'Clôturé'
   const verts = r.checks.filter(c => c.ok).length
   const aDecider = (b.lecons || []).filter(l => l.statut === 'proposee').length
   const analyse = !!ev.bilan?.analyse_le
+  const prixAD = (props?.propositions || []).filter(p => p.statut === 'proposee').length, prixFaits = (props?.propositions || []).length - prixAD
+  const complet = !n(b?.pieces_a_imputer) && !r.sansPiece.length
   async function rouvrir() { try { await api.evenementStatut(data.evt, 'Réalisé'); ui.toast('Événement rouvert'); await recharger() } catch (e) { ui.toast(e.message) } }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -84,7 +92,8 @@ function Resultat({ r, data, go, b, recharger }) {
       <div className="etapes">
         <motion.button whileTap={{ scale: .98 }} onClick={() => go('bilan/zones')}><i>1</i><div>Prévu / réel par zone<span>{analyse ? 'le copilote a expliqué les écarts' : 'avec le pourquoi des écarts'}</span></div>›</motion.button>
         <motion.button whileTap={{ scale: .98 }} onClick={() => go('bilan/lecons')}><i>2</i><div>Leçons<span>{aDecider ? `${aDecider} à retenir ou ignorer` : (b.lecons || []).length ? 'tout est décidé' : 'ce qui corrige les prochains chiffrages'}</span></div>{aDecider ? <em>{aDecider}</em> : '›'}</motion.button>
-        <motion.button whileTap={{ scale: .98 }} onClick={() => go('bilan/cloturer')}><i className={clos ? 'ok' : ''}>{clos ? '✓' : 3}</i><div>{clos ? 'Clôturé' : 'Clôturer'}<span>{clos ? `le ${String(ev.cloture_le || '').slice(0, 10).split('-').reverse().join('/')}${ev.bilan?.raison ? ` · ${ev.bilan.raison}` : ''}` : `${verts}/${r.checks.length} vérifications au vert`}</span></div>›</motion.button>
+        <motion.button whileTap={{ scale: .98 }} onClick={() => go('bilan/prix')}><i>3</i><div>Nouveaux prix<span>{prixAD ? `${prixAD} proposition${prixAD > 1 ? 's' : ''} sur tes paramètres` : prixFaits ? 'tout est décidé' : complet ? 'l\'IA compare le prévu au réel' : 'dès que toutes les pièces sont inscrites'}</span></div>{prixAD ? <em>{prixAD}</em> : '›'}</motion.button>
+        <motion.button whileTap={{ scale: .98 }} onClick={() => go('bilan/cloturer')}><i className={clos ? 'ok' : ''}>{clos ? '✓' : 4}</i><div>{clos ? 'Clôturé' : 'Clôturer'}<span>{clos ? `le ${String(ev.cloture_le || '').slice(0, 10).split('-').reverse().join('/')}${ev.bilan?.raison ? ` · ${ev.bilan.raison}` : ''}` : `${verts}/${r.checks.length} vérifications au vert`}</span></div>›</motion.button>
       </div>
       {clos && <button className="lien-perdu" onClick={rouvrir}>Rouvrir l'événement</button>}
     </motion.div>
