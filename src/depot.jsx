@@ -8,7 +8,7 @@ import { Info, Sheet, ddmm, n, useUI } from './ui'
 const qt = v => Number(n(v).toFixed(3)).toLocaleString('fr-FR')
 const mad = v => Math.round(n(v)).toLocaleString('fr-FR')
 const madk = v => (n(v) >= 10000 ? `${Math.round(n(v) / 1000).toLocaleString('fr-FR')} k` : mad(v))
-const TYPES = { achat: ['Achat', '+'], prelevement: ['Sortie', '−'], retour: ['Retour', '+'], inventaire: ['Inventaire', '='], perte: ['Perte', '−'], correction: ['Correction', '±'], annulation: ['Annulé', '−'] }
+const TYPES = { achat: ['Achat', '+'], prelevement: ['Sortie', '−'], retour: ['Retour', '+'], inventaire: ['Inventaire', '='], inventaire_initial: ['Inventaire', '='], ajustement: ['Écart inventaire', '±'], perte: ['Perte', '−'], correction: ['Correction', '±'], annulation: ['Annulé', '−'] }
 const Photo = ({ a, size }) => a.photo ? <img src={a.photo} alt="" loading="lazy" style={size ? { width: size, height: size } : null} /> : <div className="ph" style={size ? { width: size, height: size } : null}>{(a.nom || '?')[0]}</div>
 
 const vu = { stock: null }
@@ -79,7 +79,7 @@ function Mvt({ m, avecArticle }) {
     <div className="row dp-m">
       <div className="x"><b>{avecArticle ? m.article : lib}{m.evt ? <em> · {m.evt.trim()}</em> : m.fournisseur ? <em> · {m.fournisseur}</em> : null}</b>
         <span>{avecArticle ? `${lib} · ` : ''}{m.qui ? m.qui.split(' ')[0] : ''} · {ddmm(String(m.quand).slice(0, 10))}{m.note ? ` · ${m.note}` : ''}</span></div>
-      <div className={`dp-d ${neg ? 'neg-s' : ''}`}>{m.type === 'inventaire' ? '=' : neg ? '−' : '+'}{qt(Math.abs(n(m.qte)))}</div>
+      <div className={`dp-d ${neg ? 'neg-s' : ''}`}>{m.type === 'inventaire' || m.type === 'inventaire_initial' ? '=' : neg ? '−' : '+'}{qt(Math.abs(n(m.qte)))}</div>
     </div>
   )
 }
@@ -254,7 +254,7 @@ export function DepotInventaire({ id, go, droits = [] }) {
         <input className="dp-q" placeholder="Chercher un article" value={q} onChange={e => setQ(e.target.value)} />
         <div className="chips dp-cats"><button className={`chip ${!reste ? 'on' : ''}`} onClick={() => setReste(false)}>Tout</button><button className={`chip ${reste ? 'on' : ''}`} onClick={() => setReste(true)}>Pas encore compté</button></div>
       </div>
-      <div className="list" style={{ marginTop: 10 }}>{vues.slice(0, 80).map(x => {
+      <div className="list" style={{ marginTop: 10 }}>{vues.map(x => {
         const e = x.compte != null ? n(x.compte) - n(x.stock) : null
         return (
           <div key={x.article_id} className="row dp-a dp-inv">
