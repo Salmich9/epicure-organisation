@@ -38,10 +38,12 @@ const Corbeille = tard(historique, 'Corbeille'), Historique = tard(historique, '
 const Comptes = tard(() => import('./comptes'), 'Comptes')
 const JourJ = tard(() => import('./jourj'), 'JourJ')
 const notifs = () => import('./notifs')
+const env = () => import('./enveloppes')
+const ValiderBudget = tard(env, 'ValiderBudget'), MonEnveloppe = tard(env, 'MonEnveloppe'), EnveloppesEvt = tard(env, 'EnveloppesEvt')
 const ReglagesNotifs = tard(notifs, 'ReglagesNotifs'), MesRappels = tard(notifs, 'MesRappels'), Tache = tard(notifs, 'Tache')
 const Patience = () => <div className="empty" style={{ paddingTop: 80 }}>…</div>
 // Une fois l'appli affichée, les autres écrans se téléchargent en douce : ils s'ouvriront vite, même hors connexion
-if (typeof window !== 'undefined') addEventListener('load', () => setTimeout(() => [creation, staff, copilote, historique, () => import('./especes'), () => import('./bilan'), () => import('./menu'), () => import('./planning'), () => import('./comptes'), () => import('./jourj'), notifs].forEach(f => f().catch(() => {})), 4000))
+if (typeof window !== 'undefined') addEventListener('load', () => setTimeout(() => [creation, staff, copilote, historique, () => import('./especes'), () => import('./bilan'), () => import('./menu'), () => import('./planning'), () => import('./comptes'), () => import('./jourj'), notifs, env].forEach(f => f().catch(() => {})), 4000))
 
 // Stock du dépôt : chargé à part, gardé 5 minutes (il change rarement et pèse lourd)
 const DEPOT = { liste: null, le: 0 }
@@ -267,6 +269,9 @@ export default function App() {
   else if (route === 'staff') screen = <StaffListe go={go} />
   else if (route === 'parametres') screen = <Parametres go={go} />
   else if (route === 'notifs') screen = <ReglagesNotifs go={go} />
+  else if (route.startsWith('budget-valider/')) screen = <ValiderBudget key={route} evt={route.split('/')[1]} go={go} />
+  else if (route.startsWith('mon-enveloppe/')) screen = <MonEnveloppe key={route} evt={route.split('/')[1]} go={go} />
+  else if (route.startsWith('enveloppes-evt/')) screen = <EnveloppesEvt key={route} evt={route.split('/')[1]} data={data} go={go} />
   else if (route === 'mes-rappels') screen = <MesRappels go={go} />
   else if (route.startsWith('tache/')) { const [, e, t] = route.split('/'); screen = <Tache key={route} evt={e} id={t} go={go} ouvrirPlanning={async x => { await load(x); go('planning') }} /> }
   else if (route.startsWith('staff/')) screen = <StaffFiche key={route} go={go} id={route.split('/')[1]} />

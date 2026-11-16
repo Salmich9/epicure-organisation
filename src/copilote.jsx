@@ -98,7 +98,7 @@ const THEMES = ['Tout', 'Logistique', 'Technique et électricité', 'Art de tabl
 /* Écran : le copilote te challenge, une question à la fois */
 export function Copilote({ data, go, reload }) {
   const ui = useUI()
-  const [theme, setTheme] = useState('Tout')
+  const [theme, setTheme] = useState(() => { try { const t = sessionStorage.getItem('copilote_theme'); sessionStorage.removeItem('copilote_theme'); return THEMES.includes(t) ? t : 'Tout' } catch { return 'Tout' } })
   const [qs, setQs] = useState(null)
   const [i, setI] = useState(0)
   const [choix, setChoix] = useState(null)

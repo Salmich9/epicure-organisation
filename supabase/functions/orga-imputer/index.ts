@@ -12,9 +12,34 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
-    const { token, evt, pieces } = await req.json()
+    const corps = await req.json()
+    const { token, evt, pieces } = corps
     const key = Deno.env.get('ANTHROPIC_API_KEY')
     if (!key) return json({ error: 'Clé Claude absente.' }, 500)
+    // Rangement automatique (toutes les 5 minutes, réveillé par la base) : l'IA range, la direction vérifie ensuite
+    if (corps.action === 'ranger') {
+      const adm = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'orga' } })
+      const secret = (await adm.from('parametres').select('valeur').eq('cle', 'notifs_secret').maybeSingle()).data?.valeur
+      if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) return json({ error: 'Refusé.' }, 403)
+      const { data: lots } = await adm.rpc('_pieces_a_ranger')
+      let ranges = 0
+      for (const lot of (lots || []).slice(0, 5)) {
+        const els = (lot.elements || []).map((e: any) => `${e.id} | ${e.zone} | ${e.element}${e.fournisseur ? ` | fournisseur ${e.fournisseur}` : ''}${e.poste ? ` | poste ${e.poste}` : ''} | prévu ${e.cout ?? '?'}`).join('\n')
+        const txt = (lot.pieces || []).slice(0, 30).map((p: any) => `${p.id} | ${p.fournisseur ?? '?'} | ${p.type ?? ''} | ${p.montant ?? '?'} MAD | déposée par ${p.par ?? '?'}`).join('\n')
+        const r = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-sonnet-5-5', max_tokens: 2000, tools: [OUTIL], tool_choice: { type: 'auto' },
+            system: 'Tu es le contrôleur de gestion d\'un traiteur événementiel à Marrakech. Tu réponds TOUJOURS en appelant l\'outil fourni.',
+            messages: [{ role: 'user', content: `Éléments de l'organisation de l'événement (id | zone | élément | …) :\n${els}\n\nPièces reçues (id | fournisseur | type | montant | qui l'a déposée) :\n${txt}\n\nPour chaque pièce, l'élément qu'elle paie d'après ce que vend ce fournisseur, le montant prévu et qui l'a déposée (la personne est souvent responsable de ce poste). Un bon d'espèces sans fournisseur clair : l'élément le plus proche de ce que la personne gère. Seulement si tu en es raisonnablement sûr ; sinon element_id vide. Appelle l'outil « suggestions ».` }] }),
+        })
+        const out = await r.json()
+        if (!r.ok) continue
+        let sug = (out.content || []).find((c: any) => c.type === 'tool_use')?.input?.suggestions || []
+        if (typeof sug === 'string') { try { sug = JSON.parse(sug) } catch { sug = [] } }
+        for (const x of sug) if (x?.element_id) { const { data: ok } = await adm.rpc('_piece_ranger', { p_id: Number(x.id), p_element: x.element_id }); if (ok) ranges++ }
+      }
+      return json({ ranges })
+    }
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
     const { data, error } = await sb.rpc('donnees', { p_token: token, p_evt: evt || null })
     if (error) return json({ error: 'Session expirée, reconnecte-toi.' }, 401)
