@@ -48,6 +48,13 @@ const RPC = {
     fournisseurs: [{ id: 'f1', nom: 'Verrerie Atlas', tel: '0661 00 00 00', note: 'Livre le mardi' }, { id: 'f2', nom: 'Marché de gros' }, { id: 'f3', nom: 'Ali' }, { id: 'f4', nom: 'Metro Marrakech' }],
     motifs: [{ id: 'mo1', nom: 'Consommée', perte: false }, { id: 'mo2', nom: 'Casse', perte: true }, { id: 'mo3', nom: 'Oublié sur place', perte: true }, { id: 'mo4', nom: 'Vol', perte: true }],
     archives: [{ id: 'z1', nom: 'Verre Old Fashioned (ancien modèle)', cat: 'Bar & verrerie' }, { id: 'z2', nom: 'Bâche 4×6', cat: 'Logistique' }] }),
+  depot_pieces: () => equipe ? [] : [
+    { id: 1, statut: 'proposee', type: 'FACTURE', fournisseur: 'Verrerie Atlas', numero: 'FA-2611', date: '2026-11-15', evt_nom: 'Mariage Norah et François', depose_par: 'Ouadia Daalaoui', cree_le: '2026-11-16T09:12:00Z', drive_url: 'https://drive.google.com/x',
+      lignes: [{ designation: 'VERRE BORDEAUX 35CL', qte: 120, prix: 18.5, article_id: 'a1', confiance: 'sur' }, { designation: 'FLUTE CHAMP. 17CL', qte: 60, prix: 16, article_id: 'a2', confiance: 'proche' },
+               { designation: 'CARAFE 1L VERRE', qte: 12, prix: 45, nouveau: { nom: 'Carafe 1 L', cat_id: null, unite_id: null }, confiance: 'nouveau' }, { designation: 'FRAIS DE LIVRAISON', qte: 1, prix: 150, ignorer: true }] },
+    { id: 2, statut: 'proposee', type: 'BL', fournisseur: 'Marché de gros', numero: '4471', date: '2026-11-16', evt_nom: null, depose_par: 'Ghali Benchekroun', cree_le: '2026-11-16T08:40:00Z', lignes: [{ designation: 'citron vert', qte: 8, prix: null, article_id: 'a11', confiance: 'sur' }] },
+    { id: 3, statut: 'validee', type: 'FACTURE', fournisseur: 'Ali', numero: '118', evt_nom: null, depose_par: 'Salmane', cree_le: '2026-11-13T10:00:00Z', valide_par: 'Salmane', valide_le: '2026-11-13T10:05:00Z', lignes: [{ designation: 'serviettes', qte: 1000, prix: .35, article_id: 'a8' }] }],
+  depot_piece_maj: () => ({ id: 1 }), depot_piece_valider: () => ({ entres: 2, corriges: 1, reserves: 3, nouveaux: 1, ignores: 1 }),
   depot_reglage_maj: () => true, depot_transfert: () => ({ ok: true }), ligne_terrain: b => b.p, depot_article_maj: () => ({ id: 'a1' }),
 }
 let ko = 0
@@ -90,6 +97,25 @@ if (!(await p.locator('.dp-prog').textContent()).includes('5 / 13')) echec('prog
 await voir('depot/historique'); await photo('7-historique.png')
 await p.click('.chip:has-text("Sorties")'); await p.waitForTimeout(400)
 if ((await p.locator('.row.dp-m').count()) !== 2) echec('filtre sorties')
+// pièces lues par l'IA
+await voir('depot', 1200)
+if (!(await p.locator('.dp-int').count())) echec('tuile pièces à intégrer absente')
+await photo('17-depot-pieces.png')
+await p.click('.dp-int'); await p.waitForTimeout(800)
+await photo('18-pieces.png')
+await p.click('text=Verrerie Atlas'); await p.waitForTimeout(900)
+if (!(await p.locator('button:has-text("Ligne 3 : article à choisir")').count())) echec('ligne sans catégorie non signalée')
+await photo('19-piece.png')
+await p.click('.dp-pl:has-text("FLUTE")'); await p.waitForTimeout(500)
+await photo('20-piece-ligne.png')
+await p.locator('.scrim').first().click({ position: { x: 20, y: 20 } }); await p.waitForTimeout(400)
+await p.click('.dp-pl:has-text("CARAFE")'); await p.waitForTimeout(400)
+await p.click('.sheet .chip:has-text("Bar & verrerie")'); await p.click('.sheet .chip:has-text("Pièce")')
+await p.click('button:has-text("Enregistrer la ligne")'); await p.waitForTimeout(400)
+const pm = appels.filter(a => a[0] === 'depot_piece_maj').pop()?.[1]
+if (!pm || pm.p.lignes[2].nouveau.cat_id !== 'c1' || pm.p.lignes[2].nouveau.unite_id !== 'u1') echec(`ligne corrigée : ${JSON.stringify(pm)?.slice(0, 200)}`)
+await p.click('button:has-text("Valider · entre au stock")'); await p.waitForTimeout(500)
+if (!appels.some(a => a[0] === 'depot_piece_valider' && a[1].p_id === 1 && !a[1].p_refuser)) echec('validation de la pièce')
 // sortie vers un établissement
 await voir('depot', 900)
 await p.click('.dp-act button:has-text("Sortie")'); await p.waitForTimeout(800)

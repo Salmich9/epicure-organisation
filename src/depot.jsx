@@ -23,7 +23,9 @@ export function Depot({ go, droits = [] }) {
   const [alerte, setAlerte] = useState(false)
   const [achat, setAchat] = useState(null)
   const [act, setAct] = useState(null)
-  useEffect(() => { chargerStock().then(setS).catch(e => ui.toast(e.message)); api.depotHistorique({ limite: 4 }).then(h => setAct(h.lignes)).catch(() => setAct([])) }, [])
+  const [aInt, setAInt] = useState(0)
+  useEffect(() => { chargerStock().then(setS).catch(e => ui.toast(e.message)); api.depotHistorique({ limite: 4 }).then(h => setAct(h.lignes)).catch(() => setAct([]))
+    if (droits.includes('prix')) api.depotPieces().then(l => setAInt(l.filter(x => x.statut === 'proposee').length)).catch(() => {}) }, [])
   const cats = useMemo(() => s ? [...new Map(s.articles.map(a => [a.cat_id, { id: a.cat_id, nom: a.cat, o: a.cat_ordre }])).values()].sort((a, b) => a.o - b.o) : [], [s])
   if (!s) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
   const peut = d => droits.includes(d)
@@ -41,6 +43,7 @@ export function Depot({ go, droits = [] }) {
         <button onClick={() => go('depot/commande')}><b>{nCmd}</b>à commander ›</button>
         <button onClick={() => go('depot/inventaire')}><b>{s.inventaire ? ddmm(s.inventaire) : '—'}</b>dernier inventaire ›</button>
       </div>
+      {aInt > 0 && <button className="tr-lien dp-int" onClick={() => go('depot/pieces')}><span>🧾</span><b>{aInt} pièce{aInt > 1 ? 's' : ''} à intégrer</b><em>lues par l'IA ›</em></button>}
       <div className="dp-act">
         {peut('acheter') && <button className="p" onClick={() => setAchat({})}>+ Achat</button>}
         {(peut('acheter') || peut('inventaire') || peut('gerer')) && <button onClick={() => go('depot/sortie')}>Sortie</button>}
@@ -461,6 +464,112 @@ export function DepotSortie({ go }) {
             {f.sens === 'sortie' && n(l.qte) > n(l.a.qte) && <div className="small" style={{ color: 'var(--red)', marginTop: 6 }}>Plus que ce qu'il y a au dépôt : le stock passera en négatif.</div>}
             {l.i != null && <div className="ee-menu"><button className="danger" onClick={() => { setF(v => ({ ...v, lignes: v.lignes.filter((_, k) => k !== l.i) })); setL(null) }}>Retirer<span>›</span></button></div>}
           </>}
+        </>}
+      </Sheet>
+    </motion.div>
+  )
+}
+
+// Pièces à intégrer : une facture ou un BL déposé au bot, lu par l'IA, à valider (la direction)
+const confLib = { sur: ['✓', 'sûr'], proche: ['≈', 'à vérifier'], nouveau: ['＋', 'nouvel article'] }
+export function DepotPieces({ go }) {
+  const ui = useUI()
+  const [l, setL] = useState(null)
+  useEffect(() => { api.depotPieces().then(setL).catch(e => ui.toast(e.message)) }, [])
+  if (!l) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
+  const ouv = l.filter(x => x.statut === 'proposee'), faites = l.filter(x => x.statut !== 'proposee').slice(0, 15)
+  const Ligne = ({ x }) => (
+    <button className="row dp-m" onClick={() => go(`depot/piece/${x.id}`)}>
+      <div className="x"><b>{x.fournisseur || 'Fournisseur ?'}<em> · {x.type === 'BL' ? 'BL' : 'Facture'}{x.numero ? ` ${x.numero}` : ''}</em></b>
+        <span>{x.evt_nom || 'Réassort'} · {x.lignes.length} ligne{x.lignes.length > 1 ? 's' : ''} · {(x.depose_par || '').split(' ')[0]} · {ddmm(String(x.cree_le).slice(0, 10))}</span></div>
+      {x.statut === 'proposee' ? <span className="pend">À VALIDER</span> : <span className={`dp-d ${x.statut === 'refusee' ? 'neg-s' : ''}`}>{x.statut === 'validee' ? '✓' : 'refusée'}</span>}
+    </button>)
+  return (
+    <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
+      <div className="head"><button className="back" onClick={() => go('depot')}>‹ Dépôt</button>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>Pièces<Info text="Les factures et BL déposés au bot, lus par l'IA. Vérifie les articles proposés, puis valide : tout entre au stock d'un coup. Le déposant peut aussi valider depuis le bot." /></h1></div>
+      {!ouv.length && <div className="empty" style={{ paddingTop: 30 }}>Rien à intégrer.</div>}
+      {ouv.length > 0 && <div className="list" style={{ marginTop: 14 }}>{ouv.map(x => <Ligne key={x.id} x={x} />)}</div>}
+      {faites.length > 0 && <><div className="group">Déjà traitées</div><div className="list">{faites.map(x => <Ligne key={x.id} x={x} />)}</div></>}
+      <div style={{ height: 120 }} />
+    </motion.div>
+  )
+}
+
+export function DepotPiece({ id, go }) {
+  const ui = useUI()
+  const [p, setP] = useState(null)
+  const [s, setS] = useState(vu.stock)
+  const [refs, setRefs] = useState(null)
+  const [ed, setEd] = useState(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { api.depotPieces().then(l => setP(l.find(x => String(x.id) === String(id)) || false)).catch(e => ui.toast(e.message)); chargerStock().then(setS).catch(() => {}); api.depotReferentiels().then(setRefs).catch(() => {}) }, [id])
+  if (p === null || !s) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
+  if (!p) return <div className="empty" style={{ paddingTop: 80 }}>Pièce introuvable.</div>
+  const ouvert = p.statut === 'proposee'
+  const art = idA => s.articles.find(a => a.id === idA)
+  const total = p.lignes.filter(x => !x.ignorer).reduce((t, x) => t + n(x.qte) * n(x.prix), 0)
+  const manque = p.lignes.findIndex(x => !x.ignorer && !x.article_id && !(x.nouveau?.nom && x.nouveau?.cat_id && x.nouveau?.unite_id))
+  async function enregistrer(lignes) {
+    const avant = p; setP({ ...p, lignes })
+    try { await api.depotPieceMaj(p.id, { lignes }) } catch (e) { setP(avant); ui.toast(e.message) }
+  }
+  async function trancher(refuser) {
+    setBusy(true)
+    try {
+      const r = await api.depotPieceValider(p.id, refuser)
+      if (refuser) ui.toast('Pièce refusée : rien n\'entre au stock')
+      else ui.toast(`Au stock : ${r.entres} entrée${r.entres > 1 ? 's' : ''}${r.corriges ? `, ${r.corriges} prix corrigé${r.corriges > 1 ? 's' : ''}` : ''}${r.reserves ? `, ${r.reserves} réservée${r.reserves > 1 ? 's' : ''} à l'événement` : ''}`)
+      chargerStock(); go('depot/pieces')
+    } catch (e) { ui.toast(e.message) }
+    setBusy(false)
+  }
+  return (
+    <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
+      <div className="head"><button className="back" onClick={() => go('depot/pieces')}>‹ Pièces</button>
+        <div className="el-kicker" style={{ marginTop: 8 }}>{p.type === 'BL' ? 'Bon de livraison' : 'Facture'}{p.numero ? ` n° ${p.numero}` : ''}{p.date ? ` · ${ddmm(p.date)}` : ''}</div>
+        <h1 style={{ fontSize: 32 }}>{p.fournisseur || 'Fournisseur ?'}</h1>
+        <div className="meta">Pour {p.evt_nom || 'le dépôt (réassort)'} · déposée par {(p.depose_par || '?').split(' ')[0]}</div></div>
+      <div className="dp-ty">
+        {p.drive_url && <a className="dp-lk" href={p.drive_url} target="_blank" rel="noreferrer">📄 Voir la pièce</a>}
+        {ouvert && <div className="chips">{[['BL', 'BL'], ['FACTURE', 'Facture']].map(([k, t]) => <button key={k} className={`chip ${p.type === k ? 'on' : ''}`} onClick={async () => { setP({ ...p, type: k }); try { await api.depotPieceMaj(p.id, { type: k }) } catch (e) { ui.toast(e.message) } }}>{t}</button>)}
+          <Info text={p.type === 'BL' ? 'BL : les quantités entrent au stock, au prix du BL s\'il y en a, sinon au dernier prix payé. La facture corrigera le prix.' : 'Facture : elle donne le prix. Si un BL de ce fournisseur est déjà entré, elle corrige son prix sans recompter les quantités.'} /></div>}
+      </div>
+      <div className="list" style={{ marginTop: 12 }}>{p.lignes.map((x, i) => {
+        const a = art(x.article_id), c = x.ignorer ? null : x.article_id ? (confLib[x.confiance] || confLib.sur) : x.nouveau?.nom ? confLib.nouveau : null
+        return (
+          <button key={i} className={`row dp-pl ${x.ignorer ? 'dp-annule' : ''}`} disabled={!ouvert} onClick={() => setEd({ ...x, i, q: '' })}>
+            <div className="x"><span className="dp-lu">« {x.designation} »</span>
+              <b>{x.ignorer ? 'Ignorée' : a?.nom || x.nouveau?.nom || <em className="neg-s">Article à choisir</em>}{c && <em className={`dp-cf ${x.confiance === 'proche' ? 'ko' : ''}`}> {c[0]} {c[1]}</em>}</b></div>
+            <div className="dp-d">{qt(x.qte)}{a?.unite ? <em> {a.unite}</em> : ''}{x.prix != null && <div className="dp-px">× {n(x.prix).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}</div>}</div>
+          </button>)
+      })}</div>
+      {ouvert && <div className="px" style={{ marginTop: 16, display: 'grid', gap: 10 }}>
+        <button className="btn primary block" disabled={busy || manque >= 0} onClick={() => trancher(false)}>{manque >= 0 ? `Ligne ${manque + 1} : article à choisir` : `Valider · entre au stock${total ? ` · ${mad(total)} MAD` : ''}`}</button>
+        <button className="btn block" disabled={busy} onClick={() => trancher(true)}>Refuser cette pièce</button>
+      </div>}
+      {!ouvert && <div className="empty">{p.statut === 'validee' ? `Validée par ${(p.valide_par || '').split(' ')[0]} le ${ddmm(String(p.valide_le).slice(0, 10))}` : 'Refusée'}</div>}
+      <div style={{ height: 120 }} />
+      <Sheet open={!!ed} onClose={() => setEd(null)} foot={ed && <button className="btn primary" onClick={() => { const { i, q, ...x } = ed; enregistrer(p.lignes.map((y, k) => k === i ? x : y)); setEd(null) }}>Enregistrer la ligne</button>}>
+        {ed && <>
+          <div className="el-kicker">Lu sur la pièce</div>
+          <div className="el-name" style={{ fontSize: 22 }}>« {ed.designation} »</div>
+          <div className="as-l">ARTICLE DU DÉPÔT</div>
+          {(ed.article_id || ed.nouveau) && !ed.ignorer ? <div className="chips"><button className="chip on" onClick={() => setEd({ ...ed, article_id: null, nouveau: null, confiance: null })}>{art(ed.article_id)?.nom || `＋ ${ed.nouveau?.nom}`} ✕</button></div> : !ed.ignorer && <>
+            <input className="bn-in" style={{ width: '100%', font: 'inherit' }} placeholder="Chercher dans le dépôt" value={ed.q} onChange={e => setEd({ ...ed, q: e.target.value })} />
+            <div className="list bn-l" style={{ marginTop: 8 }}>{(ed.q.trim().length >= 2 ? s.articles.filter(a => a.nom.toLowerCase().includes(ed.q.trim().toLowerCase())).slice(0, 6) : []).map(a =>
+              <button key={a.id} className="row" onClick={() => setEd({ ...ed, article_id: a.id, nouveau: null, confiance: 'sur', q: '' })}><div className="x"><b>{a.nom}</b><span>{a.cat} · {qt(a.qte)} {a.unite}</span></div></button>)}
+              <button className="row bn-plus" onClick={() => setEd({ ...ed, article_id: null, confiance: 'nouveau', nouveau: { nom: (ed.q.trim() || ed.designation), cat_id: null, unite_id: null } })}>＋ Nouvel article « {ed.q.trim() || ed.designation} »</button></div>
+          </>}
+          {ed.nouveau && !ed.article_id && refs && <>
+            <div className="as-l">CATÉGORIE</div><div className="chips">{refs.categories.map(c => <button key={c.id} className={`chip ${ed.nouveau.cat_id === c.id ? 'on' : ''}`} onClick={() => setEd({ ...ed, nouveau: { ...ed.nouveau, cat_id: c.id } })}>{c.nom}</button>)}</div>
+            <div className="as-l">UNITÉ</div><div className="chips">{refs.unites.map(u => <button key={u.id} className={`chip ${ed.nouveau.unite_id === u.id ? 'on' : ''}`} onClick={() => setEd({ ...ed, nouveau: { ...ed.nouveau, unite_id: u.id } })}>{u.nom}</button>)}</div>
+          </>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
+            <label><div className="as-l">QUANTITÉ</div><input className="bn-in" style={{ width: '100%', font: 'inherit' }} inputMode="decimal" value={ed.qte ?? ''} onChange={e => setEd({ ...ed, qte: e.target.value.replace(',', '.') })} /></label>
+            <label><div className="as-l">PRIX UNITAIRE</div><input className="bn-in" style={{ width: '100%', font: 'inherit' }} inputMode="decimal" placeholder="—" value={ed.prix ?? ''} onChange={e => setEd({ ...ed, prix: e.target.value === '' ? null : e.target.value.replace(',', '.') })} /></label>
+          </div>
+          <div className="ee-menu"><button className={ed.ignorer ? '' : 'danger'} onClick={() => setEd({ ...ed, ignorer: !ed.ignorer })}>{ed.ignorer ? 'Ne plus ignorer cette ligne' : 'Ignorer cette ligne (pas pour le dépôt)'}<span>›</span></button></div>
         </>}
       </Sheet>
     </motion.div>
