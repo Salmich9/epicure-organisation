@@ -25,6 +25,8 @@ const tard = (charger, nom) => lazy(() => charger().then(m => ({ default: m[nom]
 const creation = () => import('./creation'), staff = () => import('./staff'), copilote = () => import('./copilote'), historique = () => import('./historique')
 const Chiffrer = tard(creation, 'Chiffrer'), Nouveau = tard(creation, 'Nouveau')
 const Especes = tard(() => import('./especes'), 'Especes')
+const depot = () => import('./depot')
+const Depot = tard(depot, 'Depot'), DepotArticle = tard(depot, 'DepotArticle'), DepotCommande = tard(depot, 'DepotCommande'), DepotInventaires = tard(depot, 'DepotInventaires'), DepotInventaire = tard(depot, 'DepotInventaire'), DepotHistorique = tard(depot, 'DepotHistorique')
 const Bilan = tard(() => import('./bilan'), 'Bilan')
 const Menu = tard(() => import('./menu'), 'Menu')
 const StaffEvt = tard(staff, 'StaffEvt'), StaffFiche = tard(staff, 'StaffFiche'), StaffListe = tard(staff, 'StaffListe'), StaffNoter = tard(staff, 'StaffNoter')
@@ -169,6 +171,8 @@ export default function App() {
   }, [net.attente, net.enLigne])
   const cible = useCibleActive()
   const micro = useMicro(t => cible?.onTexte(t))
+  const [droitsDepot, setDroitsDepot] = useState(() => vite.aujourdhui()?.depot || [])
+  useEffect(() => { if (store.token) api.aujourdhui().then(d => setDroitsDepot(d?.depot || [])).catch(() => {}) }, [store.token])
 
   // Gestes instantanés : un rechargement arrivé pendant qu'un envoi est en vol, ou dépassé par un plus récent, est ignoré
   const vol = useRef(0), tour = useRef(0)
@@ -237,7 +241,8 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route === 'aujourdhui' ? 'auj' : route === 'mapart' ? 'mapart' : route === 'notes' ? 'notes' : 'evts'
+  const tab = route === 'aujourdhui' ? 'auj' : route === 'mapart' ? 'mapart' : route === 'notes' ? 'notes' : route.startsWith('depot') ? 'depot' : 'evts'
+
   let screen
   const ouvrir = id => { go(''); load(id) }
   const ouvrirPoste = async (id, cle) => { await load(id); go(cle ? `poste/${cle}` : '') }
@@ -268,6 +273,12 @@ export default function App() {
   else if (route.startsWith('biblio')) screen = <Bibliotheque data={data} go={go} zoneIdx={route.split('/')[1] !== undefined ? Number(route.split('/')[1]) : undefined} reload={() => load(data.evt)} />
   else if (route.startsWith('bilan')) screen = <Bilan key={route} data={data} go={go} sous={route.split('/')[1] || ''} reload={() => load(data.evt)} />
   else if (route === 'especes') screen = <Especes data={data} go={go} />
+  else if (route === 'depot') screen = <Depot key="depot" go={go} droits={droitsDepot} />
+  else if (route.startsWith('depot/article/')) screen = <DepotArticle key={route} id={route.split('/')[2]} go={go} droits={droitsDepot} />
+  else if (route === 'depot/commande') screen = <DepotCommande key={route} go={go} />
+  else if (route === 'depot/inventaire') screen = <DepotInventaires key={route} go={go} droits={droitsDepot} />
+  else if (route.startsWith('depot/inventaire/')) screen = <DepotInventaire key={route} id={route.split('/')[2]} go={go} droits={droitsDepot} />
+  else if (route === 'depot/historique') screen = <DepotHistorique key={route} go={go} />
   else if (route.startsWith('achat-especes')) screen = <AchatEspeces key={route} go={go} evt={route.split('/')[1] || null} />
   else if (route === 'pieces') screen = <Pieces data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'nouveau') screen = <Nouveau data={data} go={go} onCreated={id => load(id)} />
@@ -298,6 +309,7 @@ export default function App() {
           <span className="mi-pill">{cible ? `→ ${cible.label}` : '→ une note'}</span>
           <motion.button whileTap={{ scale: .9 }} className={`mic ${listening || micro.ecoute ? 'rec' : ''}`} onClick={cible ? micro.basculer : toggleMic} aria-label={cible ? `Parler à ${cible.label}` : 'Dicter une note'}>{Icon.mic}</motion.button>
         </div>
+        {droitsDepot.length > 0 && <button className={tab === 'depot' ? 'on' : ''} onClick={() => go('depot')}>{Icon.depot}Dépôt</button>}
         <button className={`${tab === 'mapart' ? 'on' : ''} ${n(data.pour_toi) > 0 && tab !== 'mapart' ? 'pt-dot' : ''}`} onClick={() => go('mapart')}>{Icon.deleguer}Ma part</button>
         <button className={tab === 'notes' ? 'on' : ''} onClick={() => go('notes')}>{Icon.notes}Notes</button>
       </nav>}

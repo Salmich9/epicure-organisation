@@ -175,6 +175,7 @@ export const api = {
   depotInventaireCreer: (libelle, date) => rpc('depot_inventaire_creer', { p_token: store.token, p_libelle: libelle, p_date: date }),
   depotInventaire: (id) => rpc('depot_inventaire', { p_token: store.token, p_id: id }),
   depotInventaireCompter: (id, article, qte) => rpc('depot_inventaire_compter', { p_token: store.token, p_id: id, p_article: article, p_qte: qte }),
+  depotHistorique: (p) => rpc('depot_historique', { p_token: store.token, p }),
   depotInventaireValider: (id, responsable) => rpc('depot_inventaire_valider', { p_token: store.token, p_id: id, p_responsable: responsable }),
   bonContexte: (evt) => rpc('bon_contexte', { p_token: store.token, p_evt: evt || null }),
   bonCreer: (p) => rpc('bon_creer', { p_token: store.token, p }),
