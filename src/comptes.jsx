@@ -6,6 +6,11 @@ import { Av } from './postes'
 
 /* Comptes de l'équipe : qui peut entrer, avec quel rôle. Le code n'est montré qu'une fois. */
 const ROLES = [['equipe', 'Équipe', 'ses actions et ses enveloppes, sans prix de vente ni marge'], ['direction', 'Direction', 'tout, prix et marges compris']]
+// Droits sur le dépôt (la direction a tout, prix d'achat compris ; l'équipe ne voit jamais les prix d'achat)
+const DEPOT = [['voir', 'Voir le stock', 'quantités et photos, sans les prix'], ['acheter', 'Enregistrer les achats', 'saisit ce qu\'il achète'],
+  ['inventaire', 'Faire l\'inventaire', 'compter le dépôt'], ['gerer', 'Gérer le catalogue', 'articles, catégories, seuils']]
+const droitsDepot = c => c.role === 'direction' ? ['tout'] : (c.depot || [])
+const resumeDepot = c => { const d = droitsDepot(c); return d[0] === 'tout' ? 'Dépôt : tout' : d.length ? `Dépôt : ${d.filter(x => x !== 'voir').map(x => ({ acheter: 'achats', inventaire: 'inventaire', gerer: 'catalogue' })[x]).join(', ') || 'voir'}` : null }
 
 export function Comptes({ go }) {
   const ui = useUI()
@@ -19,6 +24,11 @@ export function Comptes({ go }) {
     try { const r = await api.compteCreer(nouv.nom.trim(), nouv.role); setNouv(null); setCode({ nom: nouv.nom.trim(), pin: r.pin }); charger() } catch (e) { ui.toast(e.message) }
   }
   async function role(c, r) { try { await api.compteMaj(c.nom, { role: r }); setFiche(null); charger(); ui.toast(`${c.nom} : ${r === 'equipe' ? 'Équipe' : 'Direction'}`) } catch (e) { ui.toast(e.message) } }
+  async function droit(c, k) {
+    const d = c.depot || [], apres = d.includes(k) ? d.filter(x => x !== k && (k !== 'voir')) : [...new Set([...d, k, 'voir'])]
+    setFiche({ ...c, depot: apres }); setL(x => x.map(y => y.nom === c.nom ? { ...y, depot: apres } : y))
+    try { await api.compteMaj(c.nom, { depot: apres }) } catch (e) { ui.toast(`Pas enregistré : ${e.message}`); charger() }
+  }
   async function nouveauCode(c) { try { const r = await api.compteNouveauCode(c.nom); setFiche(null); setCode({ nom: c.nom, pin: r.pin }) } catch (e) { ui.toast(e.message) } }
   async function retirer(c) { try { await api.compteRetirer(c.nom); setFiche(null); charger(); ui.toast(`${c.nom} ne peut plus entrer`) } catch (e) { ui.toast(e.message) } }
   return (
@@ -32,7 +42,7 @@ export function Comptes({ go }) {
           <div className="list cp-l">{g.map(c => (
             <button key={c.nom} className="row" onClick={() => setFiche(c)}>
               <Av nom={c.nom} size={34} />
-              <div className="x"><b>{c.nom}{c.admin ? ' · admin' : ''}</b><span>{c.vu_le ? `vu ${new Date(c.vu_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : 'jamais connecté'}</span></div>
+              <div className="x"><b>{c.nom}{c.admin ? ' · admin' : ''}</b>{resumeDepot(c) && <em className="cp-dep">{resumeDepot(c)}</em>}<span>{c.vu_le ? `vu ${new Date(c.vu_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : 'jamais connecté'}</span></div>
               <span className="mute">›</span>
             </button>))}</div>
         </div>
@@ -58,6 +68,10 @@ export function Comptes({ go }) {
           <div className="el-name" style={{ fontSize: 26 }}>{fiche.nom}</div>
           <div className="as-l">RÔLE</div>
           <div className="chips">{ROLES.map(([r, t]) => <button key={r} className={`chip ${fiche.role === r ? 'on' : ''}`} onClick={() => fiche.role !== r && role(fiche, r)}>{t}</button>)}</div>
+          <div className="as-l" style={{ marginTop: 18 }}>DÉPÔT</div>
+          {fiche.role === 'direction' ? <p className="small mute">La direction a tout le dépôt, prix d'achat compris.</p>
+            : <div className="cp-dr">{DEPOT.map(([k, t, d]) => { const on = (fiche.depot || []).includes(k)
+              return <button key={k} className={on ? 'on' : ''} onClick={() => droit(fiche, k)}><span className="cp-ck">{on ? '✓' : ''}</span><div><b>{t}</b><em>{d}</em></div></button> })}</div>}
           <div className="ee-menu">
             <button onClick={() => nouveauCode(fiche)}>Nouveau code<span>›</span></button>
             {!fiche.admin && <button className="danger" onClick={() => retirer(fiche)}>Retirer l'accès</button>}
