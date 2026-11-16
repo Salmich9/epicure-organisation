@@ -1162,3 +1162,43 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .bn-fini { text-align: center; padding-top: 60px; } .bn-fini .bn-l { text-align: left; margin: 0 16px; }
 .bn-ok { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 900; background: var(--accent); color: var(--accent-ink); }
 .bn-v { color: var(--accent); font-weight: 900; }
+
+/* Dépôt */
+.tabs:has(> button:nth-child(6)) button { width: 58px; font-size: 10.5px; }
+.dp-k button { background: var(--surface); border-radius: 18px; padding: 12px 14px; font-size: 11.5px; color: var(--mute); font-weight: 600; text-align: left; border: 1.5px solid transparent; }
+.dp-k button.on { border-color: var(--ink); }
+.dp-k b { display: block; font-size: 20px; color: var(--ink); font-weight: 700; margin-bottom: 2px; }
+.dp-k b.neg { color: var(--red); }
+.dp-act { display: flex; gap: 8px; margin: 12px 14px 0; }
+.dp-act button { flex: 1; padding: 13px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); font-weight: 650; font-size: 14px; }
+.dp-act button.p { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.dp-q { width: 100%; font: inherit; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.dp-cats { flex-wrap: nowrap; overflow-x: auto; margin: 10px -22px 0; padding: 0 22px; scrollbar-width: none; }
+.dp-cats .chip { flex: none; }
+.row.dp-a, .row.dp-m { display: flex; align-items: center; gap: 12px; }
+.dp-a img, .dp-a .ph, .dp-fiche img, .dp-fiche .ph { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; flex: none; background: var(--surface2); display: grid; place-items: center; font-weight: 700; color: var(--mute); }
+.dp-a .x, .dp-m .x { flex: 1; min-width: 0; }
+.dp-a .x b, .dp-m .x b { display: block; font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-a .x b em, .dp-m .x b em { font-style: normal; font-weight: 500; color: var(--mute); }
+.dp-a .x span, .dp-m .x span { display: block; font-size: 12.5px; color: var(--mute); margin-top: 2px; }
+.dp-n { font-weight: 700; font-size: 17px; text-align: right; white-space: nowrap; }
+.dp-n em { font-style: normal; font-weight: 500; font-size: 12px; color: var(--mute); margin-left: 3px; }
+.dp-n.neg { color: var(--red); }
+.dp-d { font-weight: 700; font-size: 15px; white-space: nowrap; }
+.dp-d em { font-style: normal; font-weight: 500; font-size: 11.5px; color: var(--mute); }
+.dp-annule { opacity: .45; }
+.dp-plus { display: block; margin: 10px auto 0; font-weight: 650; font-size: 13.5px; color: var(--accent); }
+.dp-fiche { display: flex; gap: 16px; align-items: center; padding: 10px 22px 0; }
+.dp-fiche img, .dp-fiche .ph { border-radius: 22px; font-size: 32px; }
+.dp-t { font-family: var(--display); font-weight: 400; font-size: 32px; line-height: 1.05; margin-top: 4px; }
+.dp-st { display: flex; align-items: center; gap: 4px; }
+.dp-st button { width: 34px; height: 34px; border-radius: 50%; background: var(--surface2); font-size: 18px; font-weight: 700; }
+.dp-st b { min-width: 34px; text-align: center; font-size: 16px; }
+.dp-prog { position: relative; display: flex; justify-content: space-between; margin: 14px 14px 0; padding: 14px 16px 18px; border-radius: 18px; background: var(--surface); font-size: 13px; color: var(--mute); overflow: hidden; }
+.dp-prog b { color: var(--ink); font-size: 18px; }
+.dp-prog .neg b { color: var(--red); }
+.dp-prog i { position: absolute; left: 0; bottom: 0; height: 5px; background: var(--accent); }
+.dp-inv input { width: 74px; text-align: right; font: inherit; font-weight: 700; padding: 9px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); }
+.pos { color: var(--accent); font-style: normal; }
+.dp-m .x b .pend { display: inline-block; width: auto; margin-left: 8px; vertical-align: 2px; }
+a.btn { text-decoration: none; display: flex; align-items: center; justify-content: center; }
