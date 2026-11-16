@@ -137,7 +137,9 @@ begin
   return jsonb_build_object(
     'articles', coalesce((select jsonb_agg(jsonb_build_object('id', a.id, 'nom', a.name, 'unite', un.abbreviation, 'cat', c.name) order by a.name)
       from public.articles a left join public.units un on un.id = a.unit_id left join public.categories c on c.id = a.category_id where a.active), '[]'),
-    'fournisseurs', coalesce((select jsonb_agg(jsonb_build_object('id', f.id, 'nom', f.name) order by f.name) from public.suppliers f where f.active), '[]'));
+    'fournisseurs', coalesce((select jsonb_agg(jsonb_build_object('id', f.id, 'nom', f.name) order by f.name) from public.suppliers f where f.active), '[]'),
+    'categories', coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'nom', c.name) order by c.sort_order) from public.categories c where c.active), '[]'),
+    'unites', coalesce((select jsonb_agg(jsonb_build_object('id', x.id, 'nom', x.name, 'abr', x.abbreviation) order by x.name) from public.units x where x.active), '[]'));
 end $$;
 
 create or replace function orga.bot_depot_proposer(p_secret text, p jsonb) returns jsonb
