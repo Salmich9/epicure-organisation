@@ -29,6 +29,18 @@ Deno.serve(async (req) => {
       if (r.error) return json({ ok: false, message: r.error.message === 'invites_manquants' ? 'Il manque le nombre d\'invités.' : 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
       return json(r.data)
     }
+    // Les questions à poser (Paramètres › Questions), selon le mode Express ou Complet
+    if (p.action === 'questions') {
+      const r = await sb.rpc('voix_questions', { p_token: token, p_mode: p.mode === 'complet' ? 'complet' : 'express' })
+      if (r.error) return json({ ok: false, message: 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
+      return json({ ok: true, ...r.data })
+    }
+    // Challenge : tout ce qu'on sait d'un événement en cours d'organisation
+    if (p.action === 'evenement') {
+      const r = await sb.rpc('voix_evenement', { p_token: token, p_evt: String(p.evt || '') })
+      if (r.error) return json({ ok: false, message: r.error.message === 'evenement_introuvable' ? 'Événement introuvable : relance le challenge depuis l\'événement.' : 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
+      return json(r.data)
+    }
     // Les paramètres de chiffrage, à lire en début d'appel
     if (p.action === 'parametres') {
       const r = await sb.rpc('chiffrage_params_texte', { p_token: token })
@@ -43,7 +55,7 @@ Deno.serve(async (req) => {
     const cout = Number(p.cout_total) || 0
     const note = [
       p.inclus && `Inclus : ${p.inclus}`,
-      p.heures && `${p.heures} h de service`,
+      p.heures && `Horaires : ${p.heures}`,
       cout && `Coût estimé à l'appel : ${Math.round(cout)} MAD`,
       p.mode_encaissement && `Encaissement : ${p.mode_encaissement}`,
       Array.isArray(p.operateurs) && p.operateurs.length && `Sur place : ${p.operateurs.join(', ')}`,
@@ -55,7 +67,7 @@ Deno.serve(async (req) => {
     const c = await sb.rpc('evenement_creer', { p_token: token, p: {
       nom: p.evenement || p.client || 'Événement', date: /^\d{4}-\d{2}-\d{2}$/.test(p.date || '') ? p.date : null, lieu: p.lieu || '',
       invites: Number(p.pax) || null, client: p.client || '', prestations: PRESTA[p.format] || ['Traiteur'], format: '',
-      entite: p.societe === 'Business Boys' ? 'Business Boys' : p.societe === 'Sans facture' ? 'Espèce' : 'Epicure', intermediaire: Number(p.agence_pct) > 0 ? 'Agence' : '', note,
+      entite: p.societe === 'Business Boys' ? 'Business Boys' : p.societe === 'Sans facture' ? 'Espèce' : 'Epicure', gamme: p.gamme || null, intermediaire: Number(p.agence_pct) > 0 ? 'Agence' : '', note,
     } })
     if (c.error) return json({ ok: false, message: `Création refusée : ${c.error.message}` })
     const evt = c.data.id
@@ -75,7 +87,7 @@ Deno.serve(async (req) => {
     const suite = (async () => {
       const call = (body: any) => fetch(`${URL}/functions/v1/orga-copilote`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: ANON }, body: JSON.stringify({ token, evt, ...body }) }).catch(() => null)
       await call({ mode: 'dossier' })
-      await call({ mode: 'chiffrer', note: `Chiffrage fait à la voix : ${p.format || ''}, ${p.pax || '?'} invités, ${p.heures || '?'} h. ${p.inclus || ''} Lignes du devis : ${lignes.map((l: any) => `${String(l.description).split('\n')[0]} ${Math.round(l.montant)} MAD`).join(' ; ')}. Coût total estimé à l'appel ${Math.round(cout)} MAD (les postes calculés sont déjà dans l'appli).` })
+      await call({ mode: 'chiffrer', note: `Chiffrage fait à la voix : ${p.format || ''}, ${p.pax || '?'} invités, horaires ${p.heures || '?'}. ${p.inclus || ''} Lignes du devis : ${lignes.map((l: any) => `${String(l.description).split('\n')[0]} ${Math.round(l.montant)} MAD`).join(' ; ')}. Coût total estimé à l'appel ${Math.round(cout)} MAD (les postes calculés sont déjà dans l'appli).` })
     })()
     // @ts-ignore EdgeRuntime existe sur Supabase
     if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(suite)

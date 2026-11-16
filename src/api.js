@@ -220,6 +220,7 @@ export const api = {
   chiffragePosteRegler: (cle, p) => rpc('chiffrage_poste_regler', { p_token: store.token, p_cle: cle, p }),
   chiffragePosteCreer: (p) => rpc('chiffrage_poste_creer', { p_token: store.token, p }),
   chiffrageDevisReglages: (p) => rpc('chiffrage_devis_reglages', { p_token: store.token, p }),
+  challengeReglages: (p = null) => rpc('challenge_reglages', { p_token: store.token, p }),
   notifsReglages: (p = null) => rpc('notifs_reglages', { p_token: store.token, p }),
   mesRappels: () => rpc('mes_rappels', { p_token: store.token }),
   rappelsEvenement: (evt) => rpc('rappels_evenement', { p_token: store.token, p_evt: evt }),

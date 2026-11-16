@@ -93,7 +93,9 @@ function Carte({ e, today, onClick }) {
 }
 
 /* ---------- Agent vocal : l'appel se fait dans l'appli ---------- */
-export function Voix({ data, go, ouvrir }) {
+export function Voix({ data, go, ouvrir, mode: modeAppel = 'chiffrage', evt = null }) {
+  const challenge = modeAppel === 'challenge'
+  const ev = challenge ? (data.evenements || []).find(x => x.id === evt) || {} : {}
   const ui = useUI()
   const [etat, setEtat] = useState('pret')
   const [mode, setMode] = useState('listening')
@@ -128,7 +130,8 @@ export function Voix({ data, go, ouvrir }) {
       const { Conversation } = await import('@elevenlabs/client')
       conv.current = await Conversation.startSession({
         agentId: AGENT, connectionType: 'webrtc',
-        dynamicVariables: { orga_token: jeton.current, qui: data.moi || '' },
+        dynamicVariables: { orga_token: jeton.current, qui: data.moi || '', mode: modeAppel, evt: evt || '',
+          premier_message: challenge ? `On challenge ${ev.nom || 'l\'événement'}. Je regarde où on en est.` : 'Salut ! On chiffre un événement. Express ou complet ?' },
         onConnect: () => setEtat('appel'),
         onDisconnect: () => { fermerJeton(); setEtat('fini') },
         onError: m => ui.toast(String(m)),
@@ -142,11 +145,11 @@ export function Voix({ data, go, ouvrir }) {
   function basculerMicro() { const m = !muet; setMuet(m); try { conv.current?.setMicMuted(m) } catch {} }
   return (
     <div className="vo">
-      <button className="vo-back" onClick={() => { raccrocher(); go('accueil') }}>‹ Événements</button>
+      <button className="vo-back" onClick={() => { raccrocher(); challenge ? ouvrir(evt) : go('accueil') }}>{challenge ? '‹ Événement' : '‹ Événements'}</button>
       <motion.div className={`orb ${etat === 'appel' ? mode : ''}`} animate={etat === 'appel' ? { scale: mode === 'speaking' ? [1, 1.08, 1] : [1, 1.02, 1] } : { scale: 1 }} transition={{ repeat: Infinity, duration: mode === 'speaking' ? .9 : 2.4 }} />
       {etat === 'pret' && <>
-        <div className="vq">Chiffre un événement en parlant</div>
-        <div className="vs">L'agent te pose les questions une par une, calcule, puis crée l'événement et le devis Zoho.</div>
+        <div className="vq">{challenge ? `Challenge : ${ev.nom || ''}` : 'Chiffre un événement en parlant'}</div>
+        <div className="vs">{challenge ? 'L\'agent regarde tout l\'événement et te challenge point par point : marge, oublis, retards.' : 'L\'agent te pose les questions une par une, calcule, puis crée l\'événement et le devis Zoho.'}</div>
         <motion.button whileTap={{ scale: .96 }} className="vo-go" onClick={lancer}>Démarrer l'appel</motion.button>
       </>}
       {etat === 'connexion' && <div className="vq">Connexion…</div>}
@@ -158,7 +161,8 @@ export function Voix({ data, go, ouvrir }) {
       </>}
       {etat === 'fini' && <>
         <div className="vq">{cree ? 'Événement créé' : 'Appel terminé'}</div>
-        <div className="vs">{cree ? `${cree.nom} : devis en brouillon dans Zoho, le chiffrage détaillé arrive dans deux minutes.` : 'Rien n\'a été créé.'}</div>
+        <div className="vs">{challenge ? 'Les actions décidées sont à poser dans l\'événement.' : cree ? `${cree.nom} : devis en brouillon dans Zoho, le chiffrage détaillé arrive dans deux minutes.` : 'Rien n\'a été créé.'}</div>
+        {challenge && <motion.button whileTap={{ scale: .96 }} className="vo-go" onClick={() => ouvrir(evt)}>Revenir à l'événement</motion.button>}
         {cree && <motion.button whileTap={{ scale: .96 }} className="vo-go" onClick={() => ouvrir(cree.evenement_id)}>Ouvrir l'événement</motion.button>}
         <button className="vo-again" onClick={() => { setDit(''); setEntendu(''); setCree(null); setEtat('pret') }}>Nouvel appel</button>
       </>}

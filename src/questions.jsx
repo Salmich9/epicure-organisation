@@ -103,6 +103,7 @@ export function ParamQuestions() {
       </div>
     })}
     {d.peut_modifier && <div className="px"><button className="pv-plus" onClick={() => setOuverte({ cle: null, texte: '', type: 'oui_non', section: 'cadrage', choix: [], quand: [], express: false, actif: true })}>+ Nouvelle question</button></div>}
+    <ChallengeReglages />
     <QuestionSheet q={ouverte} d={d} onClose={() => setOuverte(null)} onMonter={monter}
       onSaved={nd => { setD(nd); setOuverte(null); ui.toast('Enregistré : les prochains chiffrages la prennent') }} />
   </>
@@ -210,5 +211,25 @@ export function ConditionsDevis() {
       <div className="cf-in" style={{ marginTop: 8 }}><span>Valable</span><input inputMode="numeric" value={f.validite} disabled={!d.peut_modifier} onChange={e => setF(x => ({ ...x, validite: e.target.value.replace(/\D/g, '') }))} /><span>jours</span></div>
       {d.peut_modifier && change && <button className="btn primary block" style={{ marginTop: 10 }} onClick={sauver}>Enregistrer les conditions</button>}
     </div>
+  </>
+}
+
+/* ---------- Challenge vocal : quand il est proposé ---------- */
+function ChallengeReglages() {
+  const ui = useUI()
+  const [d, setD] = useState(null)
+  const [jour, setJour] = useState('')
+  useEffect(() => { api.challengeReglages().then(setD).catch(() => {}) }, [])
+  if (!d) return null
+  const r = d.reglages || {}, jours = r.jours || []
+  async function maj(p) { try { setD(await api.challengeReglages(p)) } catch (e) { ui.toast(e.message) } }
+  return <>
+    <div className="cf-grp"><span>CHALLENGE VOCAL</span><Info text="Une notification te propose de lancer le challenge vocal sur un événement confirmé. Le bouton « Challenge-moi » de l'événement marche à tout moment." /></div>
+    <div className="px"><div className="chips">
+      <button className={`chip ${r.confirmation !== false ? 'on' : ''}`} disabled={!d.peut_modifier} onClick={() => maj({ confirmation: r.confirmation === false })}>À la confirmation</button>
+      {jours.map(j => <button key={j} className="chip on" disabled={!d.peut_modifier} onClick={() => maj({ jours: jours.filter(x => x !== j) })}>J−{j} ✕</button>)}
+      {d.peut_modifier && <span className="q-j"><input inputMode="numeric" value={jour} onChange={e => setJour(e.target.value.replace(/\D/g, ''))} placeholder="J−" />
+        {jour && <button className="chip" onClick={() => { maj({ jours: [...jours, Number(jour)] }); setJour('') }}>+ ajouter</button>}</span>}
+    </div></div>
   </>
 }
