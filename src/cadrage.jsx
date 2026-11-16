@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api } from './api'
-import { useUI } from './ui'
+import { Info, useUI } from './ui'
 import { Delegues } from './equipe'
 import { couleur, k } from './postes'
 import { n } from './ui'
@@ -10,6 +10,7 @@ import { planCadrage, libelleValeur, titreCourt } from './questions'
 /* Cadrage (v74) : il affine, il ne reprend pas. Ce que le devis a dit est repris d'un coup d'œil ;
    ce qu'il a laissé au défaut revient pré-choisi ; puis les questions du cadrage (Paramètres › Questions). */
 const SEUL = ['rien']
+const SOURCES = { lieu: 'même lieu', proches: 'événements proches', ia: 'IA', defaut: 'par défaut du devis' }
 const vide = v => v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length)
 
 export function Cadrage({ data, go, fin, reload }) {
@@ -24,7 +25,23 @@ export function Cadrage({ data, go, fin, reload }) {
   const [etat, setEtat] = useState(fin ? 'fin' : 'questions')
   const [txt, setTxt] = useState('')
   useEffect(() => { api.cadrageContexte(data.evt).then(c => { const x = c && typeof c === 'object' ? c : { base: {}, questions: [] }; setCtx(x); setAf(x.affine || {}) }).catch(e => ui.toast(e.message)) }, [data.evt])
-  const plan = useMemo(() => ctx ? planCadrage(ctx.base, ctx.questions, af) : null, [ctx, af])
+  const props = useMemo(() => ctx ? { ...(ctx.ia?.propositions || {}), ...(ctx.propositions || {}) } : {}, [ctx])
+  const plan = useMemo(() => ctx ? planCadrage(ctx.base, ctx.questions, af, props) : null, [ctx, af, props])
+  const [iaEnCours, setIa] = useState(false)
+  // L'IA en dernier : seulement les questions à choix que ni le lieu, ni les proches n'ont tranchées, et qu'elle n'a pas déjà vues
+  useEffect(() => {
+    if (!ctx?.ia_actif || !plan || iaEnCours) return
+    const vues = new Set(ctx.ia?.vues || [])
+    const qs = plan.etapes.filter(x => ['choix', 'multi', 'oui_non', 'nombre'].includes(x.q.type) && !['lieu', 'proches'].includes(x.source) && af[x.q.cle] === undefined && !vues.has(x.q.cle))
+    if (!qs.length) return
+    setIa(true)
+    api.cadrageIA(
+      qs.map(x => ({ cle: x.q.cle, texte: x.q.texte, type: x.q.type, choix: x.q.type === 'oui_non' ? [{ cle: 'oui', libelle: 'Oui' }, { cle: 'non', libelle: 'Non' }] : x.q.choix || [] })),
+      plan.repris.map(x => ({ texte: titreCourt(x.q), valeur: libelleValeur(x.q, x.v) })),
+    ).then(r => { if (r?.ia) setCtx(c => ({ ...c, ia: r.ia })); else throw new Error() })
+      .catch(() => setCtx(c => ({ ...c, ia: { ...(c.ia || {}), vues: [...(c.ia?.vues || []), ...qs.map(x => x.q.cle)] } })))
+      .finally(() => setIa(false))
+  }, [ctx?.ia, ctx?.ia_actif, !!plan])
   const cur = corr || (plan && i >= 0 ? plan.etapes[Math.min(i, plan.etapes.length - 1)] : null)
   const q = cur?.q
   const v = q ? (af[q.cle] !== undefined ? af[q.cle] : corr ? cur.v : cur.propose) : undefined
@@ -45,7 +62,7 @@ export function Cadrage({ data, go, fin, reload }) {
   }
   function suivant() {
     if (corr) { setCorr(null); return }
-    if (i + 1 >= planCadrage(ctx.base, ctx.questions, afR.current).etapes.length) return preparer()
+    if (i + 1 >= planCadrage(ctx.base, ctx.questions, afR.current, props).etapes.length) return preparer()
     setI(i + 1)
   }
   async function preparer() {
@@ -85,6 +102,8 @@ export function Cadrage({ data, go, fin, reload }) {
         <div className="cd-top"><button onClick={() => go('')}>‹ Événement</button><span>Cadrage</span></div>
         <div className="cd-q">{nbA ? `${nbA} question${nbA > 1 ? 's' : ''} pour affiner` : 'Tout est déjà dit'}</div>
         <div className="cd-s">{ctx.a_chiffrage ? 'Le reste vient du devis : je ne le repose pas.' : 'Pas encore de chiffrage : je pars de l’événement.'}</div>
+        {nbA > 0 && <div className="cd-pros">{(() => { const np = plan.etapes.filter(x => ['lieu', 'proches', 'ia'].includes(x.source)).length
+          return <>{np ? <span>✦ {np} déjà proposée{np > 1 ? 's' : ''}</span> : null}{iaEnCours && <span className="ia">L’IA cherche…</span>}</> })()}</div>}
         {plan.repris.length > 0 && <div className="cd-rep">
           <button className="cd-rep-t" onClick={() => setVu(!vu)}><b>Repris du devis</b><span>{plan.repris.length}{plan.repris.some(x => x.corrige) ? ' · corrigé' : ''}</span><i>{vu ? '⌃' : '⌄'}</i></button>
           {vu && plan.repris.map(x => <button key={x.q.cle} className="cd-rep-l" onClick={() => setCorr(x)}>
@@ -108,7 +127,8 @@ export function Cadrage({ data, go, fin, reload }) {
       <AnimatePresence mode="wait">
         <motion.div key={q.cle} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: .18 }}>
           <div className="cd-q">{q.texte}</div>
-          {propose && <div className="cd-pro">Proposé · {corr ? 'au devis' : 'par défaut du devis'}</div>}
+          {propose && <div className={`cd-pro ${corr ? '' : cur.source || ''}`}>Proposé · {corr ? 'au devis' : SOURCES[cur.source] || 'par défaut du devis'}
+            {!corr && cur.pourquoi && <Info text={[`${cur.pourquoi}.`, cur.autre && `Les proches disent plutôt ${libelleValeur(q, cur.autre.valeur)} : ${cur.autre.pourquoi}.`].filter(Boolean).join(' ')} />}</div>}
           {!propose && q.type === 'multi' && <div className="cd-s">Plusieurs choix possibles</div>}
           {q.type === 'texte'
             ? <textarea className="cd-txt" rows={3} placeholder={q.aide || ''} value={txt} onChange={x => setTxt(x.target.value)} />

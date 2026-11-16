@@ -119,6 +119,8 @@ export const api = {
   elementSupprimer: (id) => rpc('element_supprimer', { p_token: store.token, p_id: id }),
   cadrageMaj: (evt, p) => rpc('cadrage_maj', { p_token: store.token, p_evt: evt, p }),
   cadrageContexte: (evt) => rpc('cadrage_contexte', { p_token: store.token, p_evt: evt }),
+  lieuxConnus: () => rpc('lieux_connus', { p_token: store.token }),
+  cadrageIA: (questions, repris) => fonction('orga-cadrage-ia', { token: store.token, evt: store.evt, questions, repris }, 'L\'IA ne répond pas.'),
   copilote: (mode, extra = {}) => fonction('orga-copilote', { token: store.token, evt: store.evt, mode, ...extra }, 'Le copilote ne répond pas.'),
   zoho: (mode, extra = {}) => fonction('orga-zoho', { token: store.token, evt: store.evt, mode, ...extra }, 'Zoho ne répond pas.'),
   pieceImputer: (id, element) => rpc('piece_imputer', { p_token: store.token, p_id: id, p_element: element }),

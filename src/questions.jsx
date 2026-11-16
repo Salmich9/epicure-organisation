@@ -46,8 +46,8 @@ export function dansDevis(base, cle) {
   if (cle in b && b[cle] !== null && b[cle] !== undefined) return true
   return (cle === 'prestations' && ('traiteur' in b || 'bar' in b)) || (cle === 'zone' && 'hors_marrakech' in b) || (cle === 'alcool_qui' && 'alcool_client' in b)
 }
-export function planCadrage(base, questions, affine) {
-  const af = affine || {}, devis = reponsesDe(base, questions), r = {}, repris = [], etapes = []
+export function planCadrage(base, questions, affine, props) {
+  const af = affine || {}, pr = props || {}, devis = reponsesDe(base, questions), r = {}, repris = [], etapes = []
   for (const q of (questions || []).filter(x => x.actif && x.type !== 'etape').sort((a, c) => a.ordre - c.ordre)) {
     const orga = q.section === 'organisation'
     if (!orga && !CHOIX_T.includes(q.type)) continue
@@ -56,7 +56,12 @@ export function planCadrage(base, questions, affine) {
     if (!tient(q.quand, r)) continue
     if (v !== undefined && v !== null) r[q.cle] = v
     if (!orga && dansDevis(base, q.cle)) repris.push({ q, v, corrige: dit && !meme(af[q.cle], devis[q.cle]) })
-    else etapes.push({ q, propose: orga ? undefined : devis[q.cle] ?? q.defaut })
+    else {
+      const x = CHOIX_T.includes(q.type) ? pr[q.cle] : null
+      const d = orga ? undefined : devis[q.cle] ?? q.defaut
+      etapes.push(x && x.valeur !== undefined && x.valeur !== null ? { q, propose: x.valeur, source: x.source, pourquoi: x.pourquoi, autre: x.autre }
+        : { q, propose: d, source: d === undefined || d === null ? null : 'defaut' })
+    }
   }
   return { repris, etapes, r }
 }
