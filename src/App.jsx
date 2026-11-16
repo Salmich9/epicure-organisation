@@ -1,3 +1,4 @@
+import { Parts } from './parts'
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api, store } from './api'
@@ -247,7 +248,7 @@ export default function App() {
 
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const view = mine ? { ...data, elements: data.elements.filter(e => e.resp === data.moi), actions: data.actions.filter(a => a.resp === data.moi) } : data
-  const tab = route === 'aujourdhui' ? 'auj' : route === 'mapart' ? 'mapart' : route === 'notes' ? 'notes' : route.startsWith('depot') ? 'depot' : 'evts'
+  const tab = route === 'aujourdhui' || route === 'parts' ? 'auj' : route === 'mapart' ? 'mapart' : route === 'notes' ? 'notes' : route.startsWith('depot') ? 'depot' : 'evts'
 
   let screen
   const ouvrir = id => { go(''); load(id) }
@@ -283,6 +284,7 @@ export default function App() {
   else if (route === 'staff-evt/noter') screen = <StaffNoter data={data} go={go} />
   else if (route === 'menu') screen = <Menu data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'equipe') screen = <Equipe data={data} go={go} reload={() => load(data.evt)} />
+  else if (route === 'parts') screen = <Parts key="parts" go={go} />
   else if (route.startsWith('cadrage')) screen = <Cadrage key={route} data={data} go={go} fin={route === 'cadrage/fin'} reload={() => load(data.evt)} />
   else if (route === 'revue') screen = <Revue data={data} go={go} putEl={fresh => putEl(fresh)} reload={() => load(data.evt)} />
   else if (route.startsWith('revue/')) screen = <RevueZone key={route} data={data} go={go} idx={Number(route.split('/')[1])} elId={route.split('/')[2]} putEl={fresh => putEl(fresh)} reload={() => load(data.evt)} geste={geste} />
