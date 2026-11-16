@@ -43,6 +43,7 @@ export function Depot({ go, droits = [] }) {
       <div className="dp-act">
         {peut('acheter') && <button className="p" onClick={() => setAchat({})}>+ Achat</button>}
         <button onClick={() => go('depot/historique')}>Historique</button>
+        {peut('gerer') && <button className="dp-ic" onClick={() => go('depot/reglages')} aria-label="Réglages du dépôt">⚙︎</button>}
       </div>
 
       <div className="px" style={{ marginTop: 14 }}>
@@ -88,6 +89,7 @@ export function DepotArticle({ id, go, droits = [] }) {
   const ui = useUI()
   const [a, setA] = useState(null)
   const [achat, setAchat] = useState(null)
+  const [edit, setEdit] = useState(null)
   const base = vu.stock?.articles.find(x => x.id === id)
   const charger = () => api.depotArticle(id).then(setA).catch(e => ui.toast(e.message))
   const [, maj] = useState(0)
@@ -107,7 +109,9 @@ export function DepotArticle({ id, go, droits = [] }) {
         {prix && <><div><b>{mad(art.cout)}</b>coût moyen <Info text="Moyenne des prix d'achat, pondérée par les quantités." /></div>
           <div><b>{mad(art.valeur)}</b>valeur</div></>}
       </div>
-      {droits.includes('acheter') && <div className="dp-act"><button className="p" onClick={() => setAchat({ article: art })}>+ Achat</button></div>}
+      {(droits.includes('acheter') || droits.includes('gerer')) && <div className="dp-act">
+        {droits.includes('acheter') && <button className="p" onClick={() => setAchat({ article: art })}>+ Achat</button>}
+        {droits.includes('gerer') && <button onClick={() => setEdit(art)}>Modifier</button>}</div>}
       <div className="group">Mouvements</div>
       {!a ? <div className="empty">Chargement…</div> : !a.mouvements.length ? <div className="empty">Aucun mouvement.</div>
         : <div className="list">{a.mouvements.map(m => <Mvt key={m.id} m={m} />)}</div>}
@@ -117,6 +121,7 @@ export function DepotArticle({ id, go, droits = [] }) {
       </>}
       <div style={{ height: 120 }} />
       <AchatSheet open={!!achat} init={achat} stock={vu.stock?.articles || [art]} prix={prix} onClose={() => setAchat(null)} onFait={() => { charger(); chargerStock() }} />
+      <ArticleSheet a={edit} onClose={() => setEdit(null)} onFait={archive => chargerStock().then(() => { maj(x => x + 1); if (archive) go('depot') })} />
     </motion.div>
   )
 }
@@ -292,6 +297,93 @@ export function DepotHistorique({ go }) {
       {!h ? <div className="empty">Chargement…</div> : !h.lignes.length ? <div className="empty">Rien trouvé.</div>
         : <div className="list" style={{ marginTop: 10 }}>{h.lignes.map(m => <Mvt key={m.id} m={m} avecArticle />)}</div>}
       <div style={{ height: 120 }} />
+    </motion.div>
+  )
+}
+
+// Un article : créer ou modifier (nom, catégorie, unité, type, seuil d'alerte), l'archiver
+export function ArticleSheet({ a, onClose, onFait }) {
+  const ui = useUI()
+  const [f, setF] = useState({})
+  const [refs, setRefs] = useState(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { if (a) { setF({ nom: a.nom || '', cat_id: a.cat_id || null, unite_id: a.unite_id || null, unite: a.unite, nature: a.nature || 'consommable', seuil: a.seuil ?? '' }); if (!refs) api.depotReferentiels().then(setRefs).catch(() => {}) } }, [a])
+  const unite = f.unite_id || refs?.unites.find(u => u.abr === f.unite || u.nom === f.unite)?.id
+  const pret = f.nom?.trim() && f.cat_id && unite
+  async function envoyer(champs, msg) {
+    setBusy(true)
+    try { await api.depotArticleMaj(a.id || null, champs); ui.toast(msg); onFait?.(champs.actif === false); onClose() } catch (e) { ui.toast(e.message) }
+    setBusy(false)
+  }
+  const enregistrer = () => envoyer({ nom: f.nom.trim(), cat_id: f.cat_id, unite_id: unite, nature: f.nature, seuil: f.seuil === '' ? null : n(f.seuil) }, a.id ? 'Article modifié' : 'Article créé')
+  return (
+    <Sheet open={!!a} onClose={onClose} foot={<button className="btn primary" disabled={!pret || busy} onClick={enregistrer}>{a?.id ? 'Enregistrer' : 'Créer l\'article'}</button>}>
+      {a && <>
+        <div className="el-kicker">{a.id ? 'Modifier l\'article' : 'Nouvel article'}</div>
+        <input className="bn-in dp-nom" placeholder="Nom de l'article" value={f.nom} onChange={e => setF({ ...f, nom: e.target.value })} />
+        <div className="as-l">CATÉGORIE</div><div className="chips">{refs?.categories.map(c => <button key={c.id} className={`chip ${f.cat_id === c.id ? 'on' : ''}`} onClick={() => setF({ ...f, cat_id: c.id })}>{c.nom}</button>)}</div>
+        <div className="as-l">UNITÉ</div><div className="chips">{refs?.unites.map(u => <button key={u.id} className={`chip ${unite === u.id ? 'on' : ''}`} onClick={() => setF({ ...f, unite_id: u.id })}>{u.nom}</button>)}</div>
+        <div className="as-l" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>TYPE<Info text="Retournable : revient du terrain (verres, matériel). Consommable : part et ne revient pas." /></div>
+        <div className="chips">{[['consommable', 'Consommable'], ['retournable', 'Retournable']].map(([k, l]) => <button key={k} className={`chip ${f.nature === k ? 'on' : ''}`} onClick={() => setF({ ...f, nature: k })}>{l}</button>)}</div>
+        <div className="as-l" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>SEUIL D'ALERTE<Info text="En dessous, l'article passe en rouge et entre dans « À commander ». Vide : pas d'alerte." /></div>
+        <input className="bn-in" style={{ width: '100%', font: 'inherit' }} inputMode="decimal" placeholder="Pas d'alerte" value={f.seuil} onChange={e => setF({ ...f, seuil: e.target.value.replace(',', '.') })} />
+        {a.id && <div className="ee-menu"><button className="danger" disabled={busy} onClick={() => envoyer({ actif: false }, 'Article archivé')}>Archiver l'article<span>›</span></button></div>}
+      </>}
+    </Sheet>
+  )
+}
+
+// Réglages du dépôt (droit « gérer ») : catégories, unités, fournisseurs, motifs d'écart, articles archivés
+const LISTES = [['categorie', 'Catégories'], ['unite', 'Unités'], ['fournisseur', 'Fournisseurs'], ['motif', 'Motifs d\'écart'], ['archive', 'Archivés']]
+export function DepotReglages({ go }) {
+  const ui = useUI()
+  const [r, setR] = useState(null)
+  const [t, setT] = useState('categorie')
+  const [ed, setEd] = useState(null)
+  const [neuf, setNeuf] = useState(null)
+  const charger = () => api.depotReglages().then(setR).catch(e => ui.toast(e.message))
+  useEffect(() => { charger() }, [])
+  if (!r) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
+  const L = { categorie: r.categories, unite: r.unites, fournisseur: r.fournisseurs, motif: r.motifs, archive: r.archives }[t]
+  async function envoyer(champs, msg) {
+    try { await api.depotReglageMaj(ed.type, ed.id || null, champs); ui.toast(msg); setEd(null); charger() } catch (e) { ui.toast(e.message) }
+  }
+  async function deplacer(x, sens) {
+    const l = [...r.categories], i = l.findIndex(c => c.id === x.id), j = i + sens; if (j < 0 || j >= l.length) return;
+    [l[i], l[j]] = [l[j], l[i]]; setR({ ...r, categories: l })
+    try { await api.depotReglageMaj('categorie', null, { ordre: l.map(c => c.id) }) } catch (e) { ui.toast(e.message); charger() }
+  }
+  const sous = x => t === 'categorie' ? `${x.n} article${x.n > 1 ? 's' : ''}` : t === 'unite' ? x.abr : t === 'fournisseur' ? [x.tel, x.note].filter(Boolean).join(' · ') : t === 'motif' ? (x.perte ? 'perte' : 'sortie normale') : x.cat
+  return (
+    <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
+      <div className="head"><button className="back" onClick={() => go('depot')}>‹ Dépôt</button><h1>Réglages</h1></div>
+      <div className="dp-act"><button className="p" onClick={() => setNeuf({})}>+ Nouvel article</button></div>
+      <div className="px" style={{ marginTop: 14 }}><div className="chips dp-cats">{LISTES.map(([k, l]) => <button key={k} className={`chip ${t === k ? 'on' : ''}`} onClick={() => setT(k)}>{l}</button>)}</div></div>
+      <div className="list" style={{ marginTop: 10 }}>
+        {L.map((x, i) => (
+          <div key={x.id} className="row dp-m">
+            <button className="x" style={{ textAlign: 'left' }} onClick={() => t === 'archive' ? null : setEd({ type: t, ...x })}><b>{x.nom}</b><span>{sous(x)}</span></button>
+            {t === 'categorie' && <div className="dp-st"><button disabled={!i} onClick={() => deplacer(x, -1)}>↑</button><button disabled={i === L.length - 1} onClick={() => deplacer(x, 1)}>↓</button></div>}
+            {t === 'archive' && <button className="chip" onClick={() => api.depotArticleMaj(x.id, { actif: true }).then(() => { ui.toast(`${x.nom} remis au dépôt`); charger(); chargerStock() }).catch(e => ui.toast(e.message))}>Remettre</button>}
+          </div>))}
+        {t !== 'archive' && <button className="row bn-plus" onClick={() => setEd({ type: t, nom: '' })}>+ Ajouter</button>}
+        {t === 'archive' && !L.length && <div className="empty">Aucun article archivé.</div>}
+      </div>
+      <div style={{ height: 120 }} />
+      <Sheet open={!!ed} onClose={() => setEd(null)} foot={ed && <button className="btn primary" disabled={!ed.nom?.trim() || (ed.type === 'unite' && !ed.abr?.trim())}
+          onClick={() => envoyer({ nom: ed.nom.trim(), abr: ed.abr?.trim(), tel: ed.tel?.trim(), note: ed.note?.trim(), perte: ed.perte }, ed.id ? 'Modifié' : 'Ajouté')}>{ed.id ? 'Enregistrer' : 'Ajouter'}</button>}>
+        {ed && <>
+          <div className="el-kicker">{LISTES.find(x => x[0] === ed.type)[1]}</div>
+          <input autoFocus className="bn-in dp-nom" placeholder="Nom" value={ed.nom} onChange={e => setEd({ ...ed, nom: e.target.value })} />
+          {ed.type === 'unite' && <><div className="as-l">ABRÉVIATION</div><input className="bn-in" style={{ width: '100%', font: 'inherit' }} placeholder="btl" value={ed.abr || ''} onChange={e => setEd({ ...ed, abr: e.target.value })} /></>}
+          {ed.type === 'fournisseur' && <><div className="as-l">TÉLÉPHONE</div><input className="bn-in" style={{ width: '100%', font: 'inherit' }} inputMode="tel" placeholder="06…" value={ed.tel || ''} onChange={e => setEd({ ...ed, tel: e.target.value })} />
+            <div className="as-l">NOTE</div><input className="bn-in" style={{ width: '100%', font: 'inherit' }} placeholder="Livre le mardi" value={ed.note || ''} onChange={e => setEd({ ...ed, note: e.target.value })} /></>}
+          {ed.type === 'motif' && <><div className="as-l" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>COMPTE COMME<Info text="Une perte compte dans les écarts du mois. Une sortie normale (ex : consommée) non." /></div>
+            <div className="chips">{[[true, 'Perte'], [false, 'Sortie normale']].map(([k, l]) => <button key={l} className={`chip ${!!ed.perte === k ? 'on' : ''}`} onClick={() => setEd({ ...ed, perte: k })}>{l}</button>)}</div></>}
+          {ed.id && <div className="ee-menu"><button className="danger" onClick={() => envoyer({ actif: false }, 'Retiré')}>Retirer<span>›</span></button></div>}
+        </>}
+      </Sheet>
+      <ArticleSheet a={neuf} onClose={() => setNeuf(null)} onFait={() => { charger(); chargerStock() }} />
     </motion.div>
   )
 }

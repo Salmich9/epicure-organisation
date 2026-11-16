@@ -37,12 +37,18 @@ const RPC = {
     : { prix: true, valeur: ARTICLES.reduce((t, a) => t + a.valeur, 0), inventaire: '2026-09-10', articles: ARTICLES },
   depot_article: () => ({ achats: [{ id: 'p1', qte: 300, date: '2026-09-02', prix: equipe ? null : 18, total: 5400, annule: false, fournisseur: 'Verrerie Atlas' }, { id: 'p2', qte: 120, date: '2026-06-11', prix: equipe ? null : 17.5, annule: false, fournisseur: 'Verrerie Atlas' }],
     mouvements: MVTS.filter(m => m.article === 'Verre à vin Bordeaux').concat([{ id: 'm9', type: 'achat', qte: 300, fournisseur: 'Verrerie Atlas', qui: 'Salmane', quand: '2026-09-02T10:00:00Z' }]) }),
-  depot_referentiels: () => ({ fournisseurs: [{ id: 'f1', nom: 'Verrerie Atlas' }, { id: 'f2', nom: 'Marché de gros' }, { id: 'f3', nom: 'Ali' }, { id: 'f4', nom: 'Metro Marrakech' }], categories: [], unites: [], motifs: [] }),
+  depot_referentiels: () => ({ fournisseurs: [{ id: 'f1', nom: 'Verrerie Atlas' }, { id: 'f2', nom: 'Marché de gros' }, { id: 'f3', nom: 'Ali' }, { id: 'f4', nom: 'Metro Marrakech' }], categories: Object.values(C).map(([id, nom]) => ({ id, nom })), unites: [{ id: 'u1', nom: 'Pièce', abr: 'pce' }, { id: 'u2', nom: 'Kilo', abr: 'kg' }, { id: 'u3', nom: 'Litre', abr: 'L' }], motifs: [] }),
   depot_achat: b => ({ purchase_id: 'pn', article_id: b.p.article_id }),
   depot_historique: b => ({ lignes: MVTS.filter(m => !b.p?.type || m.type === b.p.type).slice(0, b.p?.limite || 80) }),
   depot_inventaires: () => [{ id: 'i2', libelle: 'Inventaire novembre 2026', date: '2026-11-16', statut: 'brouillon', lignes: 5, par: 'Ouadia Daalaoui', valeur: null }, { id: 'i1', libelle: 'Inventaire (Basse)', date: '2026-09-10', statut: 'valide', lignes: 275, responsable: 'Salma', valeur: equipe ? null : 368181.74 }],
   depot_inventaire: () => ({ id: 'i2', libelle: 'Inventaire novembre 2026', date: '2026-11-16', statut: 'brouillon', comptes: { a1: 420, a2: 176, a3: 24, a4: 12, a8: 1150 } }),
   depot_inventaire_compter: () => true,
+  depot_reglages: () => ({ categories: Object.values(C).map(([id, nom], i) => ({ id, nom, n: ARTICLES.filter(a => a.cat_id === id).length })),
+    unites: [{ id: 'u1', nom: 'Pièce', abr: 'pce' }, { id: 'u2', nom: 'Kilo', abr: 'kg' }, { id: 'u3', nom: 'Litre', abr: 'L' }],
+    fournisseurs: [{ id: 'f1', nom: 'Verrerie Atlas', tel: '0661 00 00 00', note: 'Livre le mardi' }, { id: 'f2', nom: 'Marché de gros' }, { id: 'f3', nom: 'Ali' }, { id: 'f4', nom: 'Metro Marrakech' }],
+    motifs: [{ id: 'mo1', nom: 'Consommée', perte: false }, { id: 'mo2', nom: 'Casse', perte: true }, { id: 'mo3', nom: 'Oublié sur place', perte: true }, { id: 'mo4', nom: 'Vol', perte: true }],
+    archives: [{ id: 'z1', nom: 'Verre Old Fashioned (ancien modèle)', cat: 'Bar & verrerie' }, { id: 'z2', nom: 'Bâche 4×6', cat: 'Logistique' }] }),
+  depot_reglage_maj: () => true, depot_article_maj: () => ({ id: 'a1' }),
 }
 let ko = 0
 const echec = m => { ko++; console.log('  ✗', m) }
@@ -83,9 +89,28 @@ if (!(await p.locator('.dp-prog').textContent()).includes('5 / 13')) echec('prog
 await voir('depot/historique'); await photo('7-historique.png')
 await p.click('.chip:has-text("Sorties")'); await p.waitForTimeout(400)
 if ((await p.locator('.row.dp-m').count()) !== 2) echec('filtre sorties')
+// réglages (droit gérer)
+await voir('depot/article/a1', 1000)
+await p.click('.dp-act button:has-text("Modifier")'); await p.waitForTimeout(500)
+await photo('9-article-modif.png')
+await p.fill('.sheet input[inputmode=decimal], [role=dialog] input[inputmode=decimal]', '350')
+await p.click('button:has-text("Enregistrer")'); await p.waitForTimeout(400)
+const am = appels.find(a => a[0] === 'depot_article_maj')?.[1]
+if (!am || am.p_id !== 'a1' || am.p.seuil !== 350 || am.p.unite_id !== 'u1' || am.p.cat_id !== 'c1') echec(`modif article : ${JSON.stringify(am)}`)
+await voir('depot', 900)
+if (!(await p.locator('.dp-ic').count())) echec('bouton réglages absent')
+await p.click('.dp-ic'); await p.waitForTimeout(900)
+await photo('10-reglages.png')
+await p.click('.chip:has-text("Fournisseurs")'); await p.waitForTimeout(300)
+await p.click('text=Verrerie Atlas'); await p.waitForTimeout(400)
+await photo('11-fournisseur.png')
+await p.locator('.scrim').first().click({ position: { x: 20, y: 20 } }); await p.waitForTimeout(500)
+await p.click('.chip:has-text("Motifs")'); await p.waitForTimeout(300)
+await photo('12-motifs.png')
 equipe = true
-await voir('depot', 1200); await photo('8-depot-equipe.png')
+await voir('depot', 300); await p.reload(); await p.waitForTimeout(1500); await photo('8-depot-equipe.png')
 if (await p.locator('text=valeur du stock').count()) echec('valeur visible pour l\'équipe')
+if (await p.locator('.dp-ic').count()) echec('réglages visibles sans le droit gérer')
 
 await b.close(); srv.close()
 console.log(ko ? `${ko} échec(s)` : 'DEPOT OK')

@@ -1202,3 +1202,7 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .pos { color: var(--accent); font-style: normal; }
 .dp-m .x b .pend { display: inline-block; width: auto; margin-left: 8px; vertical-align: 2px; }
 a.btn { text-decoration: none; display: flex; align-items: center; justify-content: center; }
+.dp-act button.dp-ic { flex: 0 0 52px; font-size: 18px; }
+.dp-nom { width: 100%; font: inherit; font-family: var(--display); font-size: 26px; margin-top: 6px; padding: 10px 12px; }
+.dp-m > button.x { background: none; padding: 0; }
+.dp-st button:disabled { opacity: .3; }
