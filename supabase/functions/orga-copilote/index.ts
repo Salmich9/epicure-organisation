@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
-    const { token, evt, mode, note, theme, lignes, reponses } = await req.json()
+    const { token, evt, mode, note, theme, lignes, reponses, apercu } = await req.json()
     if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier', 'bilan', 'cadrage', 'article', 'prix'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
 
     // Le jeton de session de l'appli est vérifié par la base elle-même.
@@ -78,7 +78,8 @@ ${leconsTxt}`
       const cx = c.data || {}
       // Le moteur de l'appli calcule d'abord les postes couverts par les paramètres (moments, staff, transport…)
       if (!cx.chiffrage?.base) {
-        const r = await sb.rpc('chiffrage_calculer', { p_token: token, p_evt: data.evt, p_base: null })
+        // Le calcul sans rien écrire (un chiffrage d'avant les paramètres ne doit pas être remplacé en douce)
+        const r = await sb.rpc('chiffrage_apercu', { p_token: token, p_evt: data.evt, p_base: null })
         if (r.error) return json({ error: `Chiffrage : ${r.error.message}` }, 500)
         cx.chiffrage = { ...(cx.chiffrage || {}), lignes: r.data.lignes, base: r.data.base }
       }
@@ -234,6 +235,24 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
     }
     if (mode === 'chiffrer') {
       const extras = (res.lignes || []).filter((l: any) => l?.element && l?.zone).map((l: any) => { const { param, ...x } = l; return { ...x, quantite: Number(l.quantite) || 0, prix: Number(l.prix) || 0 } })
+      // Aperçu : rien n'est écrit, l'appli montre « avant → après » et Salmane coche ce qu'il garde
+      if (apercu) {
+        const c0 = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
+        const b: any = { ...(c0.data?.chiffrage?.base || {}) }
+        b.surcharges = { ...(b.surcharges || {}) }; b.effectifs = { ...(b.effectifs || {}) }
+        for (const a of (Array.isArray(res.ajustements) ? res.ajustements : [])) {
+          if (!a?.param) continue
+          const s: any = { ...(b.surcharges[a.param] || {}) }
+          if (Number(a.valeur) > 0) s.valeur = Number(a.valeur)
+          if (Number(a.ratio) > 0) s.ratio = Number(a.ratio)
+          if (Object.keys(s).length) b.surcharges[a.param] = s
+          if (a.effectif !== null && a.effectif !== undefined && a.effectif !== '' && Number(a.effectif) >= 0) b.effectifs[a.param] = Number(a.effectif)
+        }
+        const r = await sb.rpc('chiffrage_apercu', { p_token: token, p_evt: data.evt, p_base: b })
+        if (r.error) return json({ error: `Aperçu : ${r.error.message}` }, 500)
+        const moteur = (r.data.lignes || []).filter((l: any) => l.param)
+        return json({ ...res, lignes: [...moteur, ...extras], base: r.data.base, apercu: true, usage: out.usage })
+      }
       // Ajustements demandés : surcharges de l'événement (même chemin que la fenêtre « Cet événement seulement »)
       const cles = new Set(calc.map((l: any) => l.param))
       for (const a of (Array.isArray(res.ajustements) ? res.ajustements : [])) {

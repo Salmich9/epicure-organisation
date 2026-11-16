@@ -1272,3 +1272,19 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 .nt-cl { position: absolute; right: 18px; top: calc(12px + env(safe-area-inset-top)); width: 38px; height: 38px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); font-size: 17px; }
 .nt-ok { width: 100%; font-size: 18px; padding: 18px; }
 .nt-fait { text-align: center; font-weight: 800; font-size: 18px; color: #1F6F6B; background: #DDEFEA; border-radius: 14px; padding: 16px; }
+
+/* Chiffrage protégé (v66) */
+.aa-gp { display: flex; justify-content: space-between; padding: 16px 16px 6px; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--mute); }
+.aa-gp b { color: var(--ink); }
+.aa-l { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line); background: var(--surface); width: 100%; text-align: left; }
+.aa-l .x { flex: 1; min-width: 0; } .aa-l .x b { display: block; font-size: 14.5px; } .aa-l .x span { display: block; font-size: 12px; color: var(--mute); margin-top: 2px; }
+.aa-l .v { text-align: right; font-size: 13px; white-space: nowrap; } .aa-l .v s { color: var(--mute); display: block; } .aa-l .v b { display: block; font-size: 14.5px; }
+.aa-l .v b.up { color: #A3392B; } .aa-l .v b.down { color: #1F6F6B; }
+.aa-ck { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--line); flex: none; display: grid; place-items: center; font-size: 13px; font-weight: 800; font-style: normal; }
+.aa-ck.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.aa-h { display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.aa-h .t { width: 62px; font-size: 12px; color: var(--mute); flex: none; white-space: pre-line; } .aa-h b { font-size: 14.5px; } .aa-h span { display: block; font-size: 12.5px; color: var(--mute); margin-top: 2px; }
+.aa-ban { margin: 12px 16px; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); font-size: 13.5px; }
+.aa-ban b.t { display: block; font-size: 15px; margin-bottom: 2px; }
+.aa-pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 7px; background: var(--surface2); }
+.cl-lk { font-size: 12px; margin-left: 2px; }

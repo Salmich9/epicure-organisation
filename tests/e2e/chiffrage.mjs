@@ -73,6 +73,8 @@ const RPC = {
   chiffrage_param_maj: b => ({ peut_modifier: true, params: PARAMS.map(p => p.cle === b.p_cle ? { ...p, ...b.p, nb_modifs: p.nb_modifs + 1 } : p) }),
   chiffrage_contexte: () => ({ paliers: [{ coef: 2.25, jusqua: 349 }], chiffrage: { lignes: lignes(), base: BASE, coef: 2.25, hypotheses: '' }, catalogue: [], references: [] }),
   chiffrage_calculer: b => ({ lignes: lignes(), base: { ...BASE, ...(b.p_base || {}) } }),
+  chiffrage_apercu: b => ({ lignes: [...lignes(), ...((b.p_base?.moments || []).includes('late_snack') ? [L('m_late', 'moments', 'Menu', 'Late snack', 200, 40, '200 invités × 40')] : [])], base: { ...BASE, ...(b.p_base || {}) }, moteur: lignes() }),
+  chiffrage_valider: b => ({ lignes: b.p_lignes, base: b.p_base }), chiffrage_journal_liste: () => [], chiffrage_noter: () => true,
   chiffrage_surcharger: b => ({ lignes: lignes(b.p.ratio ? Math.ceil(200 / b.p.ratio) : 20), base: { ...BASE, surcharges: b.p_reference ? {} : { [b.p_cle]: { ratio: b.p.ratio } } } }),
   chiffrage_personne: () => ({ lignes: lignes(), base: BASE }), chiffrage_enregistrer: () => true,
   bilan_liste: () => ({ pieces_a_imputer: 0, encaissements: 0, enveloppes: [], lecons: [] }),
@@ -137,12 +139,17 @@ await photo('c7-personne.png')
 await p.click('.sheet button:has-text("Enregistrer")'); await p.waitForTimeout(400)
 const pe = appels.find(a => a[0] === 'chiffrage_personne')?.[1]
 if (!pe || pe.p_cle !== 's_chef_rang' || pe.p_rang !== 2 || pe.p.nom !== 'Youssef Alami' || pe.p.prix !== 650) echec(`personne : ${JSON.stringify(pe)}`)
-// 6. Informations de base : un moment de plus recalcule
+// 6. Informations de base : un moment de plus = proposition avant → après, rien n'est écrit avant validation
 await p.click('.cf-base summary'); await p.waitForTimeout(300)
-await p.click('.cf-base .chip:has-text("Late snack")'); await p.waitForTimeout(400)
-const ca = appels.filter(a => a[0] === 'chiffrage_calculer').pop()?.[1]
+await p.click('.cf-base .chip:has-text("Late snack")'); await p.waitForTimeout(600)
+const ca = appels.filter(a => a[0] === 'chiffrage_apercu').pop()?.[1]
 if (!ca || !ca.p_base.moments.includes('late_snack')) echec(`base : ${JSON.stringify(ca)}`)
+if (appels.some(a => a[0] === 'chiffrage_calculer' && a[1].p_base?.moments?.includes('late_snack'))) echec('recalcul écrit sans validation')
+if (!(await p.locator('h1:has-text("Avant → après")').count())) echec('écran avant → après absent')
 await photo('c8-base.png')
+await p.click(".btn.primary:has-text(\"Valider\")"); await p.waitForTimeout(500)
+const va = appels.filter(a => a[0] === 'chiffrage_valider').pop()?.[1]
+if (!va || !va.p_lignes.some(l => l.param === 'm_late') || va.p_journal?.source !== 'base') echec(`valider : ${JSON.stringify(va?.p_journal)}`)
 // 7. Hors Salmane : la référence est fermée
 peut = false
 await p.reload(); await p.waitForTimeout(1500)
