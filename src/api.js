@@ -183,6 +183,10 @@ export const api = {
   depotInventaireValider: (id, responsable) => rpc('depot_inventaire_valider', { p_token: store.token, p_id: id, p_responsable: responsable }),
   bonContexte: (evt) => rpc('bon_contexte', { p_token: store.token, p_evt: evt || null }),
   bonCreer: (p) => rpc('bon_creer', { p_token: store.token, p }),
+  depotPhoto: async (id, blob) => {
+    const b = new Uint8Array(await blob.arrayBuffer()); let t = ''; for (let i = 0; i < b.length; i += 8192) t += String.fromCharCode(...b.subarray(i, i + 8192))
+    return fonction('orga-photo', { token: store.token, id, type: blob.type, data: btoa(t) }, 'La photo n\'a pas pu être envoyée.')
+  },
   bonPdf: (id) => fonction('orga-bon', { token: store.token, id }, 'Le bon n\'a pas pu être rangé dans Drive.'),
   depotListe: () => rpc('depot_liste', { p_token: store.token }),
   santeEtat: () => rpc('sante_etat', { p_token: store.token }),

@@ -59,6 +59,7 @@ const appels = []
 await ctx.route('**/rest/v1/rpc/**', r => { const fn = r.request().url().split('/rpc/')[1]; const body = JSON.parse(r.request().postData() || '{}'); appels.push([fn, body])
   r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RPC[fn] ? RPC[fn](body) : true) }) })
 await ctx.route('**/functions/v1/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
+await ctx.route('**/functions/v1/orga-photo', r => { appels.push(['orga-photo', JSON.parse(r.request().postData())]); r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="}' }) })
 await ctx.route(u => !u.href.startsWith(`http://localhost:${port}`) && !u.href.includes('/rest/v1/') && !u.href.includes('/functions/v1/'), r => r.abort())
 const p = await ctx.newPage()
 const photo = async (nom, plein) => { if (captures) await p.screenshot({ path: path.join(captures, nom), fullPage: !!plein }) }
@@ -114,6 +115,11 @@ await photo('15-retour-motif.png')
 await voir('depot/article/a1', 1000)
 await p.click('.dp-act button:has-text("Modifier")'); await p.waitForTimeout(500)
 await photo('9-article-modif.png')
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAQ0lEQVR42u3OMQ0AAAgDIP0z6LM6R5gB0lsk1QkICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAoVHy4dAGCZhYrEAAAAAElFTkSuQmCC', 'base64')
+await p.setInputFiles('.dp-ph input[type=file]', { name: 'verre.png', mimeType: 'image/png', buffer: png }); await p.waitForTimeout(1200)
+const ph = appels.find(a => a[0] === 'orga-photo')?.[1]
+if (!ph || ph.id !== 'a1' || !ph.data || !/^image\//.test(ph.type)) echec(`photo : ${JSON.stringify(ph)?.slice(0, 120)}`)
+await photo('16-photo.png')
 await p.fill('.sheet input[inputmode=decimal], [role=dialog] input[inputmode=decimal]', '350')
 await p.click('button:has-text("Enregistrer")'); await p.waitForTimeout(400)
 const am = appels.find(a => a[0] === 'depot_article_maj')?.[1]
