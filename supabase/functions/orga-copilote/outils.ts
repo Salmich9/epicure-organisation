@@ -87,6 +87,32 @@ export const TOOLS: Record<string, any> = {
       required: ['lignes', 'hypotheses'],
     },
   },
+  prix: {
+    name: 'prix',
+    description: 'Nouvelles références proposées pour les paramètres de chiffrage, d\'après le réel de cet événement et la tendance.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        propositions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              param: { type: 'string', description: 'cle du paramètre' },
+              champ: { type: 'string', enum: ['valeur', 'ratio'] },
+              propose: { type: 'number', description: 'Nouvelle valeur proposée' },
+              reel: { type: 'number', description: 'Valeur unitaire réelle sur cet événement' },
+              raison: { type: 'string', description: 'Une phrase avec les chiffres réels' },
+              tendance: { type: 'string', description: 'Quelques mots sur les derniers événements' },
+              points: { type: 'array', items: { type: 'number' }, description: 'Valeurs réelles des derniers événements, du plus ancien au plus récent' },
+            },
+            required: ['param', 'champ', 'propose', 'raison'],
+          },
+        },
+      },
+      required: ['propositions'],
+    },
+  },
   placer: {
     name: 'proposer',
     description: 'Propose les changements à appliquer à l\'organisation pour tenir compte de la note.',

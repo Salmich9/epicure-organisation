@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
   try {
     const { token, evt, mode, note, theme, lignes, reponses } = await req.json()
-    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier', 'bilan', 'cadrage', 'article'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
+    if (!['placer', 'challenge', 'planning', 'bulles', 'chiffrer', 'dossier', 'bilan', 'cadrage', 'article', 'prix'].includes(mode)) return json({ error: 'mode inconnu' }, 400)
 
     // Le jeton de session de l'appli est vérifié par la base elle-même.
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { db: { schema: 'orga' } })
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     const leconsTxt = lecons.length ? `Leçons retenues des événements passés (à appliquer) :\n${lecons.map((l: any) => `- ${l.zone ?? ''} : ${l.texte} (${l.detail ?? ''})`).join('\n')}` : ''
 
     // Paramètres de chiffrage de l'appli : la seule source des prix et des ratios (comme pour l'agent vocal)
-    const ptxt = ['chiffrer', 'cadrage', 'challenge', 'bilan'].includes(mode)
+    const ptxt = ['chiffrer', 'cadrage', 'challenge', 'bilan', 'prix'].includes(mode)
       ? `Paramètres de chiffrage (seule source des prix, ratios et quantités repères) :\n${(await sb.rpc('chiffrage_params_texte', { p_token: token })).data || ''}` : ''
 
     let chiffrageTxt = '', bilanTxt = ''
@@ -102,6 +102,18 @@ Catalogue (id | zone | élément | base | mode | prix MAD) :\n${cat}
 ${leconsTxt}`
     }
 
+    let prixTxt = ''
+    if (mode === 'prix') {
+      const c = await sb.rpc('cloture_donnees', { p_token: token, p_evt: data.evt })
+      if (c.error) return json({ error: `Clôture : ${c.error.message}` }, 500)
+      const d = c.data || {}
+      prixTxt = `${ptxt}
+Postes de cet événement (cle | poste | calcul | référence | ratio | prévu : quantité × prix = total | personnes | réel facturé total | lignes facturées / lignes | déjà gardé | historique des changements) :
+${(d.postes || []).map((x: any) => `${x.cle} | ${x.libelle} | ${x.calcul} | ${x.reference} ${x.unite} | ${x.ratio_reference ?? ''} ${x.ratio_unite ?? ''} | ${x.prevu_qte} × ${x.prevu_prix} = ${x.prevu_total} | ${x.personnes || ''} | ${x.reel_total ?? 'aucune pièce'} | ${x.lignes_facturees}/${x.lignes} | ${x.deja_garde} | ${(x.histo || []).map((h: any) => `${h.le} ${h.champ} ${h.ancien}→${h.nouveau} (${h.portee})`).join(', ')}`).join('\n') || '(aucun poste calculé par les paramètres)'}
+Réel des événements passés par poste (cle | événement | date | réel facturé | lignes) :
+${(d.passes || []).map((x: any) => `${x.cle} | ${x.evt} | ${x.date ?? ''} | ${x.reel} | ${x.lignes}`).join('\n') || '(aucun)'}`
+    }
+
     let cadrageTxt = ''
     if (mode === 'cadrage') {
       const rep = reponses || ev.cadrage?.reponses || {}
@@ -141,6 +153,15 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
       ? `Donne au plus 4 bulles pour le tableau de bord de ${data.moi} aujourd'hui : 2 ou 3 conseils concrets (ce qu'il faut faire maintenant, avec les chiffres réels) et 1 réflexion de pro (un risque moins évident, une idée qui fait la différence le jour J). Ne répète pas les alertes évidentes (retards, éléments sans responsable) : elles sont déjà affichées. Appelle l'outil « bulles ».`
       : mode === 'chiffrer'
       ? `${chiffrageTxt}\n\n${note ? `Consigne de ${data.moi} : « ${note} »\n` : ''}Les postes déjà calculés viennent des paramètres de l'appli : ne les recopie pas et ne les recalcule pas. Ajoute seulement les lignes EN PLUS dont CET événement a besoin et que les paramètres ne couvrent pas (décor, mobilier, matériel de cuisine ou de bar spécifique, énergie, régimes, tiers…), en coût de revient, à partir du catalogue et des événements passés. Rends la liste complète des lignes en plus : elle remplace l'actuelle (garde celles qui restent utiles). Une ligne par élément : jamais deux moments ou deux postes réunis sur une même ligne. Si la consigne demande de changer un prix, un ratio ou un effectif d'un poste déjà calculé, mets-le dans « ajustements » avec sa cle (vaut pour cet événement seulement). Prix : uniquement ceux du catalogue ou des références, jamais inventés (0 si inconnu, et dis-le dans la note). Au plus 25 lignes. Note : 5 mots au plus, seulement si utile. Appelle l'outil « chiffrage ».`
+      : mode === 'prix'
+      ? `${prixTxt}\n\nL'événement est terminé et ses dépenses réelles sont inscrites. Propose de nouvelles références pour les paramètres, poste par poste. Règles :
+- Seulement les postes qui ont des pièces (lignes facturées > 0). Prix unitaire réel = réel facturé ÷ quantité prévue (pour le staff, ÷ nombre de personnes).
+- Propose seulement si l'écart dépasse 5 %. Un seul événement ne suffit pas : propose une valeur prudente entre la référence et le réel ; si les événements passés vont dans le même sens, rapproche-toi du réel.
+- Un poste déjà gardé par Salmane : ne le repropose que si l'écart s'aggrave nettement.
+- Un ratio (champ ratio) seulement si les pièces le prouvent (par exemple plus de personnes payées que prévu).
+- Arrondis : prix à 0,5 près sous 20 MAD, à 5 près au-dessus, à 50 près au-dessus de 1 000.
+- raison : une phrase avec les chiffres réels. tendance : quelques mots sur les derniers événements. points : les prix unitaires réels des derniers événements, du plus ancien au plus récent, celui-ci compris.
+- Au plus 8 propositions, de la plus chère à la moins chère. Aucune si rien ne le justifie. Appelle l'outil « prix ».`
       : mode === 'planning'
       ? `${planningTxt}\n\nInspecte ce planning de J-30 à J+5 : repère ce qui manque dans le temps (livraisons non planifiées pour ce qui est loué ou acheté, confirmations des tiers, arrivée et repas du staff, montage, démontage et retour des locations à J+1, paiements). Ne propose pas ce qui existe déjà. Appelle l'outil « creneaux ».`
       : mode === 'bilan'
@@ -165,7 +186,7 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === 'chiffrer' || mode === 'cadrage' ? 16000 : mode === 'challenge' || mode === 'bilan' ? 8000 : 4000,
+        max_tokens: mode === 'chiffrer' || mode === 'cadrage' ? 16000 : mode === 'challenge' || mode === 'bilan' || mode === 'prix' ? 8000 : 4000,
         system: SYSTEME,
         tools: [TOOLS[mode]],
         tool_choice: { type: 'auto' },
@@ -178,7 +199,7 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
     if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     const res: any = { ...use.input }
-    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons', 'items', 'articles', 'ajustements']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
+    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons', 'items', 'articles', 'ajustements', 'propositions']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
     if (Array.isArray(res.questions)) res.questions = res.questions.filter((q: any) => q?.question && Array.isArray(q.options) && q.options.length)
     if (mode === 'bulles') {
       res.bulles = (res.bulles || []).filter((b: any) => b?.texte).slice(0, 4)
@@ -205,6 +226,11 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
     if (mode === 'article') {
       const zs = new Set(data.zones.map((z: any) => z.nom))
       res.articles = (Array.isArray(res.articles) ? res.articles : []).filter((x: any) => x?.element).map((x: any) => ({ ...x, zone: zs.has(x.zone) ? x.zone : data.zones[0]?.nom, prix: Number(x.prix) || 0, quantite: Number(x.quantite) || 0, qte_par_base: Number(x.qte_par_base) || 1 }))
+    }
+    if (mode === 'prix') {
+      const l = await sb.rpc('propositions_enregistrer', { p_token: token, p_evt: data.evt, p: Array.isArray(res.propositions) ? res.propositions : [] })
+      if (l.error) return json({ error: `Propositions : ${l.error.message}` }, 500)
+      return json({ ...l.data, usage: out.usage })
     }
     if (mode === 'chiffrer') {
       const extras = (res.lignes || []).filter((l: any) => l?.element && l?.zone).map((l: any) => { const { param, ...x } = l; return { ...x, quantite: Number(l.quantite) || 0, prix: Number(l.prix) || 0 } })
