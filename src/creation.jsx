@@ -142,7 +142,8 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   const [envoiV, setEnvoiV] = useState(false)
   const retouches = useRef({})                  // lignes retouchées à la main depuis le dernier enregistrement (pour le journal)
   const chargerParams = () => api.chiffrageParams().then(d => { const m = Object.fromEntries(d.params.map(p => [p.cle, p])); setParams(m); setPeut(d.peut_modifier); return m }).catch(() => ({}))
-  const [incomplet, setIncomplet] = useState(false)  // demande incomplète : pas de chiffrage tant qu'il manque une base
+  const [incomplet, setIncomplet] = useState(false)
+  const [questions, setQuestions] = useState(null)  // demande incomplète : pas de chiffrage tant qu'il manque une base
   // Réponse du moteur (calcul, surcharge, personne) : lignes et base à jour
   const appliquer = r => { setLignes(r.lignes || []); setBase(r.base || null) }
   // Plus rien ne se recalcule tout seul : un changement d'information devient une proposition « avant → après »
@@ -154,7 +155,7 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   }
   const enregistrerBase = b => api.chiffrageValider(data.evt, lignes, b, null, null).then(() => setBase(b)).catch(e => ui.toast(e.message))
   const TITRES = { moments: 'Moments changés', alcool: 'Alcool changé', traiteur: 'Prestations changées', bar: 'Prestations changées', nb_bars: 'Nombre de bars changé',
-    comptoir: 'Comptoir changé', alcool_client: 'Alcool du client', service: 'Service du bar changé', signatures: 'Signatures changées', heures: 'Horaires changés',
+    comptoir: 'Comptoir changé', alcool_client: 'Alcool du client', alcool_qui: 'Qui fournit l\'alcool', prestations: 'Prestations changées', zone: 'Lieu changé', service: 'Service du bar changé', signatures: 'Signatures changées', heures: 'Horaires changés',
     plonge: 'Plonge changée', cuisine: 'Cuisine sur place changée', electricite: 'Électricité changée', fourni: 'Fourni par le lieu changé' }
   const titreBase = chg => chg.invites !== undefined ? `Invités ${base?.invites ?? '?'} → ${chg.invites}` : TITRES[Object.keys(chg)[0]] || 'Lieu changé'
   async function recalculer(chg) {
@@ -237,6 +238,7 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   }
   useEffect(() => {
     const pp = chargerParams()
+    api.chiffrageQuestions().then(x => setQuestions(x.questions)).catch(() => {})
     api.chiffrageContexte(data.evt).then(async cx => {
       const ps = cx.paliers || []; setPaliers(ps)
       const c = cx.chiffrage
@@ -335,7 +337,7 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
         {attente && <div className="aa-ban"><b className="t">🔔 {attente.nb} changement{attente.nb > 1 ? 's' : ''} à valider</b>Invités {attente.de} → {attente.a}. Rien n'a bougé tant que tu n'as pas validé.
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}><button className="chip on" onClick={() => proposer(`Invités ${attente.de} → ${attente.a}`, 'base', attente.r)}>Voir avant → après</button>
             <button className="chip" onClick={() => setAttente(null)}>Plus tard</button></div></div>}
-        {base ? <InfosBase base={base} occupe={occupe} onChange={recalculer} />
+        {base ? <InfosBase base={base} occupe={occupe} onChange={recalculer} questions={questions} />
           : lignes.length > 0 && <div className="cf-vieux"><span>Chiffré avant les paramètres</span><button className="chip on" disabled={occupe} onClick={ouvrirComparer}>{occupe ? '…' : 'Comparer avec les paramètres'}</button></div>}
         <div className="px" style={{ marginTop: 8 }}><button className="chip" onClick={() => setVue('journal')}>🕘 Historique</button></div>
         {calcul && lignes.length > 0 && <p className="small mute px" style={{ marginTop: 10 }}>Le copilote ajoute ce qui est propre à cet événement…</p>}

@@ -6,6 +6,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { accueil, aujourdhui, donnees } from './fixture.mjs'
+import { questionsListe } from './questions.fixture.mjs'
 const { chromium } = createRequire(import.meta.url)('playwright')
 
 const dist = path.resolve('dist'), port = 5197, captures = process.argv[2]
@@ -28,6 +29,7 @@ const ANCIEN = [{ zone: 'Menu', element: 'Dîner', quantite: 150, prix: 140 }, {
 let mode = 'invites'
 const D = () => ({ ...donnees, evenements: donnees.evenements.map(e => e.id === 'EVT-T-001' ? { ...e, invites: 180, nom: 'Norah et François' } : e) })
 const RPC = {
+  chiffrage_questions_liste: () => questionsListe(),
   aujourdhui: () => aujourdhui, accueil: () => accueil, donnees: () => D(), depot_liste: () => [],
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }), pour_toi: () => ({ non_vus: 0, items: [] }),
   chiffrage_params: () => ({ peut_modifier: true, params: [] }),

@@ -6,6 +6,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { accueil, aujourdhui, donnees } from './fixture.mjs'
+import { questionsListe } from './questions.fixture.mjs'
 const { chromium } = createRequire(import.meta.url)('playwright')
 
 const dist = path.resolve('dist'), port = 5201, captures = process.argv[2]
@@ -21,6 +22,7 @@ const lignes = (fourni = false) => [L('b_glace', 'bar', 'Bar', 'Glace', 300, 4, 
   fourni ? L('x_vaisselle', 'materiel', 'Art de table', 'Location vaisselle', 1, 0, 'fourni par le lieu · à confirmer par écrit', { fourni: true, mode: 'tiers' }) : L('x_vaisselle', 'materiel', 'Art de table', 'Location vaisselle', 120, 42.5, '120 invités × 42,5')]
 const BASE = { invites: 120, traiteur: true, bar: true, moments: ['diner_assis'], alcool: [], nb_bars: 2, service: ['cocktails'], heures: { debut: '19:00', fin: '02:30' } }
 const RPC = {
+  chiffrage_questions_liste: () => questionsListe(),
   aujourdhui: () => aujourdhui, accueil: () => accueil, donnees: () => donnees, depot_liste: () => [],
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }), pour_toi: () => ({ non_vus: 0, items: [] }),
   chiffrage_params: () => ({ peut_modifier: true, params: PARAMS }),

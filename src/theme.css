@@ -1330,4 +1330,13 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 /* v71 · Réponses qui agissent */
 .cf-ar { display: inline-block; padding: 3px 9px; border-radius: 10px; background: #F6E7C8; color: #8A5A12; font-size: 12px; font-weight: 700; }
 .cf-fo { display: inline-block; padding: 3px 9px; border-radius: 10px; background: #D7ECE8; color: #1F6F6B; font-size: 12px; font-weight: 700; }
-.cf-h { display: flex; align-items: center; gap: 8px; } .cf-h input { flex: 1; font-size: 16px; } .cf-h span { color: var(--mute); }
+.cf-hr { display: flex; align-items: center; gap: 8px; } .cf-hr input { flex: 1; font-size: 16px; } .cf-hr span { color: var(--mute); }
+
+/* v72 · Questions */
+.q-e { display: inline-block; min-width: 22px; padding: 2px 6px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 11px; font-weight: 800; text-align: center; }
+.q-txt { width: 100%; font: inherit; font-size: 18px; font-weight: 600; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); resize: vertical; margin-top: 10px; }
+.q-rep { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface); width: 100%; }
+.q-rep input { flex: 1; font-size: 15px; } .q-rep b { flex: 1; font-size: 15px; }
+.q-def { width: 30px; height: 30px; border-radius: 15px; border: 1px solid var(--line); color: var(--mute); font-size: 15px; }
+.q-def.on { background: var(--ink); color: #F2C14E; border-color: var(--ink); }
+.q-x { color: var(--mute); font-size: 15px; padding: 4px 8px; } .q-plus { color: var(--ink); font-weight: 700; }

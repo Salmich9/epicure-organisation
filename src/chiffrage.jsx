@@ -6,7 +6,9 @@ import { motion } from 'framer-motion'
 import { api } from './api'
 import { Info, Sheet, mad, n, useUI } from './ui'
 import { nomStaff } from './staff'
+import { ConditionsDevis, InfosQuestions, NouveauPoste, ParamQuestions, libelleCondition, reponsesDe } from './questions'
 import { ParamEspeces } from './especesRelais'
+import { Picker } from './element'
 
 const glisse = { initial: { x: 40, opacity: 0 }, animate: { x: 0, opacity: 1 }, transition: { type: 'spring', damping: 30, stiffness: 300 } }
 export const fr = v => { v = n(v); return v.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) }
@@ -18,9 +20,6 @@ export const BLOCS = [['moments', 'Moments'], ['staff', 'Staff'], ['frais_staff'
   ['transport_marchandises', 'Transport des marchandises'], ['materiel', 'Matériel et locations'], ['bar', 'Bar et boissons'], ['divers', 'Imprévus et divers']]
 export const MOMENTS = [['accueil', 'Accueil'], ['cocktail', 'Cocktail dînatoire'], ['diner_assis', 'Dîner assis'], ['buffet', 'Buffet'], ['desserts', 'Desserts'],
   ['late_snack', 'Late snack'], ['bar_sans_alcool', 'Bar sans alcool']]
-const ALCOOLS = [['cocktails', 'Cocktails'], ['vins', 'Vins'], ['spirits', 'Spirits']]
-const SERVICES = [['cocktails', 'Cocktails'], ['verse', 'Verse'], ['shots', 'Shots']]
-const FOURNIS = [['tables', 'Tables'], ['chaises', 'Chaises'], ['nappes', 'Nappes'], ['vaisselle', 'Vaisselle'], ['verrerie', 'Verrerie']]
 const PORTEE = { reference: 'référence', evenement: 'cet événement', cloture: 'clôture' }
 
 // Texte du ratio d'un paramètre
@@ -42,7 +41,11 @@ export function Parametres({ go }) {
   const [d, setD] = useState(null)
   const [sec, setSec] = useState('moments')
   const [ouvert, setOuvert] = useState(null)
+  const [qd, setQd] = useState(null)
+  const [nouveau, setNouveau] = useState(false)
   useEffect(() => { api.chiffrageParams().then(setD).catch(e => ui.toast(e.message)) }, [])
+  // Les conditions possibles suivent les questions : relues à chaque onglet
+  useEffect(() => { if (sec !== 'questions') api.chiffrageQuestions().then(setQd).catch(() => {}) }, [sec])
   const groupes = useMemo(() => {
     const g = []
     for (const p of (d?.params || []).filter(x => x.section === sec)) { let x = g.find(y => y.nom === p.groupe); if (!x) g.push(x = { nom: p.groupe, ps: [] }); x.ps.push(p) }
@@ -56,10 +59,11 @@ export function Parametres({ go }) {
         <div className="meta">{d && !d.peut_modifier ? 'Lecture seule : seul Salmane change les références' : 'Chiffrage écrit et vocal'}</div>
       </div>
       <div className="px"><div className="chips dp-cats" style={{ marginTop: 12 }}>
-        {[...SECTIONS, ['especes', 'Espèces']].map(([k, l]) => <button key={k} className={`chip ${sec === k ? 'on' : ''}`} onClick={() => setSec(k)}>{l}</button>)}
+        {[...SECTIONS, ['questions', 'Questions'], ['especes', 'Espèces']].map(([k, l]) => <button key={k} className={`chip ${sec === k ? 'on' : ''}`} onClick={() => setSec(k)}>{l}</button>)}
       </div></div>
       {sec === 'especes' && <ParamEspeces />}
-      {!d && sec !== 'especes' && <p className="small mute px" style={{ marginTop: 20 }}>Chargement…</p>}
+      {sec === 'questions' && <ParamQuestions />}
+      {!d && !['especes', 'questions'].includes(sec) && <p className="small mute px" style={{ marginTop: 20 }}>Chargement…</p>}
       {groupes.map(g => (
         <div key={g.nom}>
           <div className="cf-grp">{g.nom.toUpperCase()}</div>
@@ -72,15 +76,20 @@ export function Parametres({ go }) {
           ))}</div>
         </div>
       ))}
-      <ParamSheet p={ouvert} peut={!!d?.peut_modifier} onClose={() => setOuvert(null)} onSaved={nd => { setD(nd); setOuvert(null); ui.toast('Référence changée : le prochain chiffrage la prend') }} />
+      {d?.peut_modifier && SECTIONS.some(([k]) => k === sec) && <div className="px"><button className="pv-plus" onClick={() => setNouveau(true)}>+ Nouveau poste</button></div>}
+      {sec === 'marges' && <ConditionsDevis />}
+      <NouveauPoste section={sec} ouvert={nouveau} conditions={qd?.conditions} questions={qd?.questions} onClose={() => setNouveau(false)}
+        onSaved={nd => { setD(nd); setNouveau(false); ui.toast('Poste créé : les prochains chiffrages le prennent') }} />
+      <ParamSheet p={ouvert} peut={!!d?.peut_modifier} qd={qd} onClose={() => setOuvert(null)} onSaved={nd => { setD(nd); setOuvert(null); ui.toast('Référence changée : le prochain chiffrage la prend') }} />
     </motion.div>
   )
 }
 
-function ParamSheet({ p, peut, onClose, onSaved }) {
+function ParamSheet({ p, peut, qd, onClose, onSaved }) {
   const ui = useUI()
   const [v, setV] = useState(''), [r, setR] = useState(''), [actif, setActif] = useState(true), [envoi, setEnvoi] = useState(false)
-  useEffect(() => { if (p) { setV(fr(p.valeur)); setR(p.ratio === null ? '' : fr(p.ratio)); setActif(p.actif) } }, [p])
+  const [si, setSi] = useState(''), [mini, setMini] = useState(''), [pick, setPick] = useState(false)
+  useEffect(() => { if (p) { setV(fr(p.valeur)); setR(p.ratio === null ? '' : fr(p.ratio)); setActif(p.actif); setSi(p.si || 'toujours'); setMini(p.min_par_bar == null ? '' : fr(p.min_par_bar)) } }, [p])
   if (!p) return <Sheet open={false} onClose={onClose} />
   const aRatio = p.ratio !== null || p.calcul === 'un_pour'
   async function sauver() {
@@ -88,7 +97,14 @@ function ParamSheet({ p, peut, onClose, onSaved }) {
     if (aRatio) x.ratio = num(r)
     if (x.valeur === null) return ui.toast('Il manque le chiffre')
     setEnvoi(true)
-    try { onSaved(await api.chiffrageParamMaj(p.cle, x)) } catch (e) { ui.toast(e.message) }
+    try {
+      let nd = await api.chiffrageParamMaj(p.cle, x)
+      const reg = {}
+      if (si && si !== p.si) reg.si = si
+      if (p.min_par_bar != null && num(mini) !== n(p.min_par_bar)) reg.min_par_bar = num(mini)
+      if (Object.keys(reg).length) nd = await api.chiffragePosteRegler(p.cle, reg)
+      onSaved(nd)
+    } catch (e) { ui.toast(e.message) }
     setEnvoi(false)
   }
   return (
@@ -102,6 +118,12 @@ function ParamSheet({ p, peut, onClose, onSaved }) {
         <div className="cf-lbl">{p.calcul === 'un_pour' ? 'Ratio' : p.calcul === 'fixe' ? 'Nombre' : 'Quantité'}</div>
         <div className="cf-in">{p.calcul === 'un_pour' && <span>1 pour</span>}<input inputMode="decimal" value={r} disabled={!peut} onChange={e => setR(e.target.value)} /><span>{p.ratio_unite}</span></div>
       </>}
+      {p.min_par_bar != null && <><div className="cf-lbl">Minimum par bar</div>
+        <div className="cf-in"><input inputMode="decimal" value={mini} disabled={!peut} onChange={e => setMini(e.target.value)} /><span>par bar</span></div></>}
+      {p.calcul !== 'regle' && <><div className="cf-lbl">Compté quand</div>
+        <button className="chip on" disabled={!peut} onClick={() => setPick(true)}>{libelleCondition(si, qd?.questions, qd?.conditions)} ›</button>
+        <Picker open={pick} onClose={() => setPick(false)} title="Compté quand" items={(qd?.conditions || []).map(c => c.libelle)} value=""
+          onPick={l => { const c = (qd?.conditions || []).find(x => x.libelle === l); if (c) setSi(c.cle) }} /></>}
       {p.calcul !== 'regle' && <div className="chips" style={{ marginTop: 14 }}>
         <button className={`chip ${actif ? 'on' : ''}`} disabled={!peut} onClick={() => setActif(true)}>Compté</button>
         <button className={`chip ${!actif ? 'on' : ''}`} disabled={!peut} onClick={() => setActif(false)}>Éteint</button>
@@ -115,53 +137,15 @@ function ParamSheet({ p, peut, onClose, onSaved }) {
 }
 
 /* ---------- Informations de base de l'événement ---------- */
-export function InfosBase({ base, onChange, occupe }) {
+export function InfosBase({ base, onChange, occupe, questions }) {
   if (!base) return null
-  const m = base.moments || [], al = base.alcool || [], fo = base.fourni || [], sv = base.service || ['cocktails']
-  const h = base.heures && typeof base.heures === 'object' ? base.heures : {}
-  const bascule = (k, v) => onChange({ [k]: v })
-  const tg = (arr, x) => (arr.includes(x) ? arr.filter(y => y !== x) : [...arr, x])
-  const resume = [base.traiteur && 'Traiteur', base.bar && 'Bar', ...MOMENTS.filter(([k]) => m.includes(k)).map(([, l]) => l)].filter(Boolean).join(' · ')
+  const r = reponsesDe(base, questions)
+  const pr = r.prestations || [], m = r.moments || []
+  const resume = [pr.includes('traiteur') && 'Traiteur', pr.includes('bar') && 'Bar', ...MOMENTS.filter(([k]) => m.includes(k)).map(([, l]) => l)].filter(Boolean).join(' · ')
   return (
     <details className="cf-base">
       <summary>Informations de base <span>{occupe ? 'calcul…' : resume || 'à choisir'} ›</span></summary>
-      <div className="chips">
-        <button className={`chip ${base.traiteur ? 'on' : ''}`} onClick={() => bascule('traiteur', !base.traiteur)}>Traiteur</button>
-        <button className={`chip ${base.bar ? 'on' : ''}`} onClick={() => bascule('bar', !base.bar)}>Bar</button>
-      </div>
-      {base.traiteur && <><div className="cf-lbl">Moments</div><div className="chips">
-        {MOMENTS.map(([k, l]) => <button key={k} className={`chip ${m.includes(k) ? 'on' : ''}`} onClick={() => bascule('moments', tg(m, k))}>{l}</button>)}
-      </div></>}
-      {base.bar && <><div className="cf-lbl">Alcool fourni par nous</div><div className="chips">
-        {ALCOOLS.map(([k, l]) => <button key={k} className={`chip ${al.includes(k) ? 'on' : ''}`} onClick={() => bascule('alcool', tg(al, k))}>{l}</button>)}
-      </div></>}
-      {base.bar && <>
-        <div className="cf-lbl">Bars</div><div className="chips">
-          {[1, 2, 3, 4].map(k => <button key={k} className={`chip ${(base.nb_bars || 1) === k ? 'on' : ''}`} onClick={() => bascule('nb_bars', k)}>{k}</button>)}
-          <button className={`chip ${base.comptoir ? 'on' : ''}`} onClick={() => bascule('comptoir', !base.comptoir)}>Notre comptoir</button>
-          <button className={`chip ${base.alcool_client ? 'on' : ''}`} onClick={() => bascule('alcool_client', !base.alcool_client)}>Alcool du client</button>
-        </div>
-        <div className="cf-lbl">On sert</div><div className="chips">
-          {SERVICES.map(([k, l]) => <button key={k} className={`chip ${sv.includes(k) ? 'on' : ''}`} onClick={() => bascule('service', tg(sv, k))}>{l}</button>)}
-        </div>
-        {sv.includes('cocktails') && <div className="chips" style={{ marginTop: 6 }}>{[2, 3, 4, 5, 6].map(k => <button key={k} className={`chip ${(base.signatures ?? 4) === k ? 'on' : ''}`} onClick={() => bascule('signatures', k)}>{k} signatures</button>)}</div>}
-      </>}
-      <div className="cf-lbl">Horaires</div><div className="cf-h">
-        <input type="time" defaultValue={h.debut || ''} onBlur={e => e.target.value !== (h.debut || '') && bascule('heures', { ...h, debut: e.target.value })} />
-        <span>→</span>
-        <input type="time" defaultValue={h.fin || ''} onBlur={e => e.target.value !== (h.fin || '') && bascule('heures', { ...h, fin: e.target.value })} />
-      </div>
-      <div className="cf-lbl">Sur place</div>
-      <div className="chips">{[['fournie', 'Plonge fournie'], ['espace', 'Espace plonge'], ['rien', 'Pas de plonge']].map(([k, l]) => <button key={k} className={`chip ${base.plonge === k ? 'on' : ''}`} onClick={() => bascule('plonge', k)}>{l}</button>)}</div>
-      {base.traiteur && <div className="chips" style={{ marginTop: 6 }}>{[['equipee', 'Cuisine équipée'], ['incomplete', 'Cuisine incomplète'], ['rien', 'Pas de cuisine']].map(([k, l]) => <button key={k} className={`chip ${base.cuisine === k ? 'on' : ''}`} onClick={() => bascule('cuisine', k)}>{l}</button>)}</div>}
-      <div className="chips" style={{ marginTop: 6 }}>{[['ok', 'Électricité OK'], ['groupe', 'Groupe électrogène']].map(([k, l]) => <button key={k} className={`chip ${base.electricite === k ? 'on' : ''}`} onClick={() => bascule('electricite', k)}>{l}</button>)}</div>
-      <div className="cf-lbl">Fourni par le lieu</div><div className="chips">
-        {FOURNIS.map(([k, l]) => <button key={k} className={`chip ${fo.includes(k) ? 'on' : ''}`} onClick={() => bascule('fourni', tg(fo, k))}>{l}</button>)}
-      </div>
-      <div className="cf-lbl">Lieu</div><div className="chips">
-        <button className={`chip ${base.hors_marrakech ? 'on' : ''}`} onClick={() => bascule('hors_marrakech', !base.hors_marrakech)}>Hors Marrakech</button>
-        <button className={`chip ${base.autre_ville ? 'on' : ''}`} onClick={() => bascule('autre_ville', !base.autre_ville)}>Autre ville</button>
-      </div>
+      {questions?.length ? <InfosQuestions base={base} questions={questions} onChange={onChange} /> : <p className="small mute">Chargement des questions…</p>}
     </details>
   )
 }

@@ -6,6 +6,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { accueil, aujourdhui, donnees } from './fixture.mjs'
+import { questionsListe } from './questions.fixture.mjs'
 const { chromium } = createRequire(import.meta.url)('playwright')
 
 const dist = path.resolve('dist'), port = 5199, captures = process.argv[2]
@@ -20,6 +21,7 @@ let ev = { ...donnees.evenements[0], lieu: '', gamme: null }
 let avecChiffrage = false
 const D = () => ({ ...donnees, evenements: donnees.evenements.map(e => e.id === ev.id ? ev : e) })
 const RPC = {
+  chiffrage_questions_liste: () => questionsListe(),
   aujourdhui: () => aujourdhui, accueil: () => accueil, donnees: () => D(), depot_liste: () => [],
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }), pour_toi: () => ({ non_vus: 0, items: [] }),
   chiffrage_params: () => ({ peut_modifier: true, params: PARAMS }),
