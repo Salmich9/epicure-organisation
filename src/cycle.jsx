@@ -98,7 +98,19 @@ export function DevisClient({ data, go, reload }) {
   const [pres, setPres] = useState(ev.presentation || 'prestation')
   const [a, setA] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [versions, setVersions] = useState([])
+  const [figer, setFiger] = useState(null)
+  const [voirV, setVoirV] = useState(null)
   useEffect(() => { setA(null); api.zoho('apercu', { presentation: pres }).then(setA).catch(e => { ui.toast(e.message); setA({ lignes: [] }) }) }, [pres, data.evt])
+  useEffect(() => { api.devisVersions(data.evt).then(setVersions).catch(() => {}) }, [data.evt])
+  const derniere = versions[0]
+  const ecart = derniere && a?.lignes?.length ? Math.round(n(a.total) - n(derniere.total_ht)) : 0
+  async function envoye() {
+    setBusy(true)
+    try { setVersions(await api.devisEnvoyer(data.evt, { presentation: pres, lignes: a.lignes, total: a.total, tva: taux, note: figer })); setFiger(null); ui.toast(`V${(derniere?.numero || 0) + 1} figée : c'est ce que le client a reçu`); await reload() }
+    catch (e) { ui.toast(e.message) }
+    setBusy(false)
+  }
   async function envoyer() {
     setBusy(true)
     try { const d = await api.zoho('devis', { presentation: pres }); ui.toast(`${d.numero} ${d.mis_a_jour ? 'mis à jour' : 'créé'} dans Zoho`); window.open(d.url, '_blank'); await reload() } catch (e) { ui.toast(e.message) }
@@ -118,7 +130,36 @@ export function DevisClient({ data, go, reload }) {
         </div>
       )}
       <p className="small mute px" style={{ marginTop: 10 }}>Staff, logistique, lieu et technique sont répartis dans les prestations <Info text="Le client ne voit jamais ta structure de coûts. La logistique et le lieu sont répartis au prorata des prestations." /></p>
-      {<div className="px"><button className="btn primary block" style={{ marginTop: 14 }} disabled={busy || !a?.lignes?.length} onClick={envoyer}>{busy ? '…' : ev.zoho_devis ? `Mettre à jour ${ev.zoho_devis.numero} dans Zoho` : 'Créer le devis dans Zoho'}</button></div>}
+      {<div className="px"><button className="btn primary block" style={{ marginTop: 14 }} disabled={busy || !a?.lignes?.length} onClick={envoyer}>{busy ? '…' : ev.zoho_devis ? `Mettre à jour ${ev.zoho_devis.numero} dans Zoho` : 'Créer le devis dans Zoho'}</button>
+        {derniere && ecart !== 0 && <div className="dv-ecart">Modifié depuis V{derniere.numero} : {ecart > 0 ? '+' : '−'}{mt(Math.abs(ecart))} HT</div>}
+        <button className="btn block" style={{ marginTop: 10 }} disabled={busy || !a?.lignes?.length || (derniere && ecart === 0)} onClick={() => setFiger('')}>
+          {derniere && ecart === 0 ? `V${derniere.numero} est à jour` : `📤 Envoyé au client · figer V${(derniere?.numero || 0) + 1}`}</button></div>}
+      {versions.length > 0 && <>
+        <div className="cf-grp"><span>VERSIONS</span><Info text="Une version est figée à chaque envoi au client. Entre deux envois, l'Historique du chiffrage garde les retouches." /></div>
+        <div className="list">{versions.map((v, i) => {
+          const avant = versions[i + 1], d = avant ? Math.round(n(v.total_ht) - n(avant.total_ht)) : 0
+          return <button key={v.id} className="aa-l" onClick={() => setVoirV(v)}>
+            <div className="x"><b>V{v.numero}{i === 0 ? ' · dernière' : ''}</b><span>{[new Date(v.envoye_le).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }), `${v.invites} invités`, v.gamme, v.note].filter(Boolean).join(' · ')}</span></div>
+            <div className="v"><b>{mt(v.total_ht)}</b>{avant && d !== 0 && <s className={d > 0 ? 'dv-up' : 'dv-down'}>{d > 0 ? '+' : '−'}{mt(Math.abs(d))}</s>}</div></button>
+        })}</div></>}
+      <Sheet open={figer !== null} onClose={() => setFiger(null)} foot={<button className="btn primary" disabled={busy} onClick={envoye}>Figer V{(derniere?.numero || 0) + 1} · {mt(a?.total)} HT</button>}>
+        <div className="el-name" style={{ fontSize: 24 }}>Envoyé au client</div>
+        <input value={figer || ''} onChange={e => setFiger(e.target.value)} placeholder="Ce qui change (facultatif) ex : 250 invités" style={{ marginTop: 14 }} />
+      </Sheet>
+      <Sheet open={!!voirV} onClose={() => setVoirV(null)}>
+        {voirV && (() => {
+          const av = versions.find(x => x.numero === voirV.numero - 1), m = Object.fromEntries((av?.lignes_client || []).map(l => [l.nom, n(l.montant)]))
+          return <>
+            <div className="el-kicker">{new Date(voirV.envoye_le).toLocaleDateString('fr-FR')} · par {voirV.par}</div>
+            <div className="el-name" style={{ fontSize: 26 }}>V{voirV.numero} · {mt(voirV.total_ht)} HT</div>
+            <div className="dv" style={{ margin: '12px 0 0' }}>{voirV.lignes_client.map(l => {
+              const d = av ? Math.round(n(l.montant) - (m[l.nom] ?? 0)) : 0
+              return <div key={l.nom} className="r2"><div>{l.nom}{av && d !== 0 && <span className={d > 0 ? 'dv-up' : 'dv-down'}>{m[l.nom] === undefined ? 'nouveau' : `${d > 0 ? '+' : '−'}${mt(Math.abs(d))} depuis V${av.numero}`}</span>}</div><b>{mt(l.montant)}</b></div>
+            })}</div>
+            <p className="small mute" style={{ marginTop: 8 }}>{voirV.invites} invités · {voirV.gamme || 'sans gamme'} · coef {String(voirV.coef ?? '').replace('.', ',')}</p>
+          </>
+        })()}
+      </Sheet>
     </motion.div>
   )
 }
