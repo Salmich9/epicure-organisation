@@ -548,7 +548,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
   const total = groupes.reduce((s, g) => s + g[1].length, 0)
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="head"><div className="when">{dateLongue(t)}</div><h1 style={{ fontSize: 40 }}>{mapart ? 'Ma part' : `${new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'} ${d.moi || ''}`.trim()}</h1>
+      <div className="head" style={{ position: 'relative' }}><button className="nt-cl" onClick={() => go('mes-rappels')} aria-label="Mes rappels">🔔</button><div className="when">{dateLongue(t)}</div><h1 style={{ fontSize: 40 }}>{mapart ? 'Ma part' : `${new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'} ${d.moi || ''}`.trim()}</h1>
         {!mapart && <div className="meta">Voici ta journée.</div>}
         {mapart && <div className="meta">Ce qui est à ton nom, tous événements.</div>}</div>
       {!mapart && <div className="au-seg"><button className={!moi ? 'on' : ''} onClick={() => { setMoi(false); try { localStorage.setItem('orga_auj_moi', '0') } catch {} }}>Tout le monde</button><button className={moi ? 'on' : ''} onClick={() => { setMoi(true); try { localStorage.setItem('orga_auj_moi', '1') } catch {} }}>Ma part</button></div>}

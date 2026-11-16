@@ -4,6 +4,7 @@ import { api } from './api'
 import { sendWa } from './element'
 import { OUVERT, Sheet, ddmm, n, useUI } from './ui'
 import { Picker } from './element'
+import { PastilleRappel, TYPES } from './notifs'
 
 const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']
 const iso = d => d.toISOString().slice(0, 10)
@@ -79,7 +80,8 @@ function Editeur({ item, data, evDate, onClose, onSaved, onDelete, onDup }) {
   const joursRef = useRef(null)
   useEffect(() => {
     if (!item) return
-    setF({ titre: item.titre || '', date: item.date || data.aujourdhui, heure: item.heure || '', qui: item.qui || '', lieu: item.ref?.lieu || '', note: item.ref?.note || '', rappel: !!item.ref?.rappel })
+    setF({ titre: item.titre || '', date: item.date || data.aujourdhui, heure: item.heure || '', qui: item.qui || '', lieu: item.ref?.lieu || '', note: item.ref?.note || '', rappel: !!item.ref?.rappel,
+      type: item.ref?.type || '', duree_min: item.ref?.duree_min || null, suppleant: item.ref?.suppleant || '', critique: !!item.ref?.critique, rappel_mode: item.ref?.rappel_mode || '' })
     setDecaler(false); setAutreMin(false)
   }, [item])
   useEffect(() => { setTimeout(() => joursRef.current?.querySelector('.on')?.scrollIntoView({ inline: 'center', block: 'nearest' }), 50) }, [f?.date, item])
@@ -92,6 +94,8 @@ function Editeur({ item, data, evDate, onClose, onSaved, onDelete, onDup }) {
   const equipe = data.intervenants.filter(i => i.type === 'Équipe').map(i => i.nom)
   const nouveau = !item.key
   const kind = item.kind || 'planning'
+  const code = (data.evenements.find(x => x.id === data.evt) || {}).code
+  const auto = ['tasting', 'briefing'].includes(f.type) ? '15 min avant' : f.heure && f.heure < '11:00' && f.heure >= '06:00' ? 'la veille 18 h' : '30 min avant'
   async function save() {
     if (!f.titre.trim()) { ui.bubble('Donnez un titre au créneau.'); return }
     try { await onSaved(item, f, decaler); onClose() } catch (e) { ui.toast(e.message) }
@@ -102,7 +106,7 @@ function Editeur({ item, data, evDate, onClose, onSaved, onDelete, onDup }) {
         {!nouveau && kind === 'planning' && <button className="btn" style={{ flex: 'none', padding: '16px 14px' }} onClick={() => onDelete(item)}>Supprimer</button>}
         {!nouveau && <button className="btn" onClick={() => onDup(item, f)}>Dupliquer</button>}
         <button className="btn primary" onClick={save}>Enregistrer</button></>}>
-        <div className="el-kicker">{nouveau ? 'Nouveau créneau' : kind === 'action' ? 'Action' : kind === 'deroule' ? 'Déroulé du jour J' : 'Créneau'}</div>
+        <div className="el-kicker">{nouveau ? 'Nouveau créneau' : kind === 'action' ? 'Action' : kind === 'deroule' ? 'Déroulé du jour J' : 'Créneau'}{code ? ` · ${code}` : ''}</div>
         <input value={f.titre} onChange={e => set('titre', e.target.value)} placeholder="ex : Livraison location art de table" style={{ marginTop: 10, fontWeight: 650 }} autoFocus={nouveau} />
 
         <div className="label">Quel jour</div>
@@ -137,6 +141,21 @@ function Editeur({ item, data, evDate, onClose, onSaved, onDelete, onDup }) {
           </div>
         </>}
         {kind === 'planning' && <>
+          <div className="label">Type</div>
+          <div className="chips">{TYPES.map(([k, l]) => <button key={k} className={`chip ${f.type === k ? 'on' : ''}`} onClick={() => set('type', f.type === k ? '' : k)}>{l}</button>)}</div>
+          {f.heure && <><div className="label">Durée</div>
+            <div className="chips">{[[15, '15 min'], [30, '30 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h']].map(([m, l]) => <button key={m} className={`chip ${f.duree_min === m ? 'on' : ''}`} onClick={() => set('duree_min', f.duree_min === m ? null : m)}>{l}</button>)}</div></>}
+          <div className="label">Suppléant</div>
+          <div className="chips">
+            <button className={`chip ${!f.suppleant ? 'on' : ''}`} onClick={() => set('suppleant', '')}>Personne</button>
+            {equipe.filter(x => x !== f.qui).map(x => <button key={x} className={`chip ${f.suppleant === x ? 'on' : ''}`} onClick={() => set('suppleant', x)}>{x}</button>)}
+          </div>
+          {f.heure && <><div className="label">Rappel sur le téléphone</div>
+            <div className="chips">
+              <button className={`chip ${!f.rappel_mode ? 'on' : ''}`} onClick={() => set('rappel_mode', '')}>Auto · {auto}</button>
+              {[['15', '15 min'], ['30', '30 min'], ['60', '1 h'], ['veille', 'La veille 18 h']].map(([k, l]) => <button key={k} className={`chip ${f.rappel_mode === k ? 'on' : ''}`} onClick={() => set('rappel_mode', k)}>{l}</button>)}
+            </div>
+            <button className="toggle" onClick={() => set('critique', !f.critique)}><span>Tâche critique<br /><small style={{ fontWeight: 500, color: 'var(--mute)' }}>pas cochée à l'heure : le coordinateur est prévenu</small></span><i className={f.critique ? 'on' : ''} /></button></>}
           <div className="field"><span>Où</span><input value={f.lieu} onChange={e => set('lieu', e.target.value)} placeholder="ex : back-office, entrée livraison" /></div>
           <button className="toggle" onClick={() => set('rappel', !f.rappel)}><span>Rappel WhatsApp la veille</span><i className={f.rappel ? 'on' : ''} /></button>
         </>}
@@ -169,8 +188,10 @@ export function Planning({ data, reload, open, go }) {
   const [sugg, setSugg] = useState(null)
   const [ecartees, setEcartees] = useState([])
 
+  const [rappels_, setRappels] = useState({})
   async function charger() {
     try { const r = await api.planningListe(data.evt); setRows(r.planning || []); setFactures(r.factures || []) } catch (e) { ui.toast(e.message) }
+    if (data.role !== 'equipe') api.rappelsEvenement(data.evt).then(x => setRappels(x || {})).catch(() => {})
   }
   useEffect(() => { charger() }, [data.evt])
   useEffect(() => {
@@ -211,6 +232,7 @@ export function Planning({ data, reload, open, go }) {
   const garde = f => async (...a) => { try { return await f(...a) } catch (e) { ui.toast(`Pas enregistré : ${e.message}`) } }
   async function enregistrer(item, f, decaler) {
     const p = { titre: f.titre, date: f.date, heure: f.heure, qui: f.qui, lieu: f.lieu, note: f.note, rappel: f.rappel }
+    if (!item.key || item.kind === 'planning') Object.assign(p, { type: f.type, duree_min: f.duree_min ?? '', suppleant: f.suppleant, critique: f.critique, rappel_mode: f.rappel_mode })
     if (!item.key || item.kind === 'planning') await api.planningEnregistrer(data.evt, item.key || null, p)
     else if (item.kind === 'action') await api.actionModifier(item.ref.id, p)
     else if (item.kind === 'deroule') await api.derouleModifier(item.ref.id, p)
@@ -298,6 +320,7 @@ export function Planning({ data, reload, open, go }) {
                       <button className="x" onClick={() => toucher(i)}>
                         {i.heure && <em>{i.heure}</em>}{i.titre}
                         {(i.sous || late) && <span>{late ? 'En retard' : ''}{late && i.sous ? ' · ' : ''}{i.sous}</span>}
+                        {i.kind === 'planning' && (rappels_[i.key] || i.ref?.critique) && <span className="nt-l">{i.ref?.critique && <i className="nt-crit">critique</i>}<PastilleRappel r={rappels_[i.key]} fait={i.fait} /></span>}
                       </button>
                       {i.qui && <span className="w">{i.qui}</span>}
                     </motion.div>

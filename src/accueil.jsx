@@ -46,7 +46,8 @@ export function Accueil({ go, ouvrir }) {
         <motion.button whileTap={{ scale: .97 }} className="v" onClick={() => go('voix')}>🎙 Chiffrer à la voix</motion.button>
       </div>
       <motion.button whileTap={{ scale: .98 }} className="ac-staff" onClick={() => go('staff')}><span>👥</span><b>Staff</b><em>fiches, rôles, notes ›</em></motion.button>
-      <motion.button whileTap={{ scale: .98 }} className="ac-staff" onClick={() => go('parametres')}><span>📐</span><b>Paramètres</b><em>coûts et ratios du chiffrage ›</em></motion.button></>}
+      <motion.button whileTap={{ scale: .98 }} className="ac-staff" onClick={() => go('parametres')}><span>📐</span><b>Paramètres</b><em>coûts et ratios du chiffrage ›</em></motion.button>
+      <motion.button whileTap={{ scale: .98 }} className="ac-staff" onClick={() => go('notifs')}><span>🔔</span><b>Notifications</b><em>rappels, familles, heures ›</em></motion.button></>}
       {GROUPES.map(([k, l]) => {
         const g = evs.filter(e => e.et === k)
         if (!g.length) return null
