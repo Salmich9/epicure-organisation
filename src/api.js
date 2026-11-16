@@ -213,6 +213,8 @@ export const api = {
   mesEspeces: () => rpc('mes_especes', { p_token: store.token }),
   especesRelaisVoir: (id) => rpc('especes_relais_voir', { p_token: store.token, p_id: id }),
   especesReglages: (p = null) => rpc('especes_reglages', { p_token: store.token, p }),
+  devisVersions: (evt) => rpc('devis_versions_liste', { p_token: store.token, p_evt: evt }),
+  devisEnvoyer: (evt, p) => rpc('devis_envoyer', { p_token: store.token, p_evt: evt, p }),
   notifsReglages: (p = null) => rpc('notifs_reglages', { p_token: store.token, p }),
   mesRappels: () => rpc('mes_rappels', { p_token: store.token }),
   rappelsEvenement: (evt) => rpc('rappels_evenement', { p_token: store.token, p_evt: evt }),

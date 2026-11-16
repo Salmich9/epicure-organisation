@@ -1321,3 +1321,8 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 .totaux .t-g { display: flex; gap: 6px; justify-content: flex-end; margin: 2px 0 2px; }
 .totaux .t-g .chip { padding: 5px 11px; font-size: 12.5px; }
 .totaux .t-l.sous { padding-top: 0; } .totaux .t-l.sous span { font-size: 12px; color: var(--mute); margin-left: auto; }
+
+/* v70 · Versions du devis */
+.dv-ecart { margin-top: 10px; padding: 9px 12px; border-radius: 12px; background: #F6E7C8; color: #8A5A12; font-size: 13px; font-weight: 600; text-align: center; }
+.dv-up { color: #A3392B !important; } .dv-down { color: #1F6F6B !important; }
+.aa-l .v s.dv-up, .aa-l .v s.dv-down { text-decoration: none; font-size: 12px; }
