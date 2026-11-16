@@ -12,6 +12,8 @@ export const MESSAGES = {
   reserve_direction: 'Réservé à la direction.',
   signature_manquante: 'Il manque la signature du vendeur.',
   reserve_depot: 'Il te faut le droit dépôt pour ça (voir avec la direction).',
+  deja_traitee: 'Cette pièce a déjà été validée ou refusée.',
+  ligne_sans_article: 'Une ligne n\'a pas d\'article : choisis-en un ou crée-le.',
   nom_pris: 'Ce prénom a déjà un compte.',
   photo_trop_lourde: 'Photo trop lourde, réessaie.',
   merci_impossible: 'On remercie quelqu\'un d\'autre, pour une action faite.',
@@ -40,7 +42,7 @@ export const CODES_BOT = ['mouvement_introuvable', 'non_autorise', 'pas_porteur'
 export function traduire(error) {
   const brut = String(error?.message || '')
   const m = /^([a-z][a-z_]*)(?::\s*(.*))?$/s.exec(brut.trim())
-  if (m && MESSAGES[m[1]]) return { code: m[1], texte: m[1] === 'depasse_encaisse' && m[2] ? `Pas assez encaissé : ${m[2]}` : MESSAGES[m[1]], brut }
+  if (m && MESSAGES[m[1]]) return { code: m[1], texte: m[1] === 'depasse_encaisse' && m[2] ? `Pas assez encaissé : ${m[2]}` : m[1] === 'ligne_sans_article' && m[2] ? `La ligne ${m[2]} n'a pas d'article : choisis-en un ou crée-le.` : MESSAGES[m[1]], brut }
   if (m && (!error?.code || error.code === 'P0001')) return { code: m[1], texte: 'Action refusée par la base.', brut }
   if (error?.code && error.code !== 'P0001') return { code: error.code, texte: 'Le serveur a eu un souci, réessaie dans un instant.', brut }
   return { code: error?.code || null, texte: brut || 'Erreur inattendue.', brut }
