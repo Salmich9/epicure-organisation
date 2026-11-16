@@ -10,6 +10,7 @@ export const MESSAGES = {
   manque_obligatoire: 'Il manque une information obligatoire.',
   reserve_admin: 'Réservé aux administrateurs.',
   reserve_direction: 'Réservé à la direction.',
+  reserve_depot: 'Il te faut le droit dépôt pour ça (voir avec la direction).',
   nom_pris: 'Ce prénom a déjà un compte.',
   photo_trop_lourde: 'Photo trop lourde, réessaie.',
   merci_impossible: 'On remercie quelqu\'un d\'autre, pour une action faite.',

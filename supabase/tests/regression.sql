@@ -210,5 +210,18 @@ begin
   select string_agg(f, ', ') into msg from unnest(array['accueil','action_enregistrer','action_merci','action_modifier','action_supprimer','ajout_action','ajout_element','ajout_note','aujourdhui','bilan_liste','bilan_maj','brief','budget_retenir','bulles_liste','cadrage_maj','catalogue_creer','catalogue_liste','changer_pin','chiffrage_contexte','chiffrage_enregistrer','compte_creer','compte_maj','compte_nouveau_code','compte_retirer','comptes_liste','connexion','corbeille_liste','deconnexion','depot_liste','deroule_modifier','donnees','element_depuis_catalogue','element_resp_auto','element_revoir','element_supprimer','encaissement_ajouter','equipe_liste','equipe_maj','especes_liste','evenement_cloturer','evenement_confirmer','evenement_creer','evenement_maj','evenement_statut','evenement_supprimer','fil_ajouter','fil_liste','historique','journal_ecrire','lecon_annuler','lecon_decider','lien_responsable','ligne_ajouter','ligne_deplacer','ligne_terrain','liste_responsable','ma_journee','maj_action','maj_element','maj_invites','maj_note','menu_maj','objet_dupliquer','objet_restaurer','objet_supprimer','piece_imputer','planning_enregistrer','planning_liste','planning_supprimer','porteur_ajouter','poste_creer','poste_maj','pour_toi','pour_toi_vu','ranger_note','relais','resp_action','resp_reception','sante_etat','session_voix','session_voix_fin','staff_affecter','staff_evt_liste','staff_fiche','staff_liste','staff_maj','staff_noter']) f
   where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'orga' and p.proname = f and has_function_privilege('anon', p.oid, 'execute'));
   if msg is not null then raise exception 'ECHEC : fonctions de l''appli fermées à la clé publique : %', msg; end if; ok := ok + 1;
+  -- 13. Pont vers le dépôt : la direction voit les prix, l'équipe non, sans droit c'est refusé ; un achat entre au stock et s'annule
+  declare td uuid; te uuid; tz uuid; s jsonb; a uuid; q0 numeric; x jsonb; begin
+    insert into orga.membres (nom, pin_hash, admin, role, depot) values ('ZZDepDir', extensions.crypt('135790', extensions.gen_salt('bf')), false, 'direction', '{}'),
+      ('ZZDepEq', extensions.crypt('135790', extensions.gen_salt('bf')), false, 'equipe', array['voir','acheter']), ('ZZDepRien', extensions.crypt('135790', extensions.gen_salt('bf')), false, 'equipe', '{}');
+    td := (orga.connexion('ZZDepDir', '135790')->>'token')::uuid; te := (orga.connexion('ZZDepEq', '135790')->>'token')::uuid; tz := (orga.connexion('ZZDepRien', '135790')->>'token')::uuid;
+    if (orga.depot_stock(td)->>'valeur') is null or (orga.depot_stock(te)->>'valeur') is not null or (orga.depot_stock(te)->'articles'->0->>'cout') is not null then raise exception 'ECHEC : prix du dépôt mal filtrés'; end if;
+    begin perform orga.depot_stock(tz); raise exception 'ECHEC : dépôt ouvert sans droit'; exception when others then if sqlerrm not like '%reserve_depot%' then raise; end if; end;
+    select article_id, quantity into a, q0 from public.current_stock where active order by name limit 1;
+    x := orga.depot_achat(te, jsonb_build_object('article_id', a, 'qte', 2, 'prix', 5, 'note', 'ZZ régression'));
+    if (select quantity from public.current_stock where article_id = a) <> q0 + 2 or x ? 'cout_moyen' then raise exception 'ECHEC : achat via le pont'; end if;
+    perform orga.depot_achat_annuler(te, (x->>'purchase_id')::uuid, 'ZZ');
+    if (select quantity from public.current_stock where article_id = a) <> q0 then raise exception 'ECHEC : annulation via le pont'; end if;
+  end; ok := ok + 1;
   raise exception 'REGRESSION OK (% vérifications)', ok;
 end $$;
