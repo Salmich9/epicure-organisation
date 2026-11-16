@@ -19,6 +19,8 @@ export const BLOCS = [['moments', 'Moments'], ['staff', 'Staff'], ['frais_staff'
 export const MOMENTS = [['accueil', 'Accueil'], ['cocktail', 'Cocktail dînatoire'], ['diner_assis', 'Dîner assis'], ['buffet', 'Buffet'], ['desserts', 'Desserts'],
   ['late_snack', 'Late snack'], ['bar_sans_alcool', 'Bar sans alcool']]
 const ALCOOLS = [['cocktails', 'Cocktails'], ['vins', 'Vins'], ['spirits', 'Spirits']]
+const SERVICES = [['cocktails', 'Cocktails'], ['verse', 'Verse'], ['shots', 'Shots']]
+const FOURNIS = [['tables', 'Tables'], ['chaises', 'Chaises'], ['nappes', 'Nappes'], ['vaisselle', 'Vaisselle'], ['verrerie', 'Verrerie']]
 const PORTEE = { reference: 'référence', evenement: 'cet événement', cloture: 'clôture' }
 
 // Texte du ratio d'un paramètre
@@ -65,7 +67,7 @@ export function Parametres({ go }) {
             <button key={p.cle} className={`cf-l ${p.actif ? '' : 'off'}`} onClick={() => setOuvert(p)}>
               <div className="x"><b>{p.libelle}{p.actif ? '' : ' · éteint'}</b>
                 <span>{[ratioTexte(p), p.sous, p.nb_modifs ? `modifié ${p.nb_modifs} fois` : ''].filter(Boolean).join(' · ')}<Tend p={p} /></span></div>
-              <div className="cf-v"><span className="cf-chip">{fr(p.valeur)}</span><em>{p.unite}</em></div>
+              <div className="cf-v">{p.a_regler && !n(p.valeur) ? <span className="cf-ar">à régler</span> : <><span className="cf-chip">{fr(p.valeur)}</span><em>{p.unite}</em></>}</div>
             </button>
           ))}</div>
         </div>
@@ -115,7 +117,8 @@ function ParamSheet({ p, peut, onClose, onSaved }) {
 /* ---------- Informations de base de l'événement ---------- */
 export function InfosBase({ base, onChange, occupe }) {
   if (!base) return null
-  const m = base.moments || [], al = base.alcool || []
+  const m = base.moments || [], al = base.alcool || [], fo = base.fourni || [], sv = base.service || ['cocktails']
+  const h = base.heures && typeof base.heures === 'object' ? base.heures : {}
   const bascule = (k, v) => onChange({ [k]: v })
   const tg = (arr, x) => (arr.includes(x) ? arr.filter(y => y !== x) : [...arr, x])
   const resume = [base.traiteur && 'Traiteur', base.bar && 'Bar', ...MOMENTS.filter(([k]) => m.includes(k)).map(([, l]) => l)].filter(Boolean).join(' · ')
@@ -132,6 +135,29 @@ export function InfosBase({ base, onChange, occupe }) {
       {base.bar && <><div className="cf-lbl">Alcool fourni par nous</div><div className="chips">
         {ALCOOLS.map(([k, l]) => <button key={k} className={`chip ${al.includes(k) ? 'on' : ''}`} onClick={() => bascule('alcool', tg(al, k))}>{l}</button>)}
       </div></>}
+      {base.bar && <>
+        <div className="cf-lbl">Bars</div><div className="chips">
+          {[1, 2, 3, 4].map(k => <button key={k} className={`chip ${(base.nb_bars || 1) === k ? 'on' : ''}`} onClick={() => bascule('nb_bars', k)}>{k}</button>)}
+          <button className={`chip ${base.comptoir ? 'on' : ''}`} onClick={() => bascule('comptoir', !base.comptoir)}>Notre comptoir</button>
+          <button className={`chip ${base.alcool_client ? 'on' : ''}`} onClick={() => bascule('alcool_client', !base.alcool_client)}>Alcool du client</button>
+        </div>
+        <div className="cf-lbl">On sert</div><div className="chips">
+          {SERVICES.map(([k, l]) => <button key={k} className={`chip ${sv.includes(k) ? 'on' : ''}`} onClick={() => bascule('service', tg(sv, k))}>{l}</button>)}
+        </div>
+        {sv.includes('cocktails') && <div className="chips" style={{ marginTop: 6 }}>{[2, 3, 4, 5, 6].map(k => <button key={k} className={`chip ${(base.signatures ?? 4) === k ? 'on' : ''}`} onClick={() => bascule('signatures', k)}>{k} signatures</button>)}</div>}
+      </>}
+      <div className="cf-lbl">Horaires</div><div className="cf-h">
+        <input type="time" defaultValue={h.debut || ''} onBlur={e => e.target.value !== (h.debut || '') && bascule('heures', { ...h, debut: e.target.value })} />
+        <span>→</span>
+        <input type="time" defaultValue={h.fin || ''} onBlur={e => e.target.value !== (h.fin || '') && bascule('heures', { ...h, fin: e.target.value })} />
+      </div>
+      <div className="cf-lbl">Sur place</div>
+      <div className="chips">{[['fournie', 'Plonge fournie'], ['espace', 'Espace plonge'], ['rien', 'Pas de plonge']].map(([k, l]) => <button key={k} className={`chip ${base.plonge === k ? 'on' : ''}`} onClick={() => bascule('plonge', k)}>{l}</button>)}</div>
+      {base.traiteur && <div className="chips" style={{ marginTop: 6 }}>{[['equipee', 'Cuisine équipée'], ['incomplete', 'Cuisine incomplète'], ['rien', 'Pas de cuisine']].map(([k, l]) => <button key={k} className={`chip ${base.cuisine === k ? 'on' : ''}`} onClick={() => bascule('cuisine', k)}>{l}</button>)}</div>}
+      <div className="chips" style={{ marginTop: 6 }}>{[['ok', 'Électricité OK'], ['groupe', 'Groupe électrogène']].map(([k, l]) => <button key={k} className={`chip ${base.electricite === k ? 'on' : ''}`} onClick={() => bascule('electricite', k)}>{l}</button>)}</div>
+      <div className="cf-lbl">Fourni par le lieu</div><div className="chips">
+        {FOURNIS.map(([k, l]) => <button key={k} className={`chip ${fo.includes(k) ? 'on' : ''}`} onClick={() => bascule('fourni', tg(fo, k))}>{l}</button>)}
+      </div>
       <div className="cf-lbl">Lieu</div><div className="chips">
         <button className={`chip ${base.hors_marrakech ? 'on' : ''}`} onClick={() => bascule('hors_marrakech', !base.hors_marrakech)}>Hors Marrakech</button>
         <button className={`chip ${base.autre_ville ? 'on' : ''}`} onClick={() => bascule('autre_ville', !base.autre_ville)}>Autre ville</button>
@@ -165,7 +191,7 @@ export function Detail({ lignes, params, base, onParam, onPersonne, extras }) {
             <div key={g.cle}>
               <button className="cf-l" onClick={() => onParam(g.cle, g.ls)}>
                 <div className="x"><b>{nom}{sur(g.cle) ? ' 🔒' : ''}</b><span>{g.ls[0].note}{sur(g.cle) ? <span className="cf-evt" style={{ display: 'inline' }}> · pour cet événement</span> : null}</span></div>
-                <div className="cf-v">{fr(Math.round(g.total))}</div>
+                <div className="cf-v">{g.ls[0].a_regler ? <span className="cf-ar">à régler</span> : g.ls[0].fourni ? <span className="cf-fo">fourni</span> : fr(Math.round(g.total))}</div>
               </button>
               {staff && <>
                 {vus.map(x => (
