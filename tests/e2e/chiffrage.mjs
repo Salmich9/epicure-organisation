@@ -6,6 +6,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { accueil, aujourdhui, donnees } from './fixture.mjs'
+import { questionsListe } from './questions.fixture.mjs'
 const { chromium } = createRequire(import.meta.url)('playwright')
 
 const dist = path.resolve('dist'), port = 5198, captures = process.argv[2]
@@ -67,6 +68,7 @@ const PROPS = { peut_modifier: true, propositions: [
   Q(3, 't_navette', 'Navette staff A/R', 'valeur', 1050, 1150, 'Facture Transport Atlas : 1 150 par véhicule', 'stable', [1150, 1150], { unite: 'MAD / véhicule', section: 'transport', groupe: 'Transport du personnel' }),
   { ...Q(4, 'b_glace', 'Glace', 'valeur', 4, 4.5, '', '', []), statut: 'gardee', unite: 'MAD / kg', decide_par: 'Salmane' }] }
 const RPC = {
+  chiffrage_questions_liste: () => questionsListe(),
   aujourdhui: () => aujourdhui, accueil: () => accueil, donnees: () => donnees, depot_liste: () => [],
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }), pour_toi: () => ({ non_vus: 0, items: [] }),
   chiffrage_params: () => ({ peut_modifier: peut, params: PARAMS }),

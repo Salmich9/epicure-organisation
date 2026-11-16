@@ -107,9 +107,12 @@ Deno.serve(async (req) => {
       rate: i ? 0 : l.unite ? l.montant : Math.round((l.montant / inv) * 100) / 100, quantity: i || l.unite ? 1 : inv, ...(tax ? { tax_id: tax.tax_id } : {}) })))
     const dateFr = ev.date ? String(ev.date).split('-').reverse().join('/') : ''
     const sujet = String(objet || '').trim() || [`${ev.nom || 'Événement'}${ev.invites ? ` ${ev.invites} pax` : ''}`, nomClient, dateFr, ev.lieu].filter(Boolean).join(' / ')
+    // Conditions et validité du devis : Paramètres › Questions (orga.parametres 'devis'), repli sur les conditions maison
+    const { data: dv } = await adm.from('parametres').select('valeur').eq('cle', 'devis').maybeSingle()
+    const validite = Number((dv?.valeur as any)?.validite) || 15, condRef = String((dv?.valeur as any)?.conditions || '').trim() || CONDITIONS
     const corps = { customer_id: client.contact_id, date: data.aujourdhui, reference_number: ev.id, line_items: lignesDevis,
       notes: `${(ev.prestations || []).join(' + ')}${ev.format ? ` · ${ev.format}` : ''}${ev.lieu ? ` · ${ev.lieu}` : ''}${ev.date ? ` · le ${ev.date.split('-').reverse().join('/')}` : ''}`,
-      expiry_date: new Date(new Date(data.aujourdhui).getTime() + 15 * 864e5).toISOString().slice(0, 10), terms: String(conditions || '').trim() || CONDITIONS, subject_content: sujet.slice(0, 250) }
+      expiry_date: new Date(new Date(data.aujourdhui).getTime() + validite * 864e5).toISOString().slice(0, 10), terms: String(conditions || '').trim() || condRef, subject_content: sujet.slice(0, 250) }
     // Un seul devis par événement : remis à jour s'il existe déjà en brouillon
     const deja = ev.zoho_devis?.id
     const o = deja ? await zo(`estimates/${deja}`, { method: 'PUT', body: JSON.stringify(corps) }).catch(() => null) : null
