@@ -1,0 +1,3 @@
+-- Fusion du dépôt, étape 1 : droits dépôt par compte (voir, acheter, inventaire, gerer).
+-- La direction a tout, prix d'achat compris ; l'équipe ne voit jamais les prix d'achat (droit implicite « prix »).
+-- Appliquée le 16/11 (voir migration orga_52_droits_depot) ; Ouadia : voir, acheter, inventaire.

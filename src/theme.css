@@ -1130,3 +1130,10 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .se-c .se-jour { font-size: 14px; line-height: 1.6; opacity: .9; }
 .se-c .se-glisse { margin-top: 20px; font-size: 20px; color: #E2C68F; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .se-c .se-glisse b { font-size: 13px; font-weight: 700; color: #F4F1EA; }
+.cp-l .row .x em.cp-dep { display: inline-block; font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); padding: 2px 8px; border-radius: 8px; margin-top: 4px; }
+.cp-dr { display: flex; flex-direction: column; gap: 8px; }
+.cp-dr button { display: flex; align-items: center; gap: 12px; text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 14px; padding: 12px 14px; font: inherit; }
+.cp-dr button.on { border-color: var(--accent); }
+.cp-dr b { display: block; font-size: 14.5px; } .cp-dr em { display: block; font-style: normal; font-size: 12px; color: var(--mute); }
+.cp-ck { width: 22px; height: 22px; border-radius: 7px; border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; flex: none; }
+.cp-dr button.on .cp-ck { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
