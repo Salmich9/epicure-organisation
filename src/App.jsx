@@ -26,7 +26,7 @@ const creation = () => import('./creation'), staff = () => import('./staff'), co
 const Chiffrer = tard(creation, 'Chiffrer'), Nouveau = tard(creation, 'Nouveau')
 const Especes = tard(() => import('./especes'), 'Especes')
 const depot = () => import('./depot')
-const Depot = tard(depot, 'Depot'), DepotArticle = tard(depot, 'DepotArticle'), DepotCommande = tard(depot, 'DepotCommande'), DepotInventaires = tard(depot, 'DepotInventaires'), DepotInventaire = tard(depot, 'DepotInventaire'), DepotHistorique = tard(depot, 'DepotHistorique'), DepotReglages = tard(depot, 'DepotReglages')
+const Depot = tard(depot, 'Depot'), DepotArticle = tard(depot, 'DepotArticle'), DepotCommande = tard(depot, 'DepotCommande'), DepotInventaires = tard(depot, 'DepotInventaires'), DepotInventaire = tard(depot, 'DepotInventaire'), DepotHistorique = tard(depot, 'DepotHistorique'), DepotReglages = tard(depot, 'DepotReglages'), DepotSortie = tard(depot, 'DepotSortie')
 const Bilan = tard(() => import('./bilan'), 'Bilan')
 const Menu = tard(() => import('./menu'), 'Menu')
 const StaffEvt = tard(staff, 'StaffEvt'), StaffFiche = tard(staff, 'StaffFiche'), StaffListe = tard(staff, 'StaffListe'), StaffNoter = tard(staff, 'StaffNoter')
@@ -278,6 +278,7 @@ export default function App() {
   else if (route === 'depot/commande') screen = <DepotCommande key={route} go={go} />
   else if (route === 'depot/inventaire') screen = <DepotInventaires key={route} go={go} droits={droitsDepot} />
   else if (route.startsWith('depot/inventaire/')) screen = <DepotInventaire key={route} id={route.split('/')[2]} go={go} droits={droitsDepot} />
+  else if (route === 'depot/sortie') screen = <DepotSortie key={route} go={go} />
   else if (route === 'depot/reglages') screen = <DepotReglages key={route} go={go} />
   else if (route === 'depot/historique') screen = <DepotHistorique key={route} go={go} />
   else if (route.startsWith('achat-especes')) screen = <AchatEspeces key={route} go={go} evt={route.split('/')[1] || null} />

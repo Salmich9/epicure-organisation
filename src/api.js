@@ -178,6 +178,7 @@ export const api = {
   depotReglages: () => rpc('depot_reglages', { p_token: store.token }),
   depotReglageMaj: (type, id, p) => rpc('depot_reglage_maj', { p_token: store.token, p_type: type, p_id: id, p }),
   depotArticleMaj: (id, p) => rpc('depot_article_maj', { p_token: store.token, p_id: id, p }),
+  depotTransfert: (p) => rpc('depot_transfert', { p_token: store.token, p }),
   depotHistorique: (p) => rpc('depot_historique', { p_token: store.token, p }),
   depotInventaireValider: (id, responsable) => rpc('depot_inventaire_valider', { p_token: store.token, p_id: id, p_responsable: responsable }),
   bonContexte: (evt) => rpc('bon_contexte', { p_token: store.token, p_evt: evt || null }),

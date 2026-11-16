@@ -1206,3 +1206,6 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 .dp-nom { width: 100%; font: inherit; font-family: var(--display); font-size: 26px; margin-top: 6px; padding: 10px 12px; }
 .dp-m > button.x { background: none; padding: 0; }
 .dp-st button:disabled { opacity: .3; }
+.rt-mo { margin-top: 10px; }
+.rt-mo > span { display: block; font-size: 12.5px; font-weight: 650; color: var(--red); margin-bottom: 6px; }
+.rt-mo .chip { padding: 7px 11px; font-size: 12.5px; }
