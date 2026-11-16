@@ -153,8 +153,10 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
     setVue('avantapres'); return true
   }
   const enregistrerBase = b => api.chiffrageValider(data.evt, lignes, b, null, null).then(() => setBase(b)).catch(e => ui.toast(e.message))
-  const titreBase = chg => chg.invites !== undefined ? `Invités ${base?.invites ?? '?'} → ${chg.invites}` : chg.moments ? 'Moments changés' : chg.alcool ? 'Alcool changé'
-    : chg.traiteur !== undefined || chg.bar !== undefined ? 'Prestations changées' : 'Lieu changé'
+  const TITRES = { moments: 'Moments changés', alcool: 'Alcool changé', traiteur: 'Prestations changées', bar: 'Prestations changées', nb_bars: 'Nombre de bars changé',
+    comptoir: 'Comptoir changé', alcool_client: 'Alcool du client', service: 'Service du bar changé', signatures: 'Signatures changées', heures: 'Horaires changés',
+    plonge: 'Plonge changée', cuisine: 'Cuisine sur place changée', electricite: 'Électricité changée', fourni: 'Fourni par le lieu changé' }
+  const titreBase = chg => chg.invites !== undefined ? `Invités ${base?.invites ?? '?'} → ${chg.invites}` : TITRES[Object.keys(chg)[0]] || 'Lieu changé'
   async function recalculer(chg) {
     setOccupe(true)
     try { proposer(titreBase(chg), 'base', await api.chiffrageApercu(data.evt, { ...base, ...chg })) } catch (e) { ui.toast(e.message) }
