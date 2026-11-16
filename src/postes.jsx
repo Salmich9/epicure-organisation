@@ -1,3 +1,4 @@
+import { PartsCarte } from './parts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api, vite } from './api'
@@ -577,6 +578,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
       {!mapart && <div className="au-seg"><button className={!moi ? 'on' : ''} onClick={() => { setMoi(false); try { localStorage.setItem('orga_auj_moi', '0') } catch {} }}>Tout le monde</button><button className={moi ? 'on' : ''} onClick={() => { setMoi(true); try { localStorage.setItem('orga_auj_moi', '1') } catch {} }}>Ma part</button></div>}
       <div className="px">
         {mapart && <PourToi ouvrir={x => ouvrirPoste(x.evenement_id, x.poste)} />}
+        {!mapart && <PartsCarte go={go} />}
         <Journee mapart={mapart} />
         {!mapart && (d.evenements || []).filter(e => e.date === t).map(e => <button key={e.id} className="jj-ban" onClick={() => ouvrirPoste(e.id).then(() => go('jourj'))}><span>⏱</span><b>C'est le jour J</b><em>{e.nom} · heure par heure et brief ›</em></button>)}
         {(k => k > 0 && <button className="tr-lien" onClick={() => go('tournees')}><span>🚚</span><b>Tournées</b><em>{k} arrêt{k > 1 ? 's' : ''} aujourd'hui et demain ›</em></button>)(arrets(d.actions).filter(x => !x.fait && (x.jour === t || x.jour === dem)).length)}

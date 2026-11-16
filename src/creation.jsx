@@ -81,7 +81,7 @@ export function Nouveau({ data, go, onCreated }) {
           <div><div className="label">Invités</div><input inputMode="numeric" value={f.invites} onChange={e => set('invites', e.target.value.replace(/\D/g, ''))} placeholder="250" /></div>
         </div>
         <div className="label">Lieu</div>
-        <input value={f.lieu} onChange={e => set('lieu', e.target.value)} placeholder="Domaine, riad, villa…" />
+        <input value={f.lieu} list="lieux-connus" onChange={e => set('lieu', e.target.value)} placeholder="Domaine, riad, villa…" /><LieuxConnus />
 
         <div className="label">Prestation</div>
         <div className="chips">{['Traiteur', 'Bar'].map(p => <button key={p} className={`chip ${f.prestations.includes(p) ? 'on' : ''}`} onClick={() => prest(p)}>{p}</button>)}</div>
@@ -427,7 +427,7 @@ function DemandeIncomplete({ ev, go, onOk }) {
       <div className="px">
         {manque0.includes('date') && <><div className="label">Date</div><input type="date" value={f.date} onChange={e => set('date', e.target.value)} /></>}
         {manque0.includes('invités') && <><div className="label">Invités</div><input inputMode="numeric" value={f.invites} onChange={e => set('invites', e.target.value.replace(/\D/g, ''))} placeholder="250" /></>}
-        {manque0.includes('lieu') && <><div className="label">Lieu</div><input value={f.lieu} onChange={e => set('lieu', e.target.value)} placeholder="Domaine, riad, villa…" /></>}
+        {manque0.includes('lieu') && <><div className="label">Lieu</div><input value={f.lieu} list="lieux-connus" onChange={e => set('lieu', e.target.value)} placeholder="Domaine, riad, villa…" /><LieuxConnus /></>}
         {manque0.includes('prestation') && <><div className="label">Prestation</div><div className="chips">{['Traiteur', 'Bar'].map(p => <button key={p} className={`chip ${f.prestations.includes(p) ? 'on' : ''}`} onClick={() => set('prestations', f.prestations.includes(p) ? f.prestations.filter(x => x !== p) : [...f.prestations, p])}>{p}</button>)}</div></>}
         {manque0.includes('gamme') && <><div className="label">Gamme</div><div className="tiles3">{GAMMES.map(([k, sous]) => (
           <motion.button key={k} whileTap={{ scale: .96 }} className={`tile ${f.gamme === k ? 'on' : ''}`} onClick={() => set('gamme', k)}><b>{k}</b><span>{sous}</span></motion.button>))}</div></>}
@@ -490,4 +490,12 @@ function Budget({ data, ev, zones, imprevus, prix, coef, retour, go, reload }) {
       <div className="px"><button className="btn primary block" style={{ marginTop: 18 }} disabled={envoi} onClick={lancer}>{envoi ? 'Lancement…' : 'Lancer l\'organisation'}</button></div>
     </motion.div>
   )
+}
+
+/* v75 · Les lieux déjà connus, proposés à la saisie : le même lieu se reconnaît même écrit autrement (accents, espaces, tirets) */
+let lieuxCache = null
+function LieuxConnus() {
+  const [l, setL] = useState(lieuxCache || [])
+  useEffect(() => { if (!lieuxCache) api.lieuxConnus().then(x => { lieuxCache = Array.isArray(x) ? x : []; setL(lieuxCache) }).catch(() => {}) }, [])
+  return <datalist id="lieux-connus">{l.map(x => <option key={x} value={x} />)}</datalist>
 }

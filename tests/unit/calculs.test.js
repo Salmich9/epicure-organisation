@@ -96,3 +96,25 @@ describe('cadrage', () => {
     expect(p.r.emplacement).toBeUndefined()
   })
 })
+
+describe('cadrage · propositions', () => {
+  const Q = [
+    { cle: 'prestations', section: 'cadrage', type: 'multi', choix: [{ cle: 'traiteur', libelle: 'Traiteur' }], quand: [], actif: true, ordre: 80 },
+    { cle: 'cuisine', section: 'traiteur', type: 'choix', choix: [{ cle: 'equipee', libelle: 'Équipée' }, { cle: 'rien', libelle: 'Rien' }], defaut: 'equipee', quand: [], actif: true, ordre: 220 },
+    { cle: 'sol', section: 'organisation', type: 'choix', choix: [{ cle: 'gazon', libelle: 'Gazon' }], quand: [], actif: true, ordre: 520 },
+    { cle: 'theme', section: 'organisation', type: 'texte', choix: [], quand: [], actif: true, ordre: 550 },
+  ]
+  it('une règle passe avant le défaut du devis', () => {
+    const p = planCadrage({ prestations: ['traiteur'] }, Q, {}, { cuisine: { valeur: 'rien', source: 'lieu', pourquoi: 'Même lieu' } })
+    expect(p.etapes.find(x => x.q.cle === 'cuisine')).toMatchObject({ propose: 'rien', source: 'lieu' })
+  })
+  it('sans règle : le défaut, ou rien pour une question du cadrage', () => {
+    const p = planCadrage({ prestations: ['traiteur'] }, Q, {}, {})
+    expect(p.etapes.find(x => x.q.cle === 'cuisine')).toMatchObject({ propose: 'equipee', source: 'defaut' })
+    expect(p.etapes.find(x => x.q.cle === 'sol')).toMatchObject({ propose: undefined, source: null })
+  })
+  it('jamais de proposition sur du texte', () => {
+    const p = planCadrage({}, Q, {}, { theme: { valeur: 'x', source: 'ia' } })
+    expect(p.etapes.find(x => x.q.cle === 'theme').source).toBe(null)
+  })
+})

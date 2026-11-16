@@ -28,7 +28,9 @@ const D = () => ({ ...donnees, evenements: donnees.evenements.map(e => e.id === 
 const RPC = {
   aujourdhui: () => aujourdhui, accueil: () => accueil, donnees: () => D(), depot_liste: () => [],
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }), pour_toi: () => ({ non_vus: 0, items: [] }),
-  cadrage_contexte: () => ({ a_chiffrage: true, base: BASE, affine, questions: QS }),
+  cadrage_contexte: () => ({ a_chiffrage: true, base: BASE, affine, questions: QS, ia_actif: true, ia: {},
+    propositions: { emplacement: { valeur: 'exterieur', source: 'lieu', pourquoi: 'Même lieu : Mariage Sara (05/2026)', autre: { valeur: 'interieur', pourquoi: '2 événements proches sur 2' } } } }),
+  lieux_connus: () => ['Domaine Rhoul', 'Kasbah Dif'],
   cadrage_maj: b => { if (b.p.affine) affine = b.p.affine; ev.cadrage = { ...(ev.cadrage || {}), ...b.p }; return ev.cadrage },
 }
 let ko = 0
@@ -39,7 +41,10 @@ await ctx.addInitScript(() => { localStorage.setItem('orga_token', '00000000-000
 const appels = []
 await ctx.route('**/rest/v1/rpc/**', r => { const fn = r.request().url().split('/rpc/')[1]; const body = JSON.parse(r.request().postData() || '{}'); appels.push([fn, body])
   r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RPC[fn] ? RPC[fn](body) : true) }) })
-await ctx.route('**/functions/v1/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
+const ia = []
+await ctx.route('**/functions/v1/**', r => { const c = JSON.parse(r.request().postData() || '{}'); c.mode = r.request().url().includes('orga-cadrage-ia') ? 'proposer' : ''; if (c.mode === 'proposer') ia.push(c)
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(c.mode === 'proposer'
+    ? { ia: { vues: c.questions.map(q => q.cle), propositions: { cuisine: { valeur: 'incomplete', source: 'ia', pourquoi: 'Dîner assis pour 200 : une cuisine de villa ne suffit pas' } } } } : {}) }) })
 await ctx.route(u => !u.href.startsWith(`http://localhost:${port}`) && !u.href.includes('/rest/v1/') && !u.href.includes('/functions/v1/'), r => r.abort())
 const p = await ctx.newPage()
 const erreurs = []; p.on('pageerror', e => { if (!e.message.includes('localStorage')) erreurs.push(e.message) })
@@ -66,17 +71,31 @@ if (affine.plonge !== 'fournie') echec('correction pas enregistrée')
 if (!(await p.locator('.cd-rep-l:has-text("plonge") em:has-text("corrigé")').count())) echec('correction pas marquée')
 await photo('c3-corrige.png')
 
-// 3. Affiner : la cuisine laissée au défaut revient pré-choisie
+// 3. L'IA n'est appelée que pour ce que les règles n'ont pas tranché (pas l'emplacement, déjà proposé par le même lieu)
+const q = ia[0]?.questions?.map(x => x.cle) || []
+if (!q.includes('cuisine') || q.includes('emplacement') || q.includes('theme')) echec(`questions envoyées à l'IA : ${q}`)
+if (ia[0]?.repris?.some(x => /MAD|prix/i.test(x.valeur))) echec('un prix part à l\'IA')
+if (!(await p.locator('.cd-pros:has-text("2 déjà proposées")').count())) echec('compte des propositions')
+await photo('c3b-accueil-propose.png')
+// 4. Affiner : la cuisine proposée par l'IA, avec son pourquoi
 await p.click('.cd-pied .p:has-text("Affiner")'); await p.waitForTimeout(500)
 t = await texte()
-if (!t.includes('La cuisine sur place') || !t.includes('Proposé')) echec('défaut pas proposé')
-if (!(await p.locator('.cd-opts button.on:has-text("Équipée")').count())) echec('défaut pas pré-choisi')
+if (!t.includes('La cuisine sur place') || !t.includes('Proposé · IA')) echec('proposition de l\'IA absente')
+if (!(await p.locator('.cd-opts button.on:has-text("Incomplète")').count())) echec('proposition de l\'IA pas pré-choisie')
+await p.click('.cd-pro button.i'); await p.waitForTimeout(300)
 await photo('c4-propose.png')
+await p.mouse.click(195, 760); await p.waitForTimeout(300)
 await p.click('.cd-pied .p:has-text("C’est ça")'); await p.waitForTimeout(500)
-if (affine.cuisine !== 'equipee') echec('proposition pas confirmée')
+if (affine.cuisine !== 'incomplete') echec('proposition pas confirmée')
 
-// 4. Les questions du cadrage : extérieur ouvre le sol
-await p.click('.cd-opts button:has-text("Extérieur")'); await p.waitForTimeout(600)
+// 5. Le même lieu propose l'extérieur ; le désaccord des proches est dans le pourquoi
+t = await texte()
+if (!t.includes('Proposé · même lieu')) echec('proposition du même lieu absente')
+await p.click('.cd-pro button.i'); await p.waitForTimeout(300)
+await photo('c4b-lieu.png')
+if (!(await p.locator('text=Les proches disent plutôt Intérieur').count())) echec('désaccord pas montré')
+await p.mouse.click(195, 760); await p.waitForTimeout(300)
+await p.click('.cd-pied .p:has-text("C’est ça")'); await p.waitForTimeout(600)
 t = await texte()
 if (!t.includes('Le sol côté service')) echec('le sol ne suit pas l\'extérieur')
 await photo('c5-sol.png')
@@ -88,7 +107,7 @@ if (!fin?.fait_le || fin.affine?.theme !== 'Bohème chic' || fin.affine?.sol !==
 if (appels.some(a => a[0] === 'cadrage_maj' && a[1].p.reponses)) echec('les anciennes réponses ont été touchées')
 if (!(await p.locator('.cd-bt:has-text("enveloppes posées")').count())) echec('écran de fin absent')
 
-// 5. Reprendre : un cadrage commencé reprend à la première question sans réponse
+// 6. Reprendre : un cadrage commencé reprend à la première question sans réponse
 affine = { plonge: 'fournie', cuisine: 'equipee' }; ev.cadrage = { affine }
 await voir('cadrage', 1200)
 await p.click('.cd-pied .p:has-text("Reprendre")'); await p.waitForTimeout(500)
