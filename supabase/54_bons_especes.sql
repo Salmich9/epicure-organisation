@@ -93,3 +93,6 @@ end $$;
 
 -- 54c. Un acheteur sans enveloppe (pas porteur) : le bon, le stock et la pièce passent, rien n'est déduit.
 --      (appliqué en base par remplacement dans bon_creer et bon_contexte ; voir migration orga_54c_bon_sans_enveloppe)
+-- 54d. Remplace 54c : l'acheteur sans enveloppe devient porteur (enveloppe à 0) ; sa dépense passe en négatif,
+--      c'est l'avance que la société lui doit (« on lui doit » dans Espèces), remboursée avec « Confier ».
+--      (migration orga_54d_bon_avance)
