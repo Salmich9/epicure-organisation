@@ -400,8 +400,8 @@ begin
   b := jsonb_build_object('invites', inv, 'traiteur', fmt <> 'Bar seul', 'bar', fmt <> 'Traiteur seul',
     'moments', coalesce(p->'moments', '[]'), 'alcool', coalesce(p->'alcool', '[]'),
     'hors_marrakech', coalesce((p->>'hors_marrakech')::boolean, false), 'autre_ville', coalesce((p->>'autre_ville')::boolean, false),
-    'surcharges', coalesce(p->'surcharges', '{}'), 'effectifs', coalesce(p->'effectifs', '{}'), 'personnes', '{}'::jsonb,
-    'extras', coalesce(p->'extras', '[]'), 'heures', p->'heures');
+    'surcharges', coalesce(p->'surcharges', '{}'), 'effectifs', coalesce(p->'effectifs', (select jsonb_object_agg(s->>'role', (s->>'nb')::numeric) from jsonb_array_elements(case when jsonb_typeof(p->'staff') = 'array' then p->'staff' else '[]' end) s where s->>'role' like 's\_%' and s->>'nb' ~ '^\d+$'), '{}'), 'personnes', '{}'::jsonb,
+    'extras', coalesce(p->'extras', p->'addons', '[]'), 'heures', p->'heures');
   e := orga._chiffrage_moteur(b);
   cout := (select coalesce(sum((l->>'quantite')::numeric * (l->>'prix')::numeric), 0) from jsonb_array_elements(e->'lignes') l)
         + (select coalesce(sum(nullif(x->>'cout', '')::numeric), 0) from jsonb_array_elements(b->'extras') x);
