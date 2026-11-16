@@ -1340,3 +1340,4 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 .q-def { width: 30px; height: 30px; border-radius: 15px; border: 1px solid var(--line); color: var(--mute); font-size: 15px; }
 .q-def.on { background: var(--ink); color: #F2C14E; border-color: var(--ink); }
 .q-x { color: var(--mute); font-size: 15px; padding: 4px 8px; } .q-plus { color: var(--ink); font-weight: 700; }
+.q-j { display: inline-flex; align-items: center; gap: 6px; } .q-j input { width: 64px; padding: 7px 10px; border-radius: 16px; font-size: 14px; text-align: center; }

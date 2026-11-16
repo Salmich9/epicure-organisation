@@ -265,6 +265,7 @@ export default function App() {
   else if (route === 'retour') screen = <Retour data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'historique') screen = <Historique data={data} go={go} />
   else if (route === 'voix') screen = <Voix data={data} go={go} ouvrir={ouvrir} />
+  else if (route.startsWith('challenge/')) screen = <Voix key={route} data={data} go={go} ouvrir={ouvrir} mode="challenge" evt={route.split('/')[1]} />
   else if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
   else if (route === 'staff') screen = <StaffListe go={go} />

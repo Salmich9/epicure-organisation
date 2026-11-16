@@ -145,7 +145,7 @@ export function Plan({ data, go, mine, setMine, reload }) {
           {[['jourj', '⏱ Jour J'], ['tournees', '🚚 Tournées'], ['chargement', 'Chargement'], ev.date && ev.date <= data.aujourdhui && ['retour', 'Retour'], ['planning', 'Planning'], ['menu', 'Menu'], !equipe && ['equipe', 'Équipe'], !equipe && ['staff-evt', 'Staff'], !equipe && cadre && ['cadrage', 'Cadrage']].filter(Boolean).map(([r, l]) =>
             <button key={r} className="chip" onClick={() => go(r)}>{l}</button>)}
         </div>
-        <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go('copilote')}><span className="o" /><p>Challenge-moi<span>Le copilote cherche ce qui risque d'être oublié</span></p><span>›</span></motion.button>
+        {!equipe && <motion.button className="challenge" whileTap={{ scale: .98 }} onClick={() => go(`challenge/${ev.id}`)}><span className="o" /><p>🎙 Challenge-moi<span>L'agent vocal cherche ce qui manque, ce qui dérape, ce qui coûte trop</span></p><span>›</span></motion.button>}
         <Bulles items={bulles} go={go} />
       </>}
       {vue === 'client' && <>
