@@ -13,6 +13,11 @@ const ENTITES = [
   { k: 'Espèce', sous: 'aucun nom' },
 ]
 const FORMATS = ['Dîner assis', 'Cocktail dînatoire', 'Buffet']
+export const GAMMES = [['Classique', 'le standard'], ['Premium', 'coef × 1,08'], ['Prestige', 'coef × 1,15']]
+// Multiplicateur de la gamme sur le coef de taille (paramètres g_gamme_*)
+export const multGamme = (g, params = {}) => g === 'Premium' ? n(params.g_gamme_premium?.valeur) || 1.08 : g === 'Prestige' ? n(params.g_gamme_prestige?.valeur) || 1.15 : 1
+// Ce qui manque pour chiffrer
+export const manqueDemande = ev => [!ev.date && 'date', !(n(ev.invites) > 0) && 'invités', !String(ev.lieu || '').trim() && 'lieu', !(ev.prestations || []).length && 'prestation', !ev.gamme && 'gamme'].filter(Boolean)
 const DOSSIER = { Epicure: 'Evenements Epicure', 'Business Boys': 'Evenements Business Boys', 'Espèce': 'Evenements Espece' }
 const glisse = { initial: { x: 40, opacity: 0 }, animate: { x: 0, opacity: 1 }, transition: { type: 'spring', damping: 30, stiffness: 300 } }
 
@@ -35,20 +40,21 @@ function useDictee(setTexte) {
 /* ---------- 1 · Les bases ---------- */
 export function Nouveau({ data, go, onCreated }) {
   const ui = useUI()
-  const [f, setF] = useState({ nom: '', client: '', date: '', invites: '', lieu: '', prestations: ['Traiteur'], format: 'Dîner assis', entite: 'Epicure', inter: 'Aucun', intermediaire: '' })
+  const [f, setF] = useState({ nom: '', client: '', date: '', invites: '', lieu: '', prestations: ['Traiteur'], format: 'Dîner assis', entite: 'Epicure', inter: 'Aucun', intermediaire: '', gamme: '' })
   const [envoi, setEnvoi] = useState(false)
   const set = (k, v) => setF(x => ({ ...x, [k]: v }))
   const prest = p => set('prestations', f.prestations.includes(p) ? f.prestations.filter(x => x !== p) : [...f.prestations, p])
   const nomDossier = `${f.date || 'AAAA-MM-JJ'} · ${f.nom || 'Nom'}`
-  const ok = f.nom.trim() && f.date && n(f.invites) > 0 && f.prestations.length
+  const manque = [!f.nom.trim() && 'nom', ...manqueDemande(f)].filter(Boolean)
+  const ok = !manque.length
 
   async function creer() {
-    if (!ok) { ui.bubble('Il me faut au moins le nom, la date, les invités et une prestation.'); return }
+    if (!ok) { ui.bubble(`Pour chiffrer juste, il manque : ${manque.join(', ')}.`); return }
     setEnvoi(true)
     try {
       const ev = await api.evenementCreer({
         nom: f.nom.trim(), client: f.client.trim(), date: f.date, invites: n(f.invites), lieu: f.lieu.trim(),
-        prestations: f.prestations, format: f.prestations.includes('Traiteur') ? f.format : '', entite: f.entite,
+        prestations: f.prestations, format: f.prestations.includes('Traiteur') ? f.format : '', entite: f.entite, gamme: f.gamme,
         intermediaire: f.inter === 'Aucun' ? '' : `${f.inter}${f.intermediaire.trim() ? ` : ${f.intermediaire.trim()}` : ''}`,
       })
       store.evt = ev.id
@@ -81,6 +87,13 @@ export function Nouveau({ data, go, onCreated }) {
         <div className="chips">{['Traiteur', 'Bar'].map(p => <button key={p} className={`chip ${f.prestations.includes(p) ? 'on' : ''}`} onClick={() => prest(p)}>{p}</button>)}</div>
         {f.prestations.includes('Traiteur') && <div className="chips" style={{ marginTop: 8 }}>{FORMATS.map(p => <button key={p} className={`chip ${f.format === p ? 'on' : ''}`} onClick={() => set('format', p)}>{p}</button>)}</div>}
 
+        <div className="label">Gamme</div>
+        <div className="tiles3">{GAMMES.map(([k, sous]) => (
+          <motion.button key={k} whileTap={{ scale: .96 }} className={`tile ${f.gamme === k ? 'on' : ''}`} onClick={() => set('gamme', k)}>
+            <b>{k}</b><span>{sous}</span>
+          </motion.button>
+        ))}</div>
+
         <div className="label">Qui facture</div>
         <div className="tiles3">{ENTITES.map(x => (
           <motion.button key={x.k} whileTap={{ scale: .96 }} className={`tile ${f.entite === x.k ? 'on' : ''}`} onClick={() => set('entite', x.k)}>
@@ -96,7 +109,7 @@ export function Nouveau({ data, go, onCreated }) {
           <span className="ic">📁</span>
           <div><div className="small mute">Le dossier se crée tout seul :</div><div className="chemin">{DOSSIER[f.entite]} › {nomDossier}</div><div className="small mute">avec Pièces fournisseurs, Organisation et À revoir.</div></div>
         </div>
-        <button className="btn primary block" style={{ marginTop: 22 }} disabled={envoi} onClick={creer}>{envoi ? 'Création…' : 'Chiffrer'}</button>
+        <button className="btn primary block" style={{ marginTop: 22 }} disabled={envoi} onClick={creer}>{envoi ? 'Création…' : ok ? 'Chiffrer' : `Il manque : ${manque.join(', ')}`}</button>
       </div>
     </motion.div>
   )
@@ -128,7 +141,8 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   const [cmp, setCmp] = useState(null)          // comparaison avec les paramètres
   const [envoiV, setEnvoiV] = useState(false)
   const retouches = useRef({})                  // lignes retouchées à la main depuis le dernier enregistrement (pour le journal)
-  const chargerParams = () => api.chiffrageParams().then(d => { setParams(Object.fromEntries(d.params.map(p => [p.cle, p]))); setPeut(d.peut_modifier) }).catch(() => {})
+  const chargerParams = () => api.chiffrageParams().then(d => { const m = Object.fromEntries(d.params.map(p => [p.cle, p])); setParams(m); setPeut(d.peut_modifier); return m }).catch(() => ({}))
+  const [incomplet, setIncomplet] = useState(false)  // demande incomplète : pas de chiffrage tant qu'il manque une base
   // Réponse du moteur (calcul, surcharge, personne) : lignes et base à jour
   const appliquer = r => { setLignes(r.lignes || []); setBase(r.base || null) }
   // Plus rien ne se recalcule tout seul : un changement d'information devient une proposition « avant → après »
@@ -214,12 +228,18 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
     } catch (e) { ui.toast(e.message); if (!lignes) setLignes([]) }
     setCalcul(false)
   }
+  async function premierChiffrage() {
+    // D'abord le moteur (instantané, avec les paramètres), puis le copilote ajoute ce qui est propre à l'événement
+    try { appliquer(await api.chiffrageCalculer(data.evt, null)) } catch (e) { ui.toast(e.message); setLignes([]) }
+    demander()
+  }
   useEffect(() => {
-    chargerParams()
+    const pp = chargerParams()
     api.chiffrageContexte(data.evt).then(async cx => {
       const ps = cx.paliers || []; setPaliers(ps)
       const c = cx.chiffrage
-      setCoef(n(c?.coef) || n(ev.coef) || coefPalier(ps, ev.invites))
+      const prm = await pp
+      setCoef(n(c?.coef) || n(ev.coef) || Math.round(coefPalier(ps, ev.invites) * multGamme(ev.gamme, prm) * 100) / 100)
       if (c?.lignes?.length) {
         setLignes(avecIds(c.lignes)); setBase(c.base || null); setHyp(c.hypotheses || '')
         // L'événement a changé d'invités depuis le chiffrage : on prépare l'avant → après, sans rien toucher
@@ -230,11 +250,8 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
           }).catch(() => {})
         }
       }
-      else {
-        // D'abord le moteur (instantané, avec les paramètres), puis le copilote ajoute ce qui est propre à l'événement
-        try { appliquer(await api.chiffrageCalculer(data.evt, null)) } catch (e) { ui.toast(e.message); setLignes([]) }
-        demander()
-      }
+      else if (manqueDemande(ev).length) { setIncomplet(true); setLignes([]) }
+      else premierChiffrage()
     }).catch(e => ui.toast(e.message))
   }, [data.evt])
 
@@ -258,6 +275,15 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   const majLigne = (i, p) => setLignes(ls => { retenir(ls[i]); const x = ls.map((l, k) => k === i ? { ...l, ...p, verrou: true } : l); enregistrer(x, coef); return x })
   const retirer = i => setLignes(ls => { retenir(ls[i]); const x = ls.filter((_, k) => k !== i); enregistrer(x, coef); return x })
   const ajouter = zone => setLignes(ls => [...ls, { zone, element: '', mode: 'achat', quantite: n(ev.invites), prix: 0, uid: avecIds([{}])[0].uid }])
+  // Choisir la gamme : le coef devient palier × gamme (geste explicite, noté au journal)
+  async function choisirGamme(g) {
+    const v = Math.round(coefPalier(paliers, ev.invites) * multGamme(g, params) * 100) / 100
+    try {
+      await api.evenementMaj(data.evt, { gamme: g }); await reload()
+      if (lignes?.length && v !== n(coef)) { setCoef(v); enregistrer(lignes, v); api.chiffrageNoter(data.evt, [{ cle: 'gamme', titre: `Gamme ${g} : coef ${n(coef).toFixed(2).replace('.', ',')} → ${v.toFixed(2).replace('.', ',')}` }]).catch(() => {}) }
+      else setCoef(v)
+    } catch (e) { ui.toast(e.message) }
+  }
   const changerCoef = d => setCoef(c => { const v = Math.max(1, Math.round((n(c) + d) * 100) / 100); enregistrer(lignes, v); return v })
 
   const ordre = data.zones.map(z => z.nom)
@@ -276,12 +302,15 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   const prixHT = (cout + imprevus) * n(coef)
   const tva = tvaDe(ev.entite)
   const palier = paliers.find(p => n(ev.invites) <= n(p.jusqua))
+  const coefTaille = n(coefPalier(paliers, ev.invites)), mult = multGamme(ev.gamme, params)
+  const coefAttendu = Math.round(coefTaille * mult * 100) / 100
 
   const vente = estVente(ev)
   if (vue === 'avantapres' && prop) return <AvantApres prop={prop} setProp={setProp} envoi={envoiV} valider={validerProp} retour={() => { setProp(null); setVue('') }} />
   if (vue === 'journal') return <JournalChiffrage evt={data.evt} nom={ev.nom} retour={() => setVue('')} />
   if (vue === 'comparer' && cmp) return <Comparer cmp={cmp} setCmp={setCmp} envoi={envoiV} valider={validerComparer} retour={() => { setCmp(null); setVue('') }}
     totalApres={totalLignes(composer(lignes, cmp.r.moteur, cmp.choix).lignes)} />
+  if (incomplet) return <DemandeIncomplete ev={ev} go={go} onOk={async p => { await api.evenementMaj(data.evt, p); await reload(); setIncomplet(false); setLignes(null); setCoef(Math.round(coefPalier(paliers, p.invites ?? ev.invites) * multGamme(p.gamme ?? ev.gamme, params) * 100) / 100); premierChiffrage() }} />
   if (etape === 'budget' && lignes === null) return <div className="calcul"><div className="orbe" /><div>Chargement du chiffrage…</div></div>
   if (etape === 'budget') return <Budget data={data} ev={ev} zones={zones} imprevus={imprevus} prix={n(ev.prix_signe) || prixHT} coef={coef} retour={() => setEtape('chiffrer')} go={go} reload={reload} />
 
@@ -356,6 +385,8 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
           <div className="t-l"><span>Imprévus {imprevusPct()} %</span><b>{mad(imprevus)}</b></div>
           <div className="t-l"><span>Coef {palier ? `(palier ≤ ${palier.jusqua >= 100000 ? '∞' : palier.jusqua})` : ''}</span>
             <span className="coef"><button onClick={() => changerCoef(-0.05)}>−</button><b>× {n(coef).toFixed(2).replace('.', ',')}</b><button onClick={() => changerCoef(0.05)}>+</button></span></div>
+          <div className="t-g">{GAMMES.map(([k]) => <button key={k} className={`chip ${ev.gamme === k ? 'on' : ''}`} onClick={() => choisirGamme(k)}>{k}</button>)}</div>
+          <div className="t-l sous"><span>{n(coef) === coefAttendu ? `taille ${coefTaille.toFixed(2).replace('.', ',')}${mult !== 1 ? ` × ${ev.gamme} ${String(mult).replace('.', ',')}` : ''}` : `retouché (gamme : × ${coefAttendu.toFixed(2).replace('.', ',')})`}</span></div>
           <div className="t-l big"><span>Prix proposé HT</span><b>{mad(prixHT)}</b></div>
           {tva > 0 && <div className="t-l"><span>TTC (TVA {tva} %)</span><b>{mad(prixHT * (1 + tva / 100))}</b></div>}
           {n(ev.prix_signe) > 0 && <>
@@ -369,6 +400,35 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
             : <button className="btn primary" onClick={async () => { if (await fixer()) setEtape('budget') }}>{data.elements.length ? 'Mettre à jour le budget' : 'Retenir le budget'}</button>}
         </div>
       </>}
+    </motion.div>
+  )
+}
+
+/* Demande incomplète : on complète ce qui manque, puis on chiffre (rien n'est chiffré avant) */
+function DemandeIncomplete({ ev, go, onOk }) {
+  const ui = useUI()
+  const manque0 = manqueDemande(ev)
+  const [f, setF] = useState({ date: ev.date || '', invites: ev.invites || '', lieu: ev.lieu || '', prestations: ev.prestations || [], gamme: ev.gamme || '' })
+  const [envoi, setEnvoi] = useState(false)
+  const set = (k, v) => setF(x => ({ ...x, [k]: v }))
+  const reste = manqueDemande(f)
+  async function ok() {
+    setEnvoi(true)
+    try { await onOk({ date: f.date, invites: n(f.invites), lieu: f.lieu.trim(), prestations: f.prestations, gamme: f.gamme }) } catch (e) { ui.toast(e.message); setEnvoi(false) }
+  }
+  return (
+    <motion.div {...glisse} className="wiz">
+      <div className="head"><button className="back" onClick={() => go('')}>‹ Événement</button>
+        <div className="when">{ev.nom}</div><h1 style={{ fontSize: 34 }}>Avant de chiffrer</h1><div className="meta">Il manque : {manque0.join(', ')}</div></div>
+      <div className="px">
+        {manque0.includes('date') && <><div className="label">Date</div><input type="date" value={f.date} onChange={e => set('date', e.target.value)} /></>}
+        {manque0.includes('invités') && <><div className="label">Invités</div><input inputMode="numeric" value={f.invites} onChange={e => set('invites', e.target.value.replace(/\D/g, ''))} placeholder="250" /></>}
+        {manque0.includes('lieu') && <><div className="label">Lieu</div><input value={f.lieu} onChange={e => set('lieu', e.target.value)} placeholder="Domaine, riad, villa…" /></>}
+        {manque0.includes('prestation') && <><div className="label">Prestation</div><div className="chips">{['Traiteur', 'Bar'].map(p => <button key={p} className={`chip ${f.prestations.includes(p) ? 'on' : ''}`} onClick={() => set('prestations', f.prestations.includes(p) ? f.prestations.filter(x => x !== p) : [...f.prestations, p])}>{p}</button>)}</div></>}
+        {manque0.includes('gamme') && <><div className="label">Gamme</div><div className="tiles3">{GAMMES.map(([k, sous]) => (
+          <motion.button key={k} whileTap={{ scale: .96 }} className={`tile ${f.gamme === k ? 'on' : ''}`} onClick={() => set('gamme', k)}><b>{k}</b><span>{sous}</span></motion.button>))}</div></>}
+        <button className="btn primary block" style={{ marginTop: 22 }} disabled={envoi || reste.length > 0} onClick={ok}>{envoi ? '…' : reste.length ? `Il manque : ${reste.join(', ')}` : 'Chiffrer'}</button>
+      </div>
     </motion.div>
   )
 }
