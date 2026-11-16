@@ -23,6 +23,18 @@ Deno.serve(async (req) => {
       if (r.error) return json({ ok: false, message: 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
       return json({ ok: true, ...r.data })
     }
+    // Pendant l'appel : le chiffrage, calculé par l'appli avec ses paramètres (même moteur que le chiffrage écrit)
+    if (p.action === 'chiffrer') {
+      const r = await sb.rpc('voix_chiffrer', { p_token: token, p })
+      if (r.error) return json({ ok: false, message: r.error.message === 'invites_manquants' ? 'Il manque le nombre d\'invités.' : 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
+      return json(r.data)
+    }
+    // Les paramètres de chiffrage, à lire en début d'appel
+    if (p.action === 'parametres') {
+      const r = await sb.rpc('chiffrage_params_texte', { p_token: token })
+      if (r.error) return json({ ok: false, message: 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
+      return json({ ok: true, parametres: r.data })
+    }
     const d0 = await sb.rpc('donnees', { p_token: token, p_evt: null })
     if (d0.error) return json({ ok: false, message: 'Session expirée : reconnecte-toi dans l\'appli puis relance l\'agent.' })
 
@@ -47,6 +59,8 @@ Deno.serve(async (req) => {
     } })
     if (c.error) return json({ ok: false, message: `Création refusée : ${c.error.message}` })
     const evt = c.data.id
+    // Le chiffrage de l'événement part de la même base que le dernier calcul de l'appel
+    await sb.rpc('chiffrage_depuis_voix', { p_token: token, p_evt: evt })
     await sb.rpc('evenement_maj', { p_token: token, p_evt: evt, p: { prix, ...(cout > 0 && prix > 0 ? { coef: Math.round((prix / (cout * (1 + Number(d0.data?.regles?.imprevus_pct ?? 5) / 100))) * 100) / 100 } : {}) } })
 
     // Devis Zoho brouillon avec les lignes validées pendant l'appel
@@ -61,7 +75,7 @@ Deno.serve(async (req) => {
     const suite = (async () => {
       const call = (body: any) => fetch(`${URL}/functions/v1/orga-copilote`, { method: 'POST', headers: { 'content-type': 'application/json', apikey: ANON }, body: JSON.stringify({ token, evt, ...body }) }).catch(() => null)
       await call({ mode: 'dossier' })
-      await call({ mode: 'chiffrer', note: `Chiffrage fait à la voix : ${p.format || ''}, ${p.pax || '?'} invités, ${p.heures || '?'} h. ${p.inclus || ''} Lignes du devis : ${lignes.map((l: any) => `${String(l.description).split('\n')[0]} ${Math.round(l.montant)} MAD`).join(' ; ')}. Coût total estimé ${Math.round(cout)} MAD : reste cohérent avec ce montant.` })
+      await call({ mode: 'chiffrer', note: `Chiffrage fait à la voix : ${p.format || ''}, ${p.pax || '?'} invités, ${p.heures || '?'} h. ${p.inclus || ''} Lignes du devis : ${lignes.map((l: any) => `${String(l.description).split('\n')[0]} ${Math.round(l.montant)} MAD`).join(' ; ')}. Coût total estimé à l'appel ${Math.round(cout)} MAD (les postes calculés sont déjà dans l'appli).` })
     })()
     // @ts-ignore EdgeRuntime existe sur Supabase
     if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(suite)

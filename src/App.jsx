@@ -24,6 +24,7 @@ import { ETATS, Icon, Sheet, ddmm, n, useUI } from './ui'
 const tard = (charger, nom) => lazy(() => charger().then(m => ({ default: m[nom] })))
 const creation = () => import('./creation'), staff = () => import('./staff'), copilote = () => import('./copilote'), historique = () => import('./historique')
 const Chiffrer = tard(creation, 'Chiffrer'), Nouveau = tard(creation, 'Nouveau')
+const Parametres = tard(() => import('./chiffrage'), 'Parametres')
 const Especes = tard(() => import('./especes'), 'Especes')
 const depot = () => import('./depot')
 const Depot = tard(depot, 'Depot'), DepotArticle = tard(depot, 'DepotArticle'), DepotCommande = tard(depot, 'DepotCommande'), DepotInventaires = tard(depot, 'DepotInventaires'), DepotInventaire = tard(depot, 'DepotInventaire'), DepotHistorique = tard(depot, 'DepotHistorique'), DepotReglages = tard(depot, 'DepotReglages'), DepotSortie = tard(depot, 'DepotSortie'), DepotPieces = tard(depot, 'DepotPieces'), DepotPiece = tard(depot, 'DepotPiece')
@@ -262,6 +263,7 @@ export default function App() {
   else if (route.startsWith('perimetre/')) screen = <Perimetre key={route} data={view} kind={route.split('/')[1]} go={go} open={setOpenEl} />
   else if (route.startsWith('zone/')) screen = <Zone key={route} data={view} idx={Number(route.split('/')[1])} go={go} open={setOpenEl} patch={patch} delegate={delegate} addEl={z => setAddSheet(z)} />
   else if (route === 'staff') screen = <StaffListe go={go} />
+  else if (route === 'parametres') screen = <Parametres go={go} />
   else if (route.startsWith('staff/')) screen = <StaffFiche key={route} go={go} id={route.split('/')[1]} />
   else if (route === 'staff-evt') screen = <StaffEvt data={data} go={go} />
   else if (route === 'staff-evt/noter') screen = <StaffNoter data={data} go={go} />

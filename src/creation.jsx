@@ -4,6 +4,7 @@ import { api, store } from './api'
 import { coefDefaut, imprevus as imprevusTaux, imprevusPct, tva as tvaDe } from './regles'
 import { Icon, mad, n, useUI } from './ui'
 import { estVente } from './cycle'
+import { Detail, InfosBase, LigneSheet, PersonneSheet } from './chiffrage'
 
 const ENTITES = [
   { k: 'Epicure', sous: 'TVA 20 %' },
@@ -114,6 +115,25 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   const [ouverte, setOuverte] = useState(null)
   const [consigne, setConsigne] = useState('')
   const [dicte, dicter] = useDictee(setConsigne)
+  const [base, setBase] = useState(null)
+  const [params, setParams] = useState({})
+  const [peut, setPeut] = useState(false)
+  const [occupe, setOccupe] = useState(false)
+  const [ligneP, setLigneP] = useState(null)
+  const [personne, setPersonne] = useState(null)
+  const chargerParams = () => api.chiffrageParams().then(d => { setParams(Object.fromEntries(d.params.map(p => [p.cle, p]))); setPeut(d.peut_modifier) }).catch(() => {})
+  // Réponse du moteur (calcul, surcharge, personne) : lignes et base à jour
+  const appliquer = r => { setLignes(r.lignes || []); setBase(r.base || null) }
+  async function recalculer(chg) {
+    setOccupe(true)
+    try { appliquer(await api.chiffrageCalculer(data.evt, { ...base, ...chg })) } catch (e) { ui.toast(e.message) }
+    setOccupe(false)
+  }
+  async function refaireParams() {
+    setOccupe(true)
+    try { await api.chiffrageEnregistrer(data.evt, [], hyp, coef); appliquer(await api.chiffrageCalculer(data.evt, null)); setOccupe(false); demander() }
+    catch (e) { ui.toast(e.message); setOccupe(false) }
+  }
   const sauve = useRef(null)
   const [devis, setDevis] = useState(ev.zoho_devis?.numero || null)
   async function faireDevis() {
@@ -133,16 +153,22 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
     setCalcul(true)
     try {
       const r = await api.copilote('chiffrer', note ? { note, lignes } : {})
-      setLignes(r.lignes || []); setHyp(r.hypotheses || ''); setQuestion(r.question || ''); setConsigne('')
+      setLignes(r.lignes || []); if (r.base) setBase(r.base); setHyp(r.hypotheses || ''); setQuestion(r.question || ''); setConsigne('')
     } catch (e) { ui.toast(e.message); if (!lignes) setLignes([]) }
     setCalcul(false)
   }
   useEffect(() => {
-    api.chiffrageContexte(data.evt).then(cx => {
+    chargerParams()
+    api.chiffrageContexte(data.evt).then(async cx => {
       const ps = cx.paliers || []; setPaliers(ps)
       const c = cx.chiffrage
       setCoef(n(c?.coef) || n(ev.coef) || coefPalier(ps, ev.invites))
-      if (c?.lignes?.length) { setLignes(c.lignes); setHyp(c.hypotheses || '') } else demander()
+      if (c?.lignes?.length) { setLignes(c.lignes); setBase(c.base || null); setHyp(c.hypotheses || '') }
+      else {
+        // D'abord le moteur (instantané, avec les paramètres), puis le copilote ajoute ce qui est propre à l'événement
+        try { appliquer(await api.chiffrageCalculer(data.evt, null)) } catch (e) { ui.toast(e.message); setLignes([]) }
+        demander()
+      }
     }).catch(e => ui.toast(e.message))
   }, [data.evt])
 
@@ -160,6 +186,11 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
     const g = {}
     ;(lignes || []).forEach((l, i) => { (g[l.zone] = g[l.zone] || { nom: l.zone, lignes: [], total: 0 }).lignes.push({ ...l, i }); g[l.zone].total += n(l.quantite) * n(l.prix) })
     return Object.values(g).sort((a, b) => (ordre.indexOf(a.nom) + 99 * (ordre.indexOf(a.nom) < 0)) - (ordre.indexOf(b.nom) + 99 * (ordre.indexOf(b.nom) < 0)))
+  }, [lignes])
+  const zonesExtra = useMemo(() => {
+    const g = {}
+    ;(lignes || []).forEach((l, i) => { if (l.param) return; (g[l.zone] = g[l.zone] || { nom: l.zone, lignes: [], total: 0 }).lignes.push({ ...l, i }); g[l.zone].total += n(l.quantite) * n(l.prix) })
+    return Object.values(g)
   }, [lignes])
   const cout = zones.reduce((s, z) => s + z.total, 0)
   const imprevus = cout * imprevusTaux()
@@ -186,7 +217,15 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
 
       {lignes !== null && !(calcul && !lignes.length) && <>
         {question && <div className="question-ia" onClick={() => setQuestion('')}><b>Une question :</b> {question}</div>}
-        <div className="zones-chiffre">{zones.map(z => (
+        <div className="cf-tot"><div><b>{mad(cout)}</b>coût</div><div><b>×{n(coef).toFixed(2).replace('.', ',')}</b>coef</div><div><b>{mad(prixHT)}</b>prix HT</div></div>
+        {base ? <InfosBase base={base} occupe={occupe} onChange={recalculer} />
+          : lignes.length > 0 && <div className="cf-vieux"><span>Chiffré avant les paramètres</span><button className="chip on" disabled={occupe} onClick={refaireParams}>{occupe ? '…' : 'Refaire avec les paramètres'}</button></div>}
+        {calcul && lignes.length > 0 && <p className="small mute px" style={{ marginTop: 10 }}>Le copilote ajoute ce qui est propre à cet événement…</p>}
+        <Detail lignes={lignes} params={params} base={base}
+          onParam={(cle) => setLigneP({ cle })} onPersonne={(cle, x) => setPersonne({ cle, x })}
+          extras={zonesExtra.length > 0 && <>
+            <div className="cf-grp"><span>EN PLUS · PROPRE À L'ÉVÉNEMENT</span><b>{mad(zonesExtra.reduce((s, z) => s + z.total, 0))}</b></div>
+            <div className="zones-chiffre" style={{ marginTop: 0 }}>{zonesExtra.map(z => (
           <div key={z.nom} className={`cz ${ouverte === z.nom ? 'open' : ''}`}>
             <button className="cz-top" onClick={() => setOuverte(ouverte === z.nom ? null : z.nom)}>
               <div><div className="nom">{z.nom}</div><div className="small mute">{z.lignes.slice(0, 3).map(l => l.element).join(', ')}{z.lignes.length > 3 ? '…' : ''}</div></div>
@@ -211,7 +250,12 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
               </motion.div>
             )}</AnimatePresence>
           </div>
-        ))}</div>
+        ))}</div></>} />
+        <div className="px" style={{ marginTop: 10 }}><button className="chip" onClick={() => { ajouter('Lieu technique et admin'); setOuverte('Lieu technique et admin') }}>+ Ligne en plus</button></div>
+        <LigneSheet ouvert={ligneP} params={params} base={base} peut={peut} invites={base?.invites ?? ev.invites} lignes={lignes || []} onClose={() => setLigneP(null)}
+          onSave={async (cle, x, ref) => { appliquer(await api.chiffrageSurcharger(data.evt, cle, x, ref)); if (ref) chargerParams(); setLigneP(null); ui.toast(ref ? 'Changé ici et dans la référence' : 'Changé pour cet événement') }} />
+        <PersonneSheet ouvert={personne} params={params} onClose={() => setPersonne(null)}
+          onSave={async (cle, rang, x) => { appliquer(await api.chiffragePersonne(data.evt, cle, rang, x)); setPersonne(null) }} />
 
         <div className="consigne">
           <input value={consigne} onChange={e => setConsigne(e.target.value)} placeholder="Dis ce qu'il faut changer…" onKeyDown={e => e.key === 'Enter' && consigne.trim() && demander(consigne.trim())} />

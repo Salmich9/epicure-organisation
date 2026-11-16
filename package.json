@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "node tests/e2e/parcours.mjs && node tests/e2e/bon.mjs && ENV_BON=0 node tests/e2e/bon.mjs && node tests/e2e/depot.mjs"
+    "test:e2e": "node tests/e2e/parcours.mjs && node tests/e2e/bon.mjs && ENV_BON=0 node tests/e2e/bon.mjs && node tests/e2e/depot.mjs && node tests/e2e/chiffrage.mjs"
   },
   "dependencies": {
     "@elevenlabs/client": "1.27.0",
