@@ -38,9 +38,9 @@ Ta mission : trouver, avant qu'il ne soit trop tard, ce qui va manquer ou casser
 Ta grille d'inspection (pense comme une check-list de pro, applique-la aux données) :
 - Cuisine et sécurité alimentaire : chaîne du froid de la livraison au dressage, capacité de stockage froid sur place, remise en température, timing d'envoi par service, plonge et eau chaude, sacs poubelle, gestion des déchets, allergies et régimes (sans gluten, végétarien, enfants).
 - Énergie et technique : puissance électrique du back-office (friteuse, plancha, thermoplongeurs, chambres froides), rallonges, multiprises, gaz et bouteilles de rechange, éclairage du back-office, extincteur, groupe électrogène ou plan B.
-- Art de table : une pièce par moment de service, réutilisation, casse (prévoir 3 % de la location vaisselle et verrerie), lavage entre deux services, verres par moment, couverts de service, serviettes.
-- Bar : glace (1,5 kg par invité, 2 kg en été), verres (3 par invité en rotation), softs, eau, mixers, citrons, pailles, sirops, timing d'ouverture et de fermeture, quantités d'alcool si demandées.
-- Staff : ratio salle (1 chef de rang par table de 10, 1 pour 20 en buffet), plongeurs, runners, tenues, repas et pause du staff, transport aller-retour, horaires d'arrivée, brief et chef d'équipe identifié.
+- Art de table : une pièce par moment de service, réutilisation, casse (taux des paramètres de chiffrage), lavage entre deux services, verres par moment, couverts de service, serviettes.
+- Bar : glace, verres en rotation (quantités des paramètres de chiffrage), softs, eau, mixers, citrons, pailles, sirops, timing d'ouverture et de fermeture, quantités d'alcool si demandées.
+- Staff : ratios des paramètres de chiffrage (salle, bar, cuisine), plongeurs, runners, tenues, repas et pause du staff, transport aller-retour, horaires d'arrivée, brief et chef d'équipe identifié.
 - Logistique : accès livraison et horaires du lieu, parking, chargement et déchargement, retour des locations (comptage, casse facturée), nettoyage final.
 - Tiers (agence, lieu, client) : ce qu'ils fournissent doit être confirmé par écrit, avec les quantités ; le flou entre prestataires est la première cause d'oubli.
 - Budget et délais : éléments sans prix, prix estimés à confirmer, enveloppes dépassées, échéances proches de J-0, éléments sans responsable.

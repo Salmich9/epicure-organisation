@@ -50,7 +50,7 @@ export const TOOLS: Record<string, any> = {
   },
   chiffrer: {
     name: 'chiffrage',
-    description: 'Chiffrage complet de l\'événement, zone par zone, à partir du catalogue et des événements passés.',
+    description: 'Lignes en plus des postes calculés par les paramètres de l\'appli, et ajustements de ces postes pour cet événement.',
     input_schema: {
       type: 'object',
       properties: {
@@ -69,6 +69,17 @@ export const TOOLS: Record<string, any> = {
             },
             required: ['zone', 'element', 'mode', 'quantite', 'prix'],
           },
+        },
+        ajustements: {
+          type: 'array',
+          description: 'Seulement si la consigne le demande : changement d\'un poste déjà calculé, pour cet événement',
+          items: { type: 'object', properties: {
+            param: { type: 'string', description: 'cle du poste calculé (ex. s_chef_rang)' },
+            valeur: { type: 'number', description: 'Nouveau prix unitaire, si changé' },
+            ratio: { type: 'number', description: 'Nouveau ratio (1 pour N, quantité par invité, nombre), si changé' },
+            effectif: { type: 'number', description: 'Nombre de personnes voulu (staff), si demandé' },
+            raison: { type: 'string' },
+          }, required: ['param'] },
         },
         hypotheses: { type: 'string', description: 'Les hypothèses retenues, en 2 à 4 phrases courtes' },
         question: { type: 'string', description: 'UNE question si une info manque vraiment, sinon vide' },

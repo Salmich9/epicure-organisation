@@ -52,6 +52,10 @@ Deno.serve(async (req) => {
       : []
     const leconsTxt = lecons.length ? `Leçons retenues des événements passés (à appliquer) :\n${lecons.map((l: any) => `- ${l.zone ?? ''} : ${l.texte} (${l.detail ?? ''})`).join('\n')}` : ''
 
+    // Paramètres de chiffrage de l'appli : la seule source des prix et des ratios (comme pour l'agent vocal)
+    const ptxt = ['chiffrer', 'cadrage', 'challenge', 'bilan'].includes(mode)
+      ? `Paramètres de chiffrage (seule source des prix, ratios et quantités repères) :\n${(await sb.rpc('chiffrage_params_texte', { p_token: token })).data || ''}` : ''
+
     let chiffrageTxt = '', bilanTxt = ''
     if (mode === 'bilan') {
       const c = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
@@ -68,17 +72,33 @@ ${data.zones.map((z: any) => {
 ${note ? `Ce que ${data.moi} a noté après l'événement : « ${note} »` : ''}
 ${leconsTxt}`
     }
+    let calc: any[] = []
     if (mode === 'chiffrer') {
       const c = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
       const cx = c.data || {}
+      // Le moteur de l'appli calcule d'abord les postes couverts par les paramètres (moments, staff, transport…)
+      if (!cx.chiffrage?.base) {
+        const r = await sb.rpc('chiffrage_calculer', { p_token: token, p_evt: data.evt, p_base: null })
+        if (r.error) return json({ error: `Chiffrage : ${r.error.message}` }, 500)
+        cx.chiffrage = { ...(cx.chiffrage || {}), lignes: r.data.lignes, base: r.data.base }
+      }
+      const tout = (lignes && lignes.length ? lignes : cx.chiffrage?.lignes || [])
+      calc = tout.filter((l: any) => l.param)
+      const extras = tout.filter((l: any) => !l.param)
+      const parCle: Record<string, any> = {}
+      for (const l of calc) { const k = l.param; parCle[k] = parCle[k] || { nom: String(l.element).replace(/ \d+$/, '').replace(/ · .*$/, ''), n: 0, t: 0, note: l.note, zone: l.zone }; parCle[k].n++; parCle[k].t += Number(l.quantite) * Number(l.prix) }
+      const calcTxt = Object.entries(parCle).map(([k, x]: any) => `${k} | ${x.zone} | ${x.nom}${x.n > 1 ? ` × ${x.n}` : ''} | ${x.note} | ${Math.round(x.t)} MAD`).join('\n')
       const cat = (cx.catalogue || []).map((x: any) => `${x.id} | ${x.zone} | ${x.el} | base=${x.base ?? ''} q/base=${x.qpb ?? ''} | ${x.mode ?? ''} | achat=${x.pa ?? ''} loc=${x.pl ?? ''} prod=${x.pp ?? ''}`).join('\n')
       const refs = (cx.references || []).map((r: any) => `${r.nom} (${r.invites} invités, ${(r.prestations || []).join('+')}, ${r.format ?? ''}) — totaux : ${JSON.stringify(r.zones)}\n  ${(r.lignes || []).map((x: string) => [x, Number(x.split(' | ').pop()) || 0] as [string, number]).sort((a: any, b: any) => b[1] - a[1]).slice(0, 35).map((x: any) => x[0]).join('\n  ')}`).join('\n')
-      const actu = (lignes && lignes.length ? lignes : cx.chiffrage?.lignes || []).map((l: any) => `${l.zone} | ${l.element} | ${l.mode} | ${l.quantite} × ${l.prix}`).join('\n')
+      const b = cx.chiffrage?.base || {}
       chiffrageTxt = `Prestations : ${(ev.prestations || []).join(' + ') || '?'}, format ${ev.format ?? '?'}, ${ev.invites ?? '?'} invités, facturé par ${ev.entite ?? '?'}.
+Informations de base : moments ${(b.moments || []).join(', ') || '?'}${b.hors_marrakech ? ', hors Marrakech' : ''}${b.autre_ville ? ', autre ville' : ''}${(b.alcool || []).length ? `, alcool fourni : ${b.alcool.join(', ')}` : ', alcool non fourni'}.
 Zones : ${data.zones.map((z: any) => z.nom).join(', ')}.
+${ptxt}
+Postes déjà calculés par les paramètres (cle | zone | poste | calcul | total) :\n${calcTxt || '(aucun)'}
+Lignes en plus déjà ajoutées :\n${extras.map((l: any) => `${l.zone} | ${l.element} | ${l.mode} | ${l.quantite} × ${l.prix}`).join('\n') || '(aucune)'}
 Catalogue (id | zone | élément | base | mode | prix MAD) :\n${cat}
 Événements passés (références de coûts réels) :\n${refs || '(aucun)'}
-${actu ? `Chiffrage actuel :\n${actu}` : ''}
 ${leconsTxt}`
     }
 
@@ -120,19 +140,19 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
     const demande = mode === 'bulles'
       ? `Donne au plus 4 bulles pour le tableau de bord de ${data.moi} aujourd'hui : 2 ou 3 conseils concrets (ce qu'il faut faire maintenant, avec les chiffres réels) et 1 réflexion de pro (un risque moins évident, une idée qui fait la différence le jour J). Ne répète pas les alertes évidentes (retards, éléments sans responsable) : elles sont déjà affichées. Appelle l'outil « bulles ».`
       : mode === 'chiffrer'
-      ? `${chiffrageTxt}\n\n${note ? `Consigne de ${data.moi} : « ${note} »\n` : ''}Chiffre cet événement zone par zone, en coût de revient (pas en prix de vente). Pars des quantités du catalogue (qte par base × invités), corrige avec les événements passés de taille proche, n'oublie aucune zone utile pour ces prestations (staff, logistique, art de table, bar si prévu). ${actu0(lignes)}Prix : uniquement ceux du catalogue ou des références, jamais inventés (0 si inconnu, et dis-le dans la note). Au plus 40 lignes : regroupe les petites fournitures d'une même zone. Note : 5 mots au plus, seulement si utile. Appelle l'outil « chiffrage ».`
+      ? `${chiffrageTxt}\n\n${note ? `Consigne de ${data.moi} : « ${note} »\n` : ''}Les postes déjà calculés viennent des paramètres de l'appli : ne les recopie pas et ne les recalcule pas. Ajoute seulement les lignes EN PLUS dont CET événement a besoin et que les paramètres ne couvrent pas (décor, mobilier, matériel de cuisine ou de bar spécifique, énergie, régimes, tiers…), en coût de revient, à partir du catalogue et des événements passés. Rends la liste complète des lignes en plus : elle remplace l'actuelle (garde celles qui restent utiles). Une ligne par élément : jamais deux moments ou deux postes réunis sur une même ligne. Si la consigne demande de changer un prix, un ratio ou un effectif d'un poste déjà calculé, mets-le dans « ajustements » avec sa cle (vaut pour cet événement seulement). Prix : uniquement ceux du catalogue ou des références, jamais inventés (0 si inconnu, et dis-le dans la note). Au plus 25 lignes. Note : 5 mots au plus, seulement si utile. Appelle l'outil « chiffrage ».`
       : mode === 'planning'
       ? `${planningTxt}\n\nInspecte ce planning de J-30 à J+5 : repère ce qui manque dans le temps (livraisons non planifiées pour ce qui est loué ou acheté, confirmations des tiers, arrivée et repas du staff, montage, démontage et retour des locations à J+1, paiements). Ne propose pas ce qui existe déjà. Appelle l'outil « creneaux ».`
       : mode === 'bilan'
       ? `${bilanTxt}\n\nL'événement est passé. Fais le bilan : pour chaque zone dont le facturé s'écarte du prévu de plus de 10 % ou de 3 000 MAD, dis pourquoi en citant les éléments responsables. Une zone sans facture n'est pas un écart : dis seulement que les pièces manquent. Puis au plus 5 leçons utiles pour les prochains chiffrages. Corrige le catalogue (catalogue_id, champ, valeur) seulement quand le réel le prouve clairement ; sinon laisse vide. Ne répète pas une leçon déjà retenue. Les leçons portent sur le chiffrage et l'organisation des prochains événements (quantités, prix, ratios, oublis), jamais sur la saisie des pièces ou la clôture : la check-list s'en charge. Une seule facture ne suffit pas à changer un prix du catalogue : propose une valeur prudente entre l'ancien prix et le réel. Appelle l'outil « bilan ».`
       : mode === 'cadrage'
-      ? `${cadrageTxt}\n\nChoisis dans la bibliothèque la liste de ce dont CET événement a besoin, pour que rien ne soit oublié sans encombrer la revue :
+      ? `${cadrageTxt}\n${ptxt}\n\nChoisis dans la bibliothèque la liste de ce dont CET événement a besoin, pour que rien ne soit oublié sans encombrer la revue :
 - Seulement ce que les réponses rendent utile. Rien pour une prestation absente (pas de traiteur → ni Menu, ni Cuisine, ni Art de table de repas).
 - Parmi des articles qui se remplacent (types de chaises, de verres, de nappes), un seul : le plus courant pour ce format.
 - Pas d'animation, de fleurs, de papeterie ni de décoration de prestige si le cadrage n'en parle pas.
 - Toujours le socle d'un pro : staff adapté, glace, eau, plonge, transport, talkies, sacs poubelle, repas du staff, tenues, rallonges et éclairage du back-office quand c'est pertinent.
 - Ce que le client, le lieu ou l'agence fournit : perimetre Tiers avec « par ». Ce qui dépend d'une réponse « ? » ou d'un risque (sol, éclairage, énergie) : À clarifier.
-- Quantité (qte) seulement quand le cadrage la fixe ; sinon 0, elle se calcule depuis la base et le nombre d'invités. Exception : pour la zone Staff, donne TOUJOURS l'effectif (qte) avec les ratios d'un pro : dîner assis 1 chef de rang par table de 10 ; buffet ou cocktail 1 serveur pour 20 invités ; 1 runner pour 2 chefs de rang ; 1 bartender pour 50 invités ; 1 plongeur pour 50 invités ; 1 maître d'hôtel pour 150 invités ; en cuisine, 1 personne pour 30 couverts ; 2 manutentionnaires pour 100 invités et 1 coursier. Glace : 1,5 kg par invité (2 kg en été). Premix cocktails : 0,4 L par invité. Shots : 1 L pour 50 invités. Eau : 0,6 bouteille par invité. Talkies dès 100 invités.
+- Quantité (qte) seulement quand le cadrage la fixe ; sinon 0, elle se calcule depuis la base et le nombre d'invités. Exception : pour la zone Staff, donne TOUJOURS l'effectif (qte) en appliquant les paramètres de chiffrage ci-dessus (ratios et quantités repères), jamais d'autres chiffres.
 - Entre 30 et 110 articles. Ids exacts uniquement. Appelle l'outil « liste ».`
       : mode === 'article'
       ? `${articleTxt}\n\n${data.moi} vient de dicter, pendant la revue : « ${note} »\nPour chaque article dicté : s'il existe déjà dans la bibliothèque (même chose), donne son catalogue_id, son nom, sa famille et son prix. Sinon range-le dans la famille et la sous-famille qui conviennent le mieux, et propose un coût unitaire HT réaliste au Maroc (Marrakech) : d'abord celui d'un article proche de la bibliothèque, sinon des événements passés, sinon ta meilleure estimation de professionnel (source « estimation »). Mode le plus courant pour cet article. Quantité dite à l'oral dans « quantite ». Appelle l'outil « articles ».`
@@ -149,7 +169,7 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
         system: SYSTEME,
         tools: [TOOLS[mode]],
         tool_choice: { type: 'auto' },
-        messages: [{ role: 'user', content: `${contexte(data)}\n\n${demande}` }],
+        messages: [{ role: 'user', content: `${contexte(data)}\n\n${mode === 'challenge' || mode === 'bilan' ? `${ptxt}\n\n` : ''}${demande}` }],
       }),
     })
     const out = await r.json()
@@ -158,7 +178,7 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
     const use = (out.content || []).find((c: any) => c.type === 'tool_use')
     if (!use) return json({ error: 'Le copilote n\'a pas su répondre, réessaie.' }, 502)
     const res: any = { ...use.input }
-    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons', 'items', 'articles']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
+    for (const k of ['questions', 'changements', 'creneaux', 'bulles', 'lignes', 'pourquoi', 'lecons', 'items', 'articles', 'ajustements']) if (typeof res[k] === 'string') { try { res[k] = JSON.parse(res[k]) } catch { res[k] = [] } }
     if (Array.isArray(res.questions)) res.questions = res.questions.filter((q: any) => q?.question && Array.isArray(q.options) && q.options.length)
     if (mode === 'bulles') {
       res.bulles = (res.bulles || []).filter((b: any) => b?.texte).slice(0, 4)
@@ -187,8 +207,24 @@ ${(cat || []).map((x: any) => `${x.id} | ${x.zone} | ${x.sous_zone ?? ''} | ${x.
       res.articles = (Array.isArray(res.articles) ? res.articles : []).filter((x: any) => x?.element).map((x: any) => ({ ...x, zone: zs.has(x.zone) ? x.zone : data.zones[0]?.nom, prix: Number(x.prix) || 0, quantite: Number(x.quantite) || 0, qte_par_base: Number(x.qte_par_base) || 1 }))
     }
     if (mode === 'chiffrer') {
-      res.lignes = (res.lignes || []).filter((l: any) => l?.element && l?.zone).map((l: any) => ({ ...l, quantite: Number(l.quantite) || 0, prix: Number(l.prix) || 0 }))
-      await sb.rpc('chiffrage_enregistrer', { p_token: token, p_evt: data.evt, p_lignes: res.lignes, p_hyp: res.hypotheses || '', p_coef: null })
+      const extras = (res.lignes || []).filter((l: any) => l?.element && l?.zone).map((l: any) => { const { param, ...x } = l; return { ...x, quantite: Number(l.quantite) || 0, prix: Number(l.prix) || 0 } })
+      // Ajustements demandés : surcharges de l'événement (même chemin que la fenêtre « Cet événement seulement »)
+      const cles = new Set(calc.map((l: any) => l.param))
+      for (const a of (Array.isArray(res.ajustements) ? res.ajustements : [])) {
+        if (!a?.param) continue
+        const p: any = {}
+        if (Number(a.valeur) > 0) p.valeur = Number(a.valeur)
+        if (Number(a.ratio) > 0) p.ratio = Number(a.ratio)
+        if (Number(a.effectif) >= 0 && a.effectif !== null && a.effectif !== undefined && a.effectif !== '') p.effectif = Number(a.effectif)
+        if (!Object.keys(p).length) continue
+        const r = await sb.rpc('chiffrage_surcharger', { p_token: token, p_evt: data.evt, p_cle: a.param, p, p_reference: false })
+        if (r.error && cles.has(a.param)) return json({ error: `Ajustement ${a.param} : ${r.error.message}` }, 500)
+      }
+      const c2 = await sb.rpc('chiffrage_contexte', { p_token: token, p_evt: data.evt })
+      const ch = c2.data?.chiffrage || {}
+      const fusion = [...(ch.lignes || []).filter((l: any) => l.param), ...extras]
+      await sb.rpc('chiffrage_enregistrer', { p_token: token, p_evt: data.evt, p_lignes: fusion, p_hyp: res.hypotheses || '', p_coef: ch.coef ?? null })
+      res.lignes = fusion; res.base = ch.base
     }
     return json({ ...res, usage: out.usage })
   } catch (e) {
