@@ -88,14 +88,12 @@ begin
   end loop;
 end $$;
 
-drop function if exists orga.chiffrage_enregistrer(uuid, text, jsonb, text, numeric);
-create or replace function orga.chiffrage_enregistrer(p_token uuid, p_evt text, p_lignes jsonb, p_hyp text, p_coef numeric, p_journal jsonb default null)
- returns boolean language plpgsql security definer set search_path to '' as $$
+-- Retouches à la main notées depuis l'appli (appel à part : l'enregistrement existant ne change pas)
+create or replace function orga.chiffrage_noter(p_token uuid, p_evt text, p_journal jsonb) returns boolean
+language plpgsql security definer set search_path = '' as $$
 declare me text := orga._qui_voix_direction(p_token);
 begin
-  insert into orga.chiffrages (evenement_id, lignes, hypotheses, coef, maj_par) values (p_evt, p_lignes, p_hyp, p_coef, me)
-  on conflict (evenement_id) do update set lignes = excluded.lignes, hypotheses = coalesce(excluded.hypotheses, orga.chiffrages.hypotheses), coef = excluded.coef, maj_le = now(), maj_par = me;
-  if p_journal is not null then perform orga._chiffrage_noter(p_evt, me, p_journal); end if;
+  perform orga._chiffrage_noter(p_evt, me, p_journal);
   return true;
 end $$;
 
@@ -116,4 +114,4 @@ end $$;
 
 revoke all on function orga._chiffrage_calc(text, jsonb), orga._chiffrage_noter(text, text, jsonb) from public, anon, authenticated;
 grant execute on function orga.chiffrage_apercu(uuid, text, jsonb), orga.chiffrage_valider(uuid, text, jsonb, jsonb, text, jsonb),
-  orga.chiffrage_enregistrer(uuid, text, jsonb, text, numeric, jsonb), orga.chiffrage_journal_liste(uuid, text) to anon, authenticated;
+  orga.chiffrage_noter(uuid, text, jsonb), orga.chiffrage_journal_liste(uuid, text) to anon, authenticated;

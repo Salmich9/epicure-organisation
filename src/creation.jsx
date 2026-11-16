@@ -4,7 +4,8 @@ import { api, store } from './api'
 import { coefDefaut, imprevus as imprevusTaux, imprevusPct, tva as tvaDe } from './regles'
 import { Icon, mad, n, useUI } from './ui'
 import { estVente } from './cycle'
-import { Detail, InfosBase, LigneSheet, PersonneSheet } from './chiffrage'
+import { AvantApres, Comparer, Detail, InfosBase, JournalChiffrage, LigneSheet, PersonneSheet } from './chiffrage'
+import { appliquer as appliquerDiff, avecIds, comparer, composer, diff, totalLignes } from './chiffrageDiff'
 
 const ENTITES = [
   { k: 'Epicure', sous: 'TVA 20 %' },
@@ -121,18 +122,67 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   const [occupe, setOccupe] = useState(false)
   const [ligneP, setLigneP] = useState(null)
   const [personne, setPersonne] = useState(null)
+  const [vue, setVue] = useState('')            // '' | avantapres | journal | comparer
+  const [prop, setProp] = useState(null)        // proposition « avant → après » en cours
+  const [attente, setAttente] = useState(null)  // changement d'invités à valider (bandeau)
+  const [cmp, setCmp] = useState(null)          // comparaison avec les paramètres
+  const [envoiV, setEnvoiV] = useState(false)
+  const retouches = useRef({})                  // lignes retouchées à la main depuis le dernier enregistrement (pour le journal)
   const chargerParams = () => api.chiffrageParams().then(d => { setParams(Object.fromEntries(d.params.map(p => [p.cle, p]))); setPeut(d.peut_modifier) }).catch(() => {})
   // Réponse du moteur (calcul, surcharge, personne) : lignes et base à jour
   const appliquer = r => { setLignes(r.lignes || []); setBase(r.base || null) }
+  // Plus rien ne se recalcule tout seul : un changement d'information devient une proposition « avant → après »
+  const proposer = (titre, source, r, hypo) => {
+    const d = diff(lignes, r.lignes || [], base)
+    if (!d.changements.length) { ui.toast('Rien ne change dans le chiffrage'); if (r.base) enregistrerBase(r.base); return false }
+    setProp({ titre, source, d, base: r.base || base, hyp: hypo ?? null, totalAvant: totalLignes(lignes), cochees: new Set(d.changements.filter(c => c.coche).map(c => c.cle)) })
+    setVue('avantapres'); return true
+  }
+  const enregistrerBase = b => api.chiffrageValider(data.evt, lignes, b, null, null).then(() => setBase(b)).catch(e => ui.toast(e.message))
+  const titreBase = chg => chg.invites !== undefined ? `Invités ${base?.invites ?? '?'} → ${chg.invites}` : chg.moments ? 'Moments changés' : chg.alcool ? 'Alcool changé'
+    : chg.traiteur !== undefined || chg.bar !== undefined ? 'Prestations changées' : 'Lieu changé'
   async function recalculer(chg) {
     setOccupe(true)
-    try { appliquer(await api.chiffrageCalculer(data.evt, { ...base, ...chg })) } catch (e) { ui.toast(e.message) }
+    try { proposer(titreBase(chg), 'base', await api.chiffrageApercu(data.evt, { ...base, ...chg })) } catch (e) { ui.toast(e.message) }
     setOccupe(false)
   }
-  async function refaireParams() {
+  async function validerProp() {
+    setEnvoiV(true)
+    try {
+      const ok = prop.cochees, ch = prop.d.changements
+      // Ce qui n'est pas accepté devient « gardé à la main » : il ne sera plus re-proposé coché
+      const res = appliquerDiff(lignes, prop.d.apres, [...ok]).map(l => (ch.some(c => !ok.has(c.cle) && c.type !== 'ajout' && c.cle === (l.param ? `p:${l.param}` : `u:${l.uid}`)) ? { ...l, verrou: true } : l))
+      const garde = ch.filter(c => !ok.has(c.cle) && c.type !== 'ajout').length
+      await api.chiffrageValider(data.evt, res, prop.base, prop.hyp, { titre: prop.titre, source: prop.source,
+        detail: `${ok.size} accepté${ok.size > 1 ? 's' : ''}${garde ? `, ${garde} gardé${garde > 1 ? 's' : ''} 🔒` : ''}`,
+        changements: ch.map(c => ({ nom: c.nom, avant: c.avant?.total ?? null, apres: c.apres?.total ?? null, ok: ok.has(c.cle) })) })
+      setLignes(res); setBase(prop.base); if (prop.hyp) setHyp(prop.hyp)
+      if (prop.source === 'base' && attente) setAttente(null)
+      setProp(null); setVue(''); ui.toast(ok.size ? 'Chiffrage mis à jour' : 'Rien n\'a changé')
+    } catch (e) { ui.toast(`Pas enregistré : ${e.message}`) }
+    setEnvoiV(false)
+  }
+  // Chiffrage d'avant les paramètres : comparer bloc par bloc, rien n'est remplacé sans choix
+  async function ouvrirComparer() {
     setOccupe(true)
-    try { await api.chiffrageEnregistrer(data.evt, [], hyp, coef); appliquer(await api.chiffrageCalculer(data.evt, null)); setOccupe(false); demander() }
-    catch (e) { ui.toast(e.message); setOccupe(false) }
+    try {
+      const r = await api.chiffrageApercu(data.evt, null)
+      const c = comparer(lignes, r.moteur)
+      setCmp({ r, c, choix: Object.fromEntries(c.blocs.map(b => [b.cle, 'garder'])), totalAvant: totalLignes(lignes) }); setVue('comparer')
+    } catch (e) { ui.toast(e.message) }
+    setOccupe(false)
+  }
+  async function validerComparer() {
+    setEnvoiV(true)
+    try {
+      const { lignes: ls, blocs_manuels } = composer(lignes, cmp.r.moteur, cmp.choix)
+      const b = { ...cmp.r.base, blocs_manuels }
+      const pris = cmp.c.blocs.filter(x => cmp.choix[x.cle] === 'prendre').map(x => x.nom)
+      await api.chiffrageValider(data.evt, ls, b, null, { titre: 'Comparaison avec les paramètres', source: 'comparaison',
+        detail: pris.length ? `pris : ${pris.join(', ')}` : 'tout gardé à l\'ancienne' })
+      setLignes(ls); setBase(b); setCmp(null); setVue(''); ui.toast('Chiffrage mis à jour')
+    } catch (e) { ui.toast(`Pas enregistré : ${e.message}`) }
+    setEnvoiV(false)
   }
   const sauve = useRef(null)
   const [devis, setDevis] = useState(ev.zoho_devis?.numero || null)
@@ -152,6 +202,13 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   async function demander(note) {
     setCalcul(true)
     try {
+      if (lignes?.length && !base) { ui.bubble('Compare d\'abord ce chiffrage avec les paramètres (bouton en haut), puis demande au copilote.'); setCalcul(false); return }
+      if (lignes?.length && base) {   // le copilote propose, il n'écrit pas
+        const r = await api.copilote('chiffrer', { note, lignes, apercu: true })
+        if (r.question && !r.lignes?.length) setQuestion(r.question)
+        proposer(note ? `Copilote : ${note}` : 'Copilote', 'copilote', r, r.hypotheses || null); setConsigne('')
+        setCalcul(false); return
+      }
       const r = await api.copilote('chiffrer', note ? { note, lignes } : {})
       setLignes(r.lignes || []); if (r.base) setBase(r.base); setHyp(r.hypotheses || ''); setQuestion(r.question || ''); setConsigne('')
     } catch (e) { ui.toast(e.message); if (!lignes) setLignes([]) }
@@ -163,7 +220,16 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
       const ps = cx.paliers || []; setPaliers(ps)
       const c = cx.chiffrage
       setCoef(n(c?.coef) || n(ev.coef) || coefPalier(ps, ev.invites))
-      if (c?.lignes?.length) { setLignes(c.lignes); setBase(c.base || null); setHyp(c.hypotheses || '') }
+      if (c?.lignes?.length) {
+        setLignes(avecIds(c.lignes)); setBase(c.base || null); setHyp(c.hypotheses || '')
+        // L'événement a changé d'invités depuis le chiffrage : on prépare l'avant → après, sans rien toucher
+        if (c.base && n(ev.invites) > 0 && n(c.base.invites) !== n(ev.invites)) {
+          api.chiffrageApercu(data.evt, { ...c.base, invites: n(ev.invites) }).then(r => {
+            const d = diff(avecIds(c.lignes), r.lignes || [], c.base)
+            if (d.changements.length) setAttente({ de: n(c.base.invites), a: n(ev.invites), nb: d.changements.length, r })
+          }).catch(() => {})
+        }
+      }
       else {
         // D'abord le moteur (instantané, avec les paramètres), puis le copilote ajoute ce qui est propre à l'événement
         try { appliquer(await api.chiffrageCalculer(data.evt, null)) } catch (e) { ui.toast(e.message); setLignes([]) }
@@ -173,12 +239,25 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   }, [data.evt])
 
   // Sauvegarde discrète après chaque retouche
-  const enregistrer = (ls, cf) => { clearTimeout(sauve.current); sauve.current = setTimeout(() => api.chiffrageEnregistrer(data.evt, ls, hyp, cf).catch(e => ui.toast(`Chiffrage pas enregistré : ${e.message}`)), 1200) }
+  const enregistrer = (ls, cf) => { clearTimeout(sauve.current); sauve.current = setTimeout(() => api.chiffrageEnregistrer(data.evt, ls, hyp, cf).then(() => noter(ls)).catch(e => ui.toast(`Chiffrage pas enregistré : ${e.message}`)), 1200) }
+  // Journal des retouches : « Caution loueur : 3 000 → 3 500 » (une entrée par ligne, regroupée sur 5 minutes)
+  function noter(ls) {
+    const r = retouches.current; retouches.current = {}
+    const j = Object.entries(r).map(([uid, x]) => {
+      const l = ls.find(y => y.uid === uid), t = l ? n(l.quantite) * n(l.prix) : 0
+      if (!l) return { cle: uid, titre: `Retiré : ${x.nom || 'ligne'} (${mad(x.total)})` }
+      if (x.nouvelle) return { cle: uid, titre: `Ajouté : ${l.element || 'ligne'} (${mad(t)})` }
+      if (Math.round(t) === Math.round(x.total) && l.element === x.nom) return null
+      return { cle: uid, titre: `${l.element || x.nom} : ${mad(x.total)} → ${mad(t)}` }
+    }).filter(Boolean)
+    if (j.length) api.chiffrageNoter(data.evt, j).catch(() => {})
+  }
+  const retenir = l => { if (l?.uid && !retouches.current[l.uid]) retouches.current[l.uid] = { nom: l.element, total: n(l.quantite) * n(l.prix), nouvelle: !l.element && !n(l.prix) } }
   // Avant de quitter l'écran : on enregistre, et on reste si ça n'est pas passé
   const fixer = async () => { clearTimeout(sauve.current); try { await api.chiffrageEnregistrer(data.evt, lignes, hyp, coef); return true } catch (e) { ui.toast(`Chiffrage pas enregistré : ${e.message}`); return false } }
-  const majLigne = (i, p) => setLignes(ls => { const x = ls.map((l, k) => k === i ? { ...l, ...p } : l); enregistrer(x, coef); return x })
-  const retirer = i => setLignes(ls => { const x = ls.filter((_, k) => k !== i); enregistrer(x, coef); return x })
-  const ajouter = zone => setLignes(ls => [...ls, { zone, element: '', mode: 'achat', quantite: n(ev.invites), prix: 0 }])
+  const majLigne = (i, p) => setLignes(ls => { retenir(ls[i]); const x = ls.map((l, k) => k === i ? { ...l, ...p, verrou: true } : l); enregistrer(x, coef); return x })
+  const retirer = i => setLignes(ls => { retenir(ls[i]); const x = ls.filter((_, k) => k !== i); enregistrer(x, coef); return x })
+  const ajouter = zone => setLignes(ls => [...ls, { zone, element: '', mode: 'achat', quantite: n(ev.invites), prix: 0, uid: avecIds([{}])[0].uid }])
   const changerCoef = d => setCoef(c => { const v = Math.max(1, Math.round((n(c) + d) * 100) / 100); enregistrer(lignes, v); return v })
 
   const ordre = data.zones.map(z => z.nom)
@@ -199,6 +278,10 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
   const palier = paliers.find(p => n(ev.invites) <= n(p.jusqua))
 
   const vente = estVente(ev)
+  if (vue === 'avantapres' && prop) return <AvantApres prop={prop} setProp={setProp} envoi={envoiV} valider={validerProp} retour={() => { setProp(null); setVue('') }} />
+  if (vue === 'journal') return <JournalChiffrage evt={data.evt} nom={ev.nom} retour={() => setVue('')} />
+  if (vue === 'comparer' && cmp) return <Comparer cmp={cmp} setCmp={setCmp} envoi={envoiV} valider={validerComparer} retour={() => { setCmp(null); setVue('') }}
+    totalApres={totalLignes(composer(lignes, cmp.r.moteur, cmp.choix).lignes)} />
   if (etape === 'budget' && lignes === null) return <div className="calcul"><div className="orbe" /><div>Chargement du chiffrage…</div></div>
   if (etape === 'budget') return <Budget data={data} ev={ev} zones={zones} imprevus={imprevus} prix={n(ev.prix_signe) || prixHT} coef={coef} retour={() => setEtape('chiffrer')} go={go} reload={reload} />
 
@@ -218,8 +301,12 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
       {lignes !== null && !(calcul && !lignes.length) && <>
         {question && <div className="question-ia" onClick={() => setQuestion('')}><b>Une question :</b> {question}</div>}
         <div className="cf-tot"><div><b>{mad(cout)}</b>coût</div><div><b>×{n(coef).toFixed(2).replace('.', ',')}</b>coef</div><div><b>{mad(prixHT)}</b>prix HT</div></div>
+        {attente && <div className="aa-ban"><b className="t">🔔 {attente.nb} changement{attente.nb > 1 ? 's' : ''} à valider</b>Invités {attente.de} → {attente.a}. Rien n'a bougé tant que tu n'as pas validé.
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}><button className="chip on" onClick={() => proposer(`Invités ${attente.de} → ${attente.a}`, 'base', attente.r)}>Voir avant → après</button>
+            <button className="chip" onClick={() => setAttente(null)}>Plus tard</button></div></div>}
         {base ? <InfosBase base={base} occupe={occupe} onChange={recalculer} />
-          : lignes.length > 0 && <div className="cf-vieux"><span>Chiffré avant les paramètres</span><button className="chip on" disabled={occupe} onClick={refaireParams}>{occupe ? '…' : 'Refaire avec les paramètres'}</button></div>}
+          : lignes.length > 0 && <div className="cf-vieux"><span>Chiffré avant les paramètres</span><button className="chip on" disabled={occupe} onClick={ouvrirComparer}>{occupe ? '…' : 'Comparer avec les paramètres'}</button></div>}
+        <div className="px" style={{ marginTop: 8 }}><button className="chip" onClick={() => setVue('journal')}>🕘 Historique</button></div>
         {calcul && lignes.length > 0 && <p className="small mute px" style={{ marginTop: 10 }}>Le copilote ajoute ce qui est propre à cet événement…</p>}
         <Detail lignes={lignes} params={params} base={base}
           onParam={(cle) => setLigneP({ cle })} onPersonne={(cle, x) => setPersonne({ cle, x })}
@@ -235,7 +322,7 @@ export function Chiffrer({ data, go, reload, etapeInit }) {
               <motion.div className="cz-lignes" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
                 {z.lignes.map(l => (
                   <div key={l.i} className="cl">
-                    <input className="cl-nom" value={l.element} onChange={e => majLigne(l.i, { element: e.target.value })} placeholder="Élément" />
+                    <div style={{ display: 'flex', alignItems: 'center' }}><input className="cl-nom" value={l.element} onChange={e => majLigne(l.i, { element: e.target.value })} placeholder="Élément" />{l.verrou && <span className="cl-lk" title="Retouché à la main">🔒</span>}</div>
                     <div className="cl-chiffres">
                       <input inputMode="decimal" value={l.quantite} onChange={e => majLigne(l.i, { quantite: e.target.value.replace(',', '.') })} />
                       <span>×</span>

@@ -162,7 +162,7 @@ export function Detail({ lignes, params, base, onParam, onPersonne, extras }) {
           return (
             <div key={g.cle}>
               <button className="cf-l" onClick={() => onParam(g.cle, g.ls)}>
-                <div className="x"><b>{nom}</b><span>{g.ls[0].note}{sur(g.cle) ? <span className="cf-evt" style={{ display: 'inline' }}> · pour cet événement</span> : null}</span></div>
+                <div className="x"><b>{nom}{sur(g.cle) ? ' 🔒' : ''}</b><span>{g.ls[0].note}{sur(g.cle) ? <span className="cf-evt" style={{ display: 'inline' }}> · pour cet événement</span> : null}</span></div>
                 <div className="cf-v">{fr(Math.round(g.total))}</div>
               </button>
               {staff && <>
@@ -356,5 +356,88 @@ function ModifSheet({ q, onClose, onSave }) {
       <div className="cf-lbl">Raison (facultatif)</div>
       <input placeholder="ex. nouveau fournisseur" value={raison} onChange={e => setRaison(e.target.value)} />
     </Sheet>
+  )
+}
+
+/* ---------- v66 · Avant → après : rien ne change sans être coché ---------- */
+const NOMS_BLOCS = { ...Object.fromEntries(BLOCS), en_plus: 'En plus · propre à l\'événement' }
+export function AvantApres({ prop, setProp, retour, valider, envoi }) {
+  const { d } = prop
+  const coche = c => prop.cochees.has(c.cle)
+  const basculer = c => setProp(x => { const s = new Set(x.cochees); s.has(c.cle) ? s.delete(c.cle) : s.add(c.cle); return { ...x, cochees: s } })
+  const ecart = c => (coche(c) ? n(c.apres?.total) - n(c.avant?.total) : 0)
+  const blocs = [...new Set(d.changements.map(c => c.bloc))]
+  const avantTot = prop.totalAvant, apresTot = prop.totalAvant + d.changements.reduce((s, c) => s + ecart(c), 0)
+  const nb = d.changements.filter(coche).length
+  return (
+    <motion.div {...glisse} className="wiz">
+      <div className="head">
+        <button className="back" onClick={retour}>‹ Chiffrage</button>
+        <div className="when">{prop.titre}</div>
+        <h1 style={{ fontSize: 34 }}>Avant → après</h1>
+        <div className="meta">Coût {mad(avantTot)} → {mad(apresTot)}</div>
+      </div>
+      {prop.hyp && <p className="small mute px" style={{ marginTop: 8 }}>{prop.hyp}</p>}
+      {blocs.map(b => (
+        <div key={b}>
+          <div className="aa-gp"><span>{(NOMS_BLOCS[b] || b).toUpperCase()}</span><b>{(x => `${x > 0 ? '+ ' : ''}${fr(x)}`)(Math.round(d.changements.filter(c => c.bloc === b).reduce((s, c) => s + ecart(c), 0)))}</b></div>
+          {d.changements.filter(c => c.bloc === b).map(c => (
+            <button key={c.cle} className="aa-l" onClick={() => basculer(c)}>
+              <i className={`aa-ck ${coche(c) ? 'on' : ''}`}>{coche(c) ? '✓' : ''}</i>
+              <div className="x"><b>{c.nom}{c.verrou ? ' 🔒' : ''}</b>
+                <span>{c.verrou && !coche(c) ? 'réglé à la main · gardé' : c.type === 'ajout' ? 'nouvelle ligne' : c.type === 'retire' ? 'à retirer' : c.detail}</span></div>
+              <div className="v">{c.avant ? <s>{fr(Math.round(c.avant.total))}</s> : <s>—</s>}
+                <b className={coche(c) ? (n(c.apres?.total) > n(c.avant?.total) ? 'up' : 'down') : ''}>{c.apres ? fr(Math.round(c.apres.total)) : '0'}</b></div>
+            </button>))}
+        </div>))}
+      {d.inchangees > 0 && <div className="aa-gp"><span>RIEN NE CHANGE</span><b>{d.inchangees} ligne{d.inchangees > 1 ? 's' : ''}</b></div>}
+      <div className="px" style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <button className="btn" onClick={retour}>Annuler</button>
+        <button className="btn primary" disabled={envoi} onClick={valider}>{envoi ? '…' : nb ? `Valider ${nb} changement${nb > 1 ? 's' : ''}` : 'Ne rien changer'}</button>
+      </div>
+    </motion.div>
+  )
+}
+
+/* ---------- Historique du chiffrage ---------- */
+const dh = d => new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', '\n')
+export function JournalChiffrage({ evt, nom, retour }) {
+  const ui = useUI()
+  const [l, setL] = useState(null)
+  useEffect(() => { api.chiffrageJournal(evt).then(setL).catch(e => { ui.toast(e.message); setL([]) }) }, [evt])
+  const SRC = { main: 'à la main', base: 'informations de base', copilote: 'copilote', comparaison: 'comparaison', premier: 'premier chiffrage' }
+  return (
+    <motion.div {...glisse} className="wiz">
+      <div className="head"><button className="back" onClick={retour}>‹ Chiffrage</button><h1 style={{ fontSize: 34 }}>Historique</h1><div className="meta">{nom} · chaque changement</div></div>
+      {!l && <p className="small mute px" style={{ marginTop: 16 }}>Chargement…</p>}
+      {l && !l.length && <div className="empty" style={{ padding: '24px 16px' }}>Aucun changement noté pour l'instant.</div>}
+      {l?.length > 0 && <div className="list" style={{ marginTop: 12 }}>{l.map((x, k) => (
+        <div key={k} className="aa-h"><div className="t">{dh(x.quand)}</div><div><b>{x.titre}</b><span>{[x.qui, SRC[x.source] || x.source, x.detail].filter(Boolean).join(' · ')}</span></div></div>))}</div>}
+    </motion.div>
+  )
+}
+
+/* ---------- Chiffrage d'avant les paramètres : bloc par bloc ---------- */
+export function Comparer({ cmp, setCmp, retour, valider, envoi, totalApres }) {
+  return (
+    <motion.div {...glisse} className="wiz">
+      <div className="head"><button className="back" onClick={retour}>‹ Chiffrage</button><div className="when">Chiffré avant les paramètres</div>
+        <h1 style={{ fontSize: 32 }}>Comparer avec les paramètres</h1><div className="meta">Bloc par bloc : rien n'est remplacé sans toi</div></div>
+      <div className="list" style={{ marginTop: 12 }}>
+        {cmp.c.blocs.map(b => (
+          <div key={b.cle} className="aa-l">
+            <div className="x"><b>{b.nom}</b><span>actuel {fr(Math.round(b.actuel))} · paramètres {fr(Math.round(b.params))}</span></div>
+            <div className="v" style={{ display: 'flex', gap: 6 }}>
+              {['garder', 'prendre'].map(c => <button key={c} className={`chip ${cmp.choix[b.cle] === c ? 'on' : ''}`} onClick={() => setCmp(x => ({ ...x, choix: { ...x.choix, [b.cle]: c } }))}>{c === 'garder' ? 'Garder' : 'Prendre'}</button>)}
+            </div>
+          </div>))}
+        {cmp.c.enPlus.length > 0 && <div className="aa-l"><div className="x"><b>En plus · propre à l'événement</b><span>{cmp.c.enPlus.slice(0, 3).map(l => l.element).join(', ')}{cmp.c.enPlus.length > 3 ? '…' : ''} · {cmp.c.enPlus.length} ligne{cmp.c.enPlus.length > 1 ? 's' : ''}</span></div><div className="v"><span className="aa-pill">toujours gardé</span></div></div>}
+      </div>
+      <div className="aa-ban">Coût {fr(Math.round(cmp.totalAvant))} → <b>{fr(Math.round(totalApres))}</b></div>
+      <div className="px" style={{ display: 'flex', gap: 8 }}>
+        <button className="btn" onClick={retour}>Annuler</button>
+        <button className="btn primary" disabled={envoi} onClick={valider}>{envoi ? '…' : 'Valider'}</button>
+      </div>
+    </motion.div>
   )
 }
