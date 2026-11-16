@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from './api'
 import { Info, Sheet, ddmm, n, useUI } from './ui'
+import { compresserImage } from './image'
 
 /* Le dépôt dans l'appli : stock (et tableau de bord en tête), fiche article, achat, bon de commande, inventaire, historique.
    Les prix et la valeur ne viennent que si la base les envoie (droit « prix », la direction). */
@@ -308,7 +309,18 @@ export function ArticleSheet({ a, onClose, onFait }) {
   const [f, setF] = useState({})
   const [refs, setRefs] = useState(null)
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (a) { setF({ nom: a.nom || '', cat_id: a.cat_id || null, unite_id: a.unite_id || null, unite: a.unite, nature: a.nature || 'consommable', seuil: a.seuil ?? '' }); if (!refs) api.depotReferentiels().then(setRefs).catch(() => {}) } }, [a])
+  const [ph, setPh] = useState(null)
+  async function photo(fichier) {
+    if (!fichier) return
+    setPh({ envoi: true, url: URL.createObjectURL(fichier) })
+    try {
+      const c = await compresserImage(fichier)
+      const { url } = await api.depotPhoto(a.id, c)
+      const x = vu.stock?.articles.find(y => y.id === a.id); if (x) x.photo = url
+      setPh({ url }); ui.toast('Photo enregistrée'); onFait?.(false, true)
+    } catch (e) { setPh(null); ui.toast(e.message) }
+  }
+  useEffect(() => { if (a) { setPh(null); setF({ nom: a.nom || '', cat_id: a.cat_id || null, unite_id: a.unite_id || null, unite: a.unite, nature: a.nature || 'consommable', seuil: a.seuil ?? '' }); if (!refs) api.depotReferentiels().then(setRefs).catch(() => {}) } }, [a])
   const unite = f.unite_id || refs?.unites.find(u => u.abr === f.unite || u.nom === f.unite)?.id
   const pret = f.nom?.trim() && f.cat_id && unite
   async function envoyer(champs, msg) {
@@ -321,6 +333,11 @@ export function ArticleSheet({ a, onClose, onFait }) {
     <Sheet open={!!a} onClose={onClose} foot={<button className="btn primary" disabled={!pret || busy} onClick={enregistrer}>{a?.id ? 'Enregistrer' : 'Créer l\'article'}</button>}>
       {a && <>
         <div className="el-kicker">{a.id ? 'Modifier l\'article' : 'Nouvel article'}</div>
+        {a.id ? <label className={`dp-ph ${ph?.envoi ? 'envoi' : ''}`}>
+          {ph?.url || a.photo ? <img src={ph?.url || a.photo} alt="" /> : <span>📷</span>}
+          <b>{ph?.envoi ? 'Envoi…' : a.photo || ph?.url ? 'Changer la photo' : 'Ajouter une photo'}</b>
+          <input type="file" accept="image/*" hidden onChange={e => photo(e.target.files?.[0])} />
+        </label> : <div className="small mute" style={{ margin: '6px 0 2px' }}>La photo s'ajoute une fois l'article créé.</div>}
         <input className="bn-in dp-nom" placeholder="Nom de l'article" value={f.nom} onChange={e => setF({ ...f, nom: e.target.value })} />
         <div className="as-l">CATÉGORIE</div><div className="chips">{refs?.categories.map(c => <button key={c.id} className={`chip ${f.cat_id === c.id ? 'on' : ''}`} onClick={() => setF({ ...f, cat_id: c.id })}>{c.nom}</button>)}</div>
         <div className="as-l">UNITÉ</div><div className="chips">{refs?.unites.map(u => <button key={u.id} className={`chip ${unite === u.id ? 'on' : ''}`} onClick={() => setF({ ...f, unite_id: u.id })}>{u.nom}</button>)}</div>

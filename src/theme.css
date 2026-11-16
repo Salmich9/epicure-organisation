@@ -1209,3 +1209,7 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 .rt-mo { margin-top: 10px; }
 .rt-mo > span { display: block; font-size: 12.5px; font-weight: 650; color: var(--red); margin-bottom: 6px; }
 .rt-mo .chip { padding: 7px 11px; font-size: 12.5px; }
+.dp-ph { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; padding: 10px; border-radius: 16px; border: 1px dashed var(--line); cursor: pointer; }
+.dp-ph img, .dp-ph span { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; background: var(--surface2); display: grid; place-items: center; font-size: 26px; flex: none; }
+.dp-ph b { font-size: 14px; color: var(--accent); }
+.dp-ph.envoi { opacity: .6; pointer-events: none; }
