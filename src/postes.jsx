@@ -48,6 +48,23 @@ export function Compteur({ prevu, engage, reel, sans, info }) {
 }
 
 /* ---------- Sur la page de l'événement ---------- */
+/* Mes enveloppes (bloc de Ma part) : ce qui reste, tous événements */
+function MesEnveloppes({ go }) {
+  const [l, setL] = useState([])
+  useEffect(() => { api.mesEnveloppes().then(setL).catch(() => {}) }, [])
+  if (!l.length) return null
+  const fr = v => Math.round(n(v)).toLocaleString('fr-FR'), pc = (a, b) => (n(b) > 0 ? n(a) / n(b) * 100 : 0)
+  return <div className="px" style={{ marginBottom: 6 }}>
+    <div className="pv-st">MES ENVELOPPES</div>
+    {l.map(e => (
+      <motion.button whileTap={{ scale: .98 }} key={e.evt + e.grp} className="pv-env" onClick={() => go(`mon-enveloppe/${e.evt}`)}>
+        <div className="l1"><div className="x"><b>{e.nom}</b><span>{[e.code, e.evt_nom].filter(Boolean).join(' · ')}</span></div>
+          <div className="m">{fr(n(e.prevu) - n(e.reel))}<small>reste sur {fr(e.prevu)}</small></div><span className="go">›</span></div>
+        <div className="pb"><i className={n(e.reel) > n(e.prevu) ? 'r' : pc(e.reel, e.prevu) >= 80 ? 'o' : ''} style={{ width: `${Math.min(100, pc(e.reel, e.prevu))}%` }} /></div>
+      </motion.button>))}
+  </div>
+}
+
 export function Enveloppes({ data, go, reload }) {
   const ui = useUI()
   const ev = data.evenements.find(x => x.id === data.evt) || {}
@@ -76,6 +93,8 @@ export function Enveloppes({ data, go, reload }) {
     <div className="pv">
       <Pret p={pret(data, equipe ? ps.filter(miens).map(p => p.cle) : null)} />
       {equipe && <div className="pv-st" style={{ marginTop: 6 }}>TES ENVELOPPES</div>}
+      {!equipe && <motion.button whileTap={{ scale: .98 }} className={`ve-cta ${ev.budget_valide_le ? '' : 'on'}`} onClick={() => go(ev.budget_valide_le ? `enveloppes-evt/${ev.id}` : `budget-valider/${ev.id}`)}>
+        {ev.budget_valide_le ? <><b>Suivi des enveloppes</b><span>achats, dépassements, pièces à vérifier ›</span></> : <><b>Valider le budget et l'envoyer</b><span>chaque responsable reçoit son enveloppe ›</span></>}</motion.button>}
       <Compteur {...t} info="Prévu : la somme des enveloppes (chiffrage vocal, sinon un ratio par invité ; touche une enveloppe pour corriger). Engagé : ce que coûtent les lignes et les actions. Réel : les pièces imputées et les actions marquées payées." />
       {mat.length > 0 && <div className="pv-st">MATIÈRE PAR MOMENT</div>}
       {mat.map(p => <Ligne key={p.cle} p={p} />)}
@@ -551,6 +570,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
       <div className="head" style={{ position: 'relative' }}><button className="nt-cl" onClick={() => go('mes-rappels')} aria-label="Mes rappels">🔔</button><div className="when">{dateLongue(t)}</div><h1 style={{ fontSize: 40 }}>{mapart ? 'Ma part' : `${new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'} ${d.moi || ''}`.trim()}</h1>
         {!mapart && <div className="meta">Voici ta journée.</div>}
         {mapart && <div className="meta">Ce qui est à ton nom, tous événements.</div>}</div>
+      {mapart && <MesEnveloppes go={go} />}
       {!mapart && <div className="au-seg"><button className={!moi ? 'on' : ''} onClick={() => { setMoi(false); try { localStorage.setItem('orga_auj_moi', '0') } catch {} }}>Tout le monde</button><button className={moi ? 'on' : ''} onClick={() => { setMoi(true); try { localStorage.setItem('orga_auj_moi', '1') } catch {} }}>Ma part</button></div>}
       <div className="px">
         {mapart && <PourToi ouvrir={x => ouvrirPoste(x.evenement_id, x.poste)} />}
