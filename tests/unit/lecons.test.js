@@ -10,3 +10,13 @@ describe('leçon du jour', () => {
     for (const l of LECONS) expect(l.t && l.a && l.c && l.p).toBeTruthy()
   })
 })
+
+import { enLettres } from '../../src/bon'
+describe('montant en lettres du bon', () => {
+  it('écrit les montants comme sur un bon', () => {
+    expect(enLettres(187)).toBe('cent quatre-vingt-sept')
+    expect(enLettres(1250)).toBe('mille deux cent cinquante')
+    expect(enLettres(71)).toBe('soixante et onze')
+    expect(enLettres(80)).toBe('quatre-vingts')
+  })
+})
