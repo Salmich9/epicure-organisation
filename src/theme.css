@@ -1316,3 +1316,8 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 .es-alerte { margin: 10px 16px; padding: 10px 14px; border-radius: 14px; background: #F6DCD7; color: #A3392B; font-size: 13.5px; font-weight: 600; }
 .es-gros { width: 100%; font-size: 30px; font-weight: 800; padding: 14px 16px; border-radius: 16px; border: 2px solid var(--ink); }
 .btn.es-mini { padding: 8px 14px; font-size: 13px; width: auto; flex: none; }
+
+/* v69 · Gamme */
+.totaux .t-g { display: flex; gap: 6px; justify-content: flex-end; margin: 2px 0 2px; }
+.totaux .t-g .chip { padding: 5px 11px; font-size: 12.5px; }
+.totaux .t-l.sous { padding-top: 0; } .totaux .t-l.sous span { font-size: 12px; color: var(--mute); margin-left: auto; }
