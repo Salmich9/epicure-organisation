@@ -244,5 +244,18 @@ begin
       'lignes', jsonb_build_array(jsonb_build_object('article_id', a, 'qte', 1, 'prix', 40))));
     if (x->>'reste')::numeric <> -65 then raise exception 'ECHEC : bon pas déduit de l''enveloppe : %', x; end if;
   end; ok := ok + 1;
+  -- 15. Terrain relié au dépôt : « chargé » sort du stock, « revenu » y rentre, une correction passe par un mouvement inverse
+  declare tt uuid; ev text; el text; a uuid; q0 numeric; begin
+    tt := (orga.connexion('ZZBon', '135790')->>'token')::uuid;
+    ev := orga.evenement_creer(tt, '{"nom":"ZZ Terrain","date":"2030-06-01","invites":10,"prestations":[],"entite":"Epicure"}')->>'id';
+    select article_id, quantity into a, q0 from public.current_stock where active order by name limit 1;
+    el := orga._next_id('elements', 'EL-');
+    insert into orga.elements (id, evenement_id, zone, element, perimetre, poste, mode_ligne, stock, article_id) values (el, ev, 'Art de table', 'ZZ', 'À notre charge', 'materiel', 'prelever', 5, a);
+    perform orga.ligne_terrain(tt, el, '{"charge":5}');
+    if (select quantity from public.current_stock where article_id = a) <> q0 - 5 or (select depot_event from orga.evenements where id = ev) is null then raise exception 'ECHEC : chargement hors du stock'; end if;
+    perform orga.ligne_terrain(tt, el, '{"revenu":4,"casse":1}');
+    perform orga.ligne_terrain(tt, el, '{"revenu":3}');
+    if (select quantity from public.current_stock where article_id = a) <> q0 - 2 then raise exception 'ECHEC : retour au stock'; end if;
+  end; ok := ok + 1;
   raise exception 'REGRESSION OK (% vérifications)', ok;
 end $$;
