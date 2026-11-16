@@ -236,12 +236,11 @@ begin
       'lignes', jsonb_build_array(jsonb_build_object('article_id', a, 'qte', 2, 'prix', 12.5))));
     if x->>'num' !~ ('^BB-' || extract(year from now())::int || '-\d{4}$') or (x->>'total')::numeric <> 25 then raise exception 'ECHEC : bon mal numéroté ou mal compté : %', x; end if;
     if (select quantity from public.current_stock where article_id = a) <> q0 + 2 then raise exception 'ECHEC : bon pas entré au dépôt'; end if;
-    if x->'reste' <> 'null'::jsonb or orga._reste(ev, 'ZZBon') <> env0 then raise exception 'ECHEC : déduit sans enveloppe'; end if;
+    if (x->>'reste')::numeric <> -25 or not exists (select 1 from orga.porteurs where nom = 'ZZBon') then raise exception 'ECHEC : avance de l''acheteur sans enveloppe : %', x; end if;
     if not exists (select 1 from orga.pieces where evenement_id = ev and source = 'bon' and montant = 25) then raise exception 'ECHEC : bon absent des pièces'; end if;
-    insert into orga.porteurs (nom, code) values ('ZZBon', 'ENV-ZZ99');
     x := orga.bon_creer(tb, jsonb_build_object('societe', 'BB', 'evenement_id', ev, 'vendeur', 'ZZ Vendeur', 'signature', 'data:image/png;base64,iVBORw0KGgo=',
       'lignes', jsonb_build_array(jsonb_build_object('article_id', a, 'qte', 1, 'prix', 40))));
-    if (x->>'reste')::numeric <> env0 - 40 then raise exception 'ECHEC : bon pas déduit de l''enveloppe : %', x; end if;
+    if (x->>'reste')::numeric <> -65 then raise exception 'ECHEC : bon pas déduit de l''enveloppe : %', x; end if;
   end; ok := ok + 1;
   raise exception 'REGRESSION OK (% vérifications)', ok;
 end $$;

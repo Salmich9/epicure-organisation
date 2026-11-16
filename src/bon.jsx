@@ -112,7 +112,7 @@ export function AchatEspeces({ go, evt: evt0 }) {
       <div className="meta">N° {fait.num} · {n(fait.total)} MAD</div>
       <div className="list bn-l" style={{ marginTop: 22 }}>
         <div className="row"><div className="x"><b>Stock</b><span>{f.lignes.length} article{f.lignes.length > 1 ? 's' : ''} entré{f.lignes.length > 1 ? 's' : ''} au dépôt{evNom ? ` pour ${evNom}` : ''}</span></div><span className="bn-v">✓</span></div>
-        {fait.reste != null && <div className="row"><div className="x"><b>Ton enveloppe</b><span>{n(fait.reste)} MAD restants</span></div><span className="bn-v">✓</span></div>}
+        {fait.reste != null && <div className="row"><div className="x"><b>Ton enveloppe</b><span>{fait.reste < 0 ? `La société te doit ${n(-fait.reste)} MAD` : `${n(fait.reste)} MAD restants`}</span></div><span className="bn-v">✓</span></div>}
         <div className="row"><div className="x"><b>Drive</b><span>{fait.drive ? `${evNom || 'Dépôt'} › ${f.evt ? 'Pièces fournisseurs' : 'Bons espèces'}` : fait.drive === false ? `Pas rangé : ${fait.err}` : 'Rangement…'}</span></div><span className="bn-v">{fait.drive ? '✓' : fait.drive === false ? '!' : '…'}</span></div>
       </div>
       <div className="px" style={{ marginTop: 18, display: 'grid', gap: 10 }}>
@@ -147,7 +147,9 @@ export function AchatEspeces({ go, evt: evt0 }) {
         <div className="as-l">CE QUI A ÉTÉ ACHETÉ</div>
         <div className="list bn-l">{f.lignes.map((l, i) => <div key={i} className="row" onClick={() => setLigne({ ...l, i })}><div className="x"><b>{l.nom}{!l.article_id && <em className="bn-neuf"> nouveau</em>}</b><span>{l.qte} × {n(l.prix)} MAD</span></div><b>{n(num(l.qte) * num(l.prix))}</b></div>)}
           <button className="row bn-plus" onClick={() => setLigne({ q: '', qte: '', prix: '' })}>+ Ajouter une ligne</button></div>
-        {env != null && <div className="bn-env"><span>Ton enveloppe espèces</span><b>{n(env)} → {n(env - total)} MAD</b></div>}
+        {env != null && (env - total < 0
+          ? <div className="bn-env"><span>Ton enveloppe {n(env)} MAD<Info text="Tu avances la différence : elle apparaît dans Espèces comme « on lui doit », et on te rembourse avec Confier." /></span><b>On te devra {n(total - env)} MAD</b></div>
+          : <div className="bn-env"><span>Ton enveloppe espèces</span><b>{n(env)} → {n(env - total)} MAD</b></div>)}
         <button className="btn primary block" style={{ marginTop: 16 }} disabled={!pret} onClick={() => { setTrace(false); setEtape(2) }}>{pret ? `Faire signer le bon · ${n(total)} MAD` : 'Vendeur et au moins une ligne'}</button>
       </div>
       <Sheet open={!!ligne} onClose={() => setLigne(null)} foot={ligne && <button className="btn primary" disabled={!(ligne.nom && num(ligne.qte) > 0 && ligne.prix !== '' && (ligne.article_id || (ligne.cat_id && ligne.unite_id)))}

@@ -11,12 +11,13 @@ const dist = path.resolve('dist'), port = 5198, captures = process.argv[2]
 const types = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png' }
 const srv = http.createServer((q, r) => { let p = q.url.split('?')[0]; if (p === '/' || !fs.existsSync(path.join(dist, p))) p = '/index.html'; const f = path.join(dist, p); r.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream' }); r.end(fs.readFileSync(f)) }).listen(port)
 
+const ENV = Number(process.env.ENV_BON ?? 5000)  // ENV_BON=0 : acheteur sans enveloppe, la société lui doit l'achat
 const appels = []
 const RPC = {
-  bon_contexte: b => ({ moi: 'Salmane', enveloppe: b.p_evt ? 5000 : null, evenements: [{ id: 'EVT-T-001', nom: 'Mariage Test', date: '2026-11-20', entite: 'Epicure' }, { id: 'EVT-T-002', nom: 'Séminaire BB', date: '2026-11-28', entite: 'Business Boys' }] }),
+  bon_contexte: b => ({ moi: 'Salmane', enveloppe: b.p_evt ? ENV : null, evenements: [{ id: 'EVT-T-001', nom: 'Mariage Test', date: '2026-11-20', entite: 'Epicure' }, { id: 'EVT-T-002', nom: 'Séminaire BB', date: '2026-11-28', entite: 'Business Boys' }] }),
   depot_stock: () => ({ articles: [{ id: 'a1', nom: 'Glaçons sac 5 kg', cat: 'Boissons', qte: 12, unite: 'sac' }, { id: 'a2', nom: 'Citrons', cat: 'Fruits', qte: 4, unite: 'kg' }] }),
   depot_referentiels: () => ({ categories: [{ id: 'c1', nom: 'Boissons' }, { id: 'c2', nom: 'Fruits' }], unites: [{ id: 'u1', nom: 'kg' }, { id: 'u2', nom: 'pièce' }] }),
-  bon_creer: b => ({ id: 7, num: 'EPI-2026-0001', total: b.p.lignes.reduce((t, l) => t + l.qte * l.prix, 0), pour: 'Mariage Test', reste: 5000 - b.p.lignes.reduce((t, l) => t + l.qte * l.prix, 0) }),
+  bon_creer: b => ({ id: 7, num: 'EPI-2026-0001', total: b.p.lignes.reduce((t, l) => t + l.qte * l.prix, 0), pour: 'Mariage Test', reste: ENV - b.p.lignes.reduce((t, l) => t + l.qte * l.prix, 0) }),
   aujourdhui: () => ({ ...aujourdhui, depot: ['voir', 'acheter'] }), accueil: () => accueil, donnees: () => donnees, depot_liste: () => [],
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }), pour_toi: () => ({ non_vus: 0, items: [] }),
 }
@@ -55,7 +56,8 @@ await photo('2-ligne-nouvelle.png')
 await p.getByRole("button", { name: "Ajouter", exact: true }).click(); await p.waitForTimeout(500)
 await photo('3-saisie.png')
 const env = await p.locator('.bn-env b').textContent()
-if (!/5 000 → 4 825/.test(env.replace(/ /g, ' '))) echec(`enveloppe mal calculée : ${env}`)
+const sp = t => t.replace(/[\u202f\u00a0]/g, ' ')
+if (ENV ? !/5 000 → 4 825/.test(sp(env)) : !/On te devra 175 MAD/.test(sp(env))) echec(`enveloppe mal calculée : ${env}`)
 await p.click('button:has-text("Faire signer le bon")'); await p.waitForTimeout(500)
 if (!(await p.locator('button:has-text("Valider le bon signé")').isDisabled())) echec('validable sans signature')
 const zone = await p.locator('canvas').boundingBox()
@@ -74,7 +76,7 @@ else {
 }
 if (!appels.some(a => a[0] === 'orga-bon' && a[1].id === 7)) echec('PDF non demandé')
 if (!(await p.locator('text=Voir le PDF').count())) echec('lien PDF absent')
-if (!(await p.locator('text=4 825 MAD restants').count()) && !(await p.locator('text=4 825 MAD restants'.replace(' ', ' ')).count())) echec('reste enveloppe absent')
+if (!sp(await p.locator('.bn-fini').textContent()).includes(ENV ? '4 825 MAD restants' : 'La société te doit 175 MAD')) echec('reste enveloppe absent')
 
 await b.close(); srv.close()
 console.log(ko ? `${ko} échec(s)` : 'BON OK')
