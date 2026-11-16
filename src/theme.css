@@ -1137,3 +1137,28 @@ h1 .ep-in { width: 100%; font-family: var(--display); font-size: inherit; line-h
 .cp-dr b { display: block; font-size: 14.5px; } .cp-dr em { display: block; font-style: normal; font-size: 12px; color: var(--mute); }
 .cp-ck { width: 22px; height: 22px; border-radius: 7px; border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; flex: none; }
 .cp-dr button.on .cp-ck { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* Bon d'achat espèces */
+.bn-in { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; font-size: 15px; }
+.bn-mic { color: var(--accent); font-weight: 700; letter-spacing: 0; text-transform: none; }
+.bn-l .row { display: flex; align-items: center; gap: 10px; } .bn-l .x { flex: 1; } .bn-l .x b { display: block; font-size: 15px; } .bn-l .x span { font-size: 12.5px; color: var(--mute); }
+.bn-plus { color: var(--accent); font-weight: 700; justify-content: center; }
+.bn-env { display: flex; justify-content: space-between; margin-top: 16px; padding: 13px 14px; border-radius: 14px; background: color-mix(in srgb, var(--gold) 14%, transparent); font-size: 14px; }
+.bn { background: #fff; color: #1D2B24; border-radius: 16px; padding: 18px 16px; box-shadow: var(--shadow); font-size: 12.5px; }
+.bn-tete { display: flex; justify-content: space-between; gap: 10px; border-bottom: 2px solid #1D2B24; padding-bottom: 10px; }
+.bn-tete b { display: block; font-size: 14px; } .bn-tete span { display: block; color: #77837C; font-size: 11px; max-width: 170px; }
+.bn-num { text-align: right; } .bn-num em { display: block; font-style: normal; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #1F6F6B; font-weight: 800; }
+.bn-pour { margin: 10px 0 6px; }
+.bn-t { width: 100%; border-collapse: collapse; } .bn-t th { text-align: left; font-size: 10.5px; color: #77837C; font-weight: 700; border-bottom: 1px solid #DDE2DC; padding: 5px 0; }
+.bn-t td { padding: 6px 0; border-bottom: 1px solid #F0F2EF; } .bn-t th:not(:first-child), .bn-t td:not(:first-child) { text-align: right; padding-left: 6px; }
+.bn-tot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px; font-size: 13px; } .bn-tot b { font-size: 17px; }
+.bn-let { margin-top: 4px; color: #4A5750; font-size: 11.5px; }
+.bn-sigs { display: grid; grid-template-columns: 1fr 1.6fr; gap: 12px; margin-top: 14px; }
+.bn-sigs em { display: block; font-style: normal; font-size: 10.5px; color: #77837C; text-transform: uppercase; letter-spacing: .05em; } .bn-sigs b { font-size: 13px; }
+.bn-sig { position: relative; margin-top: 6px; height: 120px; border: 1.5px dashed #9AA59F; border-radius: 12px; background: #FAFBF9; touch-action: none; }
+.bn-sig canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.bn-sig-l { position: absolute; left: 10px; bottom: 8px; font-size: 11px; color: #9AA59F; pointer-events: none; }
+.bn-sig-x { position: absolute; right: 8px; top: 6px; border: 0; background: none; color: #1F6F6B; font: inherit; font-size: 11.5px; font-weight: 700; }
+.bn-fini { text-align: center; padding-top: 60px; } .bn-fini .bn-l { text-align: left; margin: 0 16px; }
+.bn-ok { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 900; background: var(--accent); color: var(--accent-ink); }
+.bn-v { color: var(--accent); font-weight: 900; }
