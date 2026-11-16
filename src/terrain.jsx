@@ -120,6 +120,10 @@ export function Chargement({ data, go, reload }) {
   )
 }
 
+// Pourquoi il en manque (les motifs d'écart du dépôt)
+export const MOTIFS = [['Consommée', 'Consommé'], ['Casse', 'Cassé'], ['Oublié sur place', 'Oublié sur place'], ['Détérioré', 'Abîmé'], ['Vol', 'Volé'], ['Non retrouvé', 'Pas retrouvé'], ["Pas d'explication", '?']]
+const motifCourt = m => (MOTIFS.find(x => x[0] === m) || [m, m])[1]
+
 export function Retour({ data, go, reload }) {
   const ui = useUI()
   const ev = data.evenements.find(x => x.id === data.evt) || {}
@@ -128,7 +132,7 @@ export function Retour({ data, go, reload }) {
   const parti = e => n(e.charge) || qteDe(e)
   const revenu = e => e.revenu ?? null
   async function maj(e, p) {
-    setLoc(x => ({ ...x, [e.id]: { ...(x[e.id] || {}), ...p } }))
+    setLoc(x => ({ ...x, [e.id]: { ...(x[e.id] || {}), ...p, ...(p.motif ? { ecart_motif: p.motif } : {}) } }))
     try { await api.ligneTerrain(e.id, p) } catch (er) { ui.toast(er.message) }
   }
   const faits = L.filter(x => revenu(x.e) !== null)
@@ -138,15 +142,18 @@ export function Retour({ data, go, reload }) {
       <div className="head"><button className="back" onClick={() => { reload?.(); go('') }}>‹ {ev.nom}</button><h1>Retour</h1>
         <div className="meta">{faits.length} sur {L.length} lignes comptées{ecarts.length ? ` · ${ecarts.length} écart${ecarts.length > 1 ? 's' : ''}` : ''}</div></div>
       <div className="px">
-        {ecarts.length > 0 && <div className="rt-ec"><b>Écarts</b>{ecarts.map(x => <span key={x.e.id}>{x.e.element} : {parti(x.e) - n(x.e.revenu)} manquent{n(x.e.casse) ? ` (${n(x.e.casse)} cassés)` : ''}</span>)}</div>}
+        {ecarts.length > 0 && <div className="rt-ec"><b>Écarts</b>{ecarts.map(x => <span key={x.e.id}>{x.e.element} : {parti(x.e) - n(x.e.revenu)} manquent{x.e.ecart_motif ? ` · ${motifCourt(x.e.ecart_motif).toLowerCase()}` : n(x.e.casse) ? ` (${n(x.e.casse)} cassés)` : ''}</span>)}</div>}
         {L.map(({ e }) => { const pa = parti(e), r = revenu(e), ok = r !== null && n(r) >= pa
           return <div key={e.id} className={`rt-l ${ok ? 'fait' : r !== null ? 'rt-ko' : ''}`}>
             <div className="t"><b>{e.element}</b><span>parti {pa} · {MODES_L[modeLigne(e)]}{e.fournisseur ? ` chez ${e.fournisseur}` : ''}</span></div>
             {r === null ? <div className="chips"><button className="chip on" onClick={() => { feliciter(); maj(e, { revenu: pa, casse: 0 }) }}>Tout revenu · {pa}</button><button className="chip" onClick={() => maj(e, { revenu: pa - 1, casse: 0 })}>Il en manque</button></div>
-              : <div className="rt-q">
+              : <>
+                <div className="rt-q">
                   <div><span>Revenu</span><div className="ch-q"><button onClick={() => maj(e, { revenu: Math.max(0, n(r) - 1) })}>−</button><b>{n(r)}<small>/{pa}</small></b><button onClick={() => maj(e, { revenu: Math.min(pa, n(r) + 1) })}>+</button></div></div>
-                  <div><span>Dont cassés</span><div className="ch-q"><button onClick={() => maj(e, { casse: Math.max(0, n(e.casse) - 1) })}>−</button><b>{n(e.casse)}</b><button onClick={() => maj(e, { casse: Math.min(pa - n(r), n(e.casse) + 1) })}>+</button></div></div>
-                </div>}
+                </div>
+                {n(r) < pa && <div className="rt-mo"><span>{pa - n(r)} manquent : pourquoi ?</span>
+                  <div className="chips">{MOTIFS.map(([k, l]) => <button key={k} className={`chip ${e.ecart_motif === k ? 'on' : ''}`} onClick={() => maj(e, { motif: k })}>{l}</button>)}</div></div>}
+              </>}
           </div> })}
       </div>
     </motion.div>

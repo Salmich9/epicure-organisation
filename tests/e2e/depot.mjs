@@ -31,7 +31,7 @@ const MVTS = [
 ]
 let equipe = false
 const RPC = {
-  aujourdhui: () => ({ ...aujourdhui, depot: equipe ? ['voir', 'acheter', 'inventaire'] : ['voir', 'acheter', 'inventaire', 'gerer', 'prix'] }), accueil: () => accueil, donnees: () => donnees, depot_liste: () => [],
+  aujourdhui: () => ({ ...aujourdhui, depot: equipe ? ['voir', 'acheter', 'inventaire'] : ['voir', 'acheter', 'inventaire', 'gerer', 'prix'] }), accueil: () => accueil, donnees: () => ({ ...donnees, elements: donnees.elements.map(e => e.id === 'EL-2' ? { ...e, charge: 12, revenu: 9 } : e.id === 'EL-1' ? { ...e, charge: 200 } : e) }), depot_liste: () => [],
   bulles_liste: () => ({ jour: donnees.aujourdhui, aujourdhui: donnees.aujourdhui, bulles: [] }), pour_toi: () => ({ non_vus: 0, items: [] }),
   depot_stock: () => equipe ? { prix: false, inventaire: '2026-09-10', articles: ARTICLES.map(({ cout, valeur, dernier_prix, ...a }) => a) }
     : { prix: true, valeur: ARTICLES.reduce((t, a) => t + a.valeur, 0), inventaire: '2026-09-10', articles: ARTICLES },
@@ -48,7 +48,7 @@ const RPC = {
     fournisseurs: [{ id: 'f1', nom: 'Verrerie Atlas', tel: '0661 00 00 00', note: 'Livre le mardi' }, { id: 'f2', nom: 'Marché de gros' }, { id: 'f3', nom: 'Ali' }, { id: 'f4', nom: 'Metro Marrakech' }],
     motifs: [{ id: 'mo1', nom: 'Consommée', perte: false }, { id: 'mo2', nom: 'Casse', perte: true }, { id: 'mo3', nom: 'Oublié sur place', perte: true }, { id: 'mo4', nom: 'Vol', perte: true }],
     archives: [{ id: 'z1', nom: 'Verre Old Fashioned (ancien modèle)', cat: 'Bar & verrerie' }, { id: 'z2', nom: 'Bâche 4×6', cat: 'Logistique' }] }),
-  depot_reglage_maj: () => true, depot_article_maj: () => ({ id: 'a1' }),
+  depot_reglage_maj: () => true, depot_transfert: () => ({ ok: true }), ligne_terrain: b => b.p, depot_article_maj: () => ({ id: 'a1' }),
 }
 let ko = 0
 const echec = m => { ko++; console.log('  ✗', m) }
@@ -89,6 +89,27 @@ if (!(await p.locator('.dp-prog').textContent()).includes('5 / 13')) echec('prog
 await voir('depot/historique'); await photo('7-historique.png')
 await p.click('.chip:has-text("Sorties")'); await p.waitForTimeout(400)
 if ((await p.locator('.row.dp-m').count()) !== 2) echec('filtre sorties')
+// sortie vers un établissement
+await voir('depot', 900)
+await p.click('.dp-act button:has-text("Sortie")'); await p.waitForTimeout(800)
+await p.click('.chip:has-text("Baromètre")')
+for (const [q, nom, v] of [['flû', 'Flûte à champagne', '24'], ['sirop', 'Sirop de sucre de canne', '4']]) {
+  await p.click('text=+ Ajouter un article'); await p.waitForTimeout(400)
+  await p.fill('input[placeholder="Chercher dans le dépôt"]', q); await p.waitForTimeout(200); await p.click(`.sheet .row:has-text("${nom}")`); await p.waitForTimeout(200)
+  await p.fill('.sheet input[inputmode=decimal]', v); await p.getByRole('button', { name: 'Ajouter', exact: true }).click(); await p.waitForTimeout(400)
+}
+await p.fill('input[placeholder="Facultatif"]', 'Soirée du jeudi')
+await photo('13-sortie.png')
+await p.click('button:has-text("Valider ·")'); await p.waitForTimeout(400)
+const tr = appels.find(a => a[0] === 'depot_transfert')?.[1]?.p
+if (!tr || tr.sens !== 'sortie' || tr.vers !== 'Baromètre' || tr.lignes.length !== 2 || tr.lignes[0].qte !== 24) echec(`sortie : ${JSON.stringify(tr)}`)
+// retour d'événement : le motif de ce qui manque
+await voir('retour', 1200)
+await photo('14-retour.png')
+await p.click('.rt-mo .chip:has-text("Cassé")'); await p.waitForTimeout(300)
+const mo = appels.filter(a => a[0] === 'ligne_terrain').pop()?.[1]
+if (!mo || mo.p_id !== 'EL-2' || mo.p.motif !== 'Casse') echec(`motif : ${JSON.stringify(mo)}`)
+await photo('15-retour-motif.png')
 // réglages (droit gérer)
 await voir('depot/article/a1', 1000)
 await p.click('.dp-act button:has-text("Modifier")'); await p.waitForTimeout(500)

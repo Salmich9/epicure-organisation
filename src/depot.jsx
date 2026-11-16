@@ -42,6 +42,7 @@ export function Depot({ go, droits = [] }) {
       </div>
       <div className="dp-act">
         {peut('acheter') && <button className="p" onClick={() => setAchat({})}>+ Achat</button>}
+        {(peut('acheter') || peut('inventaire') || peut('gerer')) && <button onClick={() => go('depot/sortie')}>Sortie</button>}
         <button onClick={() => go('depot/historique')}>Historique</button>
         {peut('gerer') && <button className="dp-ic" onClick={() => go('depot/reglages')} aria-label="Réglages du dépôt">⚙︎</button>}
       </div>
@@ -78,7 +79,7 @@ function Mvt({ m, avecArticle }) {
   const neg = n(m.qte) < 0
   return (
     <div className="row dp-m">
-      <div className="x"><b>{avecArticle ? m.article : lib}{m.evt ? <em> · {m.evt.trim()}</em> : m.fournisseur ? <em> · {m.fournisseur}</em> : null}</b>
+      <div className="x"><b>{avecArticle ? m.article : lib}{m.evt ? <em> · {m.evt.trim()}</em> : m.vers ? <em> · {m.qte < 0 ? '→' : '←'} {m.vers}</em> : m.fournisseur ? <em> · {m.fournisseur}</em> : null}</b>
         <span>{avecArticle ? `${lib} · ` : ''}{m.qui ? m.qui.split(' ')[0] : ''} · {ddmm(String(m.quand).slice(0, 10))}{m.note ? ` · ${m.note}` : ''}</span></div>
       <div className={`dp-d ${neg ? 'neg-s' : ''}`}>{m.type === 'inventaire' || m.type === 'inventaire_initial' ? '=' : neg ? '−' : '+'}{qt(Math.abs(n(m.qte)))}</div>
     </div>
@@ -384,6 +385,67 @@ export function DepotReglages({ go }) {
         </>}
       </Sheet>
       <ArticleSheet a={neuf} onClose={() => setNeuf(null)} onFait={() => { charger(); chargerStock() }} />
+    </motion.div>
+  )
+}
+
+// Sortie vers un établissement du groupe (ou retour d'un établissement) : hors événement
+const LIEUX = ['Baromètre', 'ZamaZama', 'CarpeDiem', 'Azyr']
+export function DepotSortie({ go }) {
+  const ui = useUI()
+  const [s, setS] = useState(vu.stock)
+  const [f, setF] = useState({ sens: 'sortie', vers: null, autre: '', lignes: [], note: '' })
+  const [l, setL] = useState(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { chargerStock().then(setS).catch(e => ui.toast(e.message)) }, [])
+  if (!s) return <div className="empty" style={{ paddingTop: 80 }}>Chargement…</div>
+  const vers = f.vers === 'Autre' ? f.autre.trim() : f.vers
+  const pret = vers && f.lignes.length
+  const mot = (l?.q || '').trim().toLowerCase()
+  const trouves = mot.length >= 2 && !l?.a ? s.articles.filter(a => a.nom.toLowerCase().includes(mot)).slice(0, 6) : []
+  async function valider() {
+    setBusy(true)
+    try {
+      await api.depotTransfert({ sens: f.sens, vers, note: f.note.trim() || null, lignes: f.lignes.map(x => ({ article_id: x.a.id, qte: n(x.qte) })) })
+      ui.toast(f.sens === 'sortie' ? `Sorti vers ${vers}` : `Revenu de ${vers}`); chargerStock(); go('depot')
+    } catch (e) { ui.toast(e.message) }
+    setBusy(false)
+  }
+  return (
+    <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
+      <div className="head"><button className="back" onClick={() => go('depot')}>‹ Dépôt</button>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{f.sens === 'sortie' ? 'Sortie' : 'Retour'}<Info text="Pour envoyer du stock à un établissement du groupe (ou le reprendre), hors événement. Pour un événement, passe par son chargement et son retour." /></h1></div>
+      <div className="px">
+        <div className="chips" style={{ marginTop: 12 }}>{[['sortie', 'Sortie vers'], ['retour', 'Retour de']].map(([k, t]) => <button key={k} className={`chip ${f.sens === k ? 'on' : ''}`} onClick={() => setF({ ...f, sens: k })}>{t}</button>)}</div>
+        <div className="as-l">ÉTABLISSEMENT</div>
+        <div className="chips">{[...LIEUX, 'Autre'].map(x => <button key={x} className={`chip ${f.vers === x ? 'on' : ''}`} onClick={() => setF({ ...f, vers: x })}>{x}</button>)}</div>
+        {f.vers === 'Autre' && <input className="bn-in" style={{ width: '100%', font: 'inherit', marginTop: 8 }} placeholder="Où ?" value={f.autre} onChange={e => setF({ ...f, autre: e.target.value })} />}
+        <div className="as-l">ARTICLES</div>
+      </div>
+      <div className="list bn-l">{f.lignes.map((x, i) => (
+        <button key={i} className="row dp-a" onClick={() => setL({ ...x, i })}><Photo a={x.a} />
+          <div className="x"><b>{x.a.nom}</b><span>{qt(x.a.qte)} {x.a.unite} au dépôt</span></div><div className="dp-n">{qt(x.qte)}<em>{x.a.unite}</em></div></button>))}
+        <button className="row bn-plus" onClick={() => setL({ q: '', qte: '' })}>+ Ajouter un article</button></div>
+      <div className="px">
+        <div className="as-l">NOTE</div>
+        <input className="bn-in" style={{ width: '100%', font: 'inherit' }} placeholder="Facultatif" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} />
+        <button className="btn primary block" style={{ marginTop: 16 }} disabled={!pret || busy} onClick={valider}>{pret ? `Valider · ${f.lignes.length} article${f.lignes.length > 1 ? 's' : ''} ${f.sens === 'sortie' ? '→' : '←'} ${vers}` : 'Établissement et au moins un article'}</button>
+      </div>
+      <div style={{ height: 120 }} />
+      <Sheet open={!!l} onClose={() => setL(null)} foot={l?.a && <button className="btn primary" disabled={!(n(l.qte) > 0)} onClick={() => { setF(v => ({ ...v, lignes: l.i != null ? v.lignes.map((x, k) => k === l.i ? l : x) : [...v.lignes, l] })); setL(null) }}>{l.i != null ? 'Modifier' : 'Ajouter'}</button>}>
+        {l && <>
+          <div className="el-name" style={{ fontSize: 24 }}>{l.a?.nom || 'Quel article ?'}</div>
+          {!l.a ? <>
+            <input autoFocus className="bn-in" style={{ width: '100%', font: 'inherit', marginTop: 10 }} placeholder="Chercher dans le dépôt" value={l.q} onChange={e => setL({ ...l, q: e.target.value })} />
+            <div className="list bn-l" style={{ marginTop: 8 }}>{trouves.map(a => <button key={a.id} className="row" onClick={() => setL({ ...l, a })}><div className="x"><b>{a.nom}</b><span>{qt(a.qte)} {a.unite} au dépôt</span></div></button>)}</div>
+          </> : <>
+            <div className="as-l">QUANTITÉ ({l.a.unite}) · {qt(l.a.qte)} au dépôt</div>
+            <input autoFocus className="bn-in" style={{ width: '100%', font: 'inherit' }} inputMode="decimal" value={l.qte} onChange={e => setL({ ...l, qte: e.target.value.replace(',', '.') })} />
+            {f.sens === 'sortie' && n(l.qte) > n(l.a.qte) && <div className="small" style={{ color: 'var(--red)', marginTop: 6 }}>Plus que ce qu'il y a au dépôt : le stock passera en négatif.</div>}
+            {l.i != null && <div className="ee-menu"><button className="danger" onClick={() => { setF(v => ({ ...v, lignes: v.lignes.filter((_, k) => k !== l.i) })); setL(null) }}>Retirer<span>›</span></button></div>}
+          </>}
+        </>}
+      </Sheet>
     </motion.div>
   )
 }
