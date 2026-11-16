@@ -18,7 +18,7 @@ const ORGA = [
   { cle: 'sol', section: 'organisation', texte: 'Le sol côté service ?', type: 'choix', choix: [{ cle: 'dur', libelle: 'Dur' }, { cle: 'gazon', libelle: 'Gazon' }, { cle: 'sable', libelle: 'Sable ou terre' }], quand: ['emplacement:exterieur|les_deux'], actif: true, ordre: 520 },
   { cle: 'theme', section: 'organisation', texte: 'Un thème, une ambiance ?', aide: 'ex : bohème chic, blanc et or', type: 'texte', choix: [], quand: [], actif: true, ordre: 550 },
 ]
-const QS = [...QUESTIONS.filter(q => q.cle !== 'profil' && q.type !== 'etape'), ...ORGA]
+const QS = [...QUESTIONS.filter(q => q.section !== 'organisation' && q.type !== 'etape'), ...ORGA]
 // Le devis a tout dit sauf la cuisine (au défaut) ; l'organisation reste à faire
 const BASE = { invites: 200, gamme: 'Premium', zone: 'marrakech', societe: 'Epicure', prestations: ['bar', 'traiteur'], nb_bars: 2, comptoir: 'non', alcool_qui: 'nous', alcool: ['cocktails'],
   service: ['cocktails'], signatures: 4, moments: ['cocktail', 'diner_assis'], plonge: 'rien', electricite: 'ok', fourni: ['tables'] }
