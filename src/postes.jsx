@@ -557,6 +557,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
         <Journee mapart={mapart} />
         {!mapart && (d.evenements || []).filter(e => e.date === t).map(e => <button key={e.id} className="jj-ban" onClick={() => ouvrirPoste(e.id).then(() => go('jourj'))}><span>⏱</span><b>C'est le jour J</b><em>{e.nom} · heure par heure et brief ›</em></button>)}
         {(k => k > 0 && <button className="tr-lien" onClick={() => go('tournees')}><span>🚚</span><b>Tournées</b><em>{k} arrêt{k > 1 ? 's' : ''} aujourd'hui et demain ›</em></button>)(arrets(d.actions).filter(x => !x.fait && (x.jour === t || x.jour === dem)).length)}
+        {!mapart && (d.depot || []).includes('acheter') && <button className="tr-lien" onClick={() => go('achat-especes')}><span>🧾</span><b>Achat en espèces</b><em>bon signé par le vendeur ›</em></button>}
         {!total && <div className="pv-vide" style={{ marginTop: 20 }}>{mapart ? 'Rien à ton nom.' : 'Rien pour aujourd\'hui ni demain.'}</div>}
         {groupes.filter(g => g[1].length).map(([l, g]) => (
           <div key={l}>

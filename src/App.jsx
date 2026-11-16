@@ -13,6 +13,7 @@ import { Aujourdhui, Poste } from './postes'
 import { setRegles } from './regles'
 import { Sante } from './sante'
 import { Seuil, seuilDuJour } from './seuil'
+import { AchatEspeces } from './bon'
 import { Chargement, Retour, Tournees } from './terrain'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
@@ -267,6 +268,7 @@ export default function App() {
   else if (route.startsWith('biblio')) screen = <Bibliotheque data={data} go={go} zoneIdx={route.split('/')[1] !== undefined ? Number(route.split('/')[1]) : undefined} reload={() => load(data.evt)} />
   else if (route.startsWith('bilan')) screen = <Bilan key={route} data={data} go={go} sous={route.split('/')[1] || ''} reload={() => load(data.evt)} />
   else if (route === 'especes') screen = <Especes data={data} go={go} />
+  else if (route.startsWith('achat-especes')) screen = <AchatEspeces key={route} go={go} evt={route.split('/')[1] || null} />
   else if (route === 'pieces') screen = <Pieces data={data} go={go} reload={() => load(data.evt)} />
   else if (route === 'nouveau') screen = <Nouveau data={data} go={go} onCreated={id => load(id)} />
   else if (route === 'chiffrer') screen = <Chiffrer key={data.evt} data={data} go={go} reload={() => load(data.evt)} />
@@ -289,7 +291,7 @@ export default function App() {
       <Suspense fallback={<Patience />}><AnimatePresence mode="wait">{screen}</AnimatePresence></Suspense>
 
       {(micro.ecoute || micro.lit) && <div className="mi-live"><b>{micro.lit ? 'Je comprends…' : `Pour ${cible?.label || ''}`}</b><span>{micro.dit ? `« ${micro.dit} »` : 'Je t\'écoute… touche le micro quand tu as fini'}</span></div>}
-      <nav className="tabs">
+      {!route.startsWith('achat-especes') && <nav className="tabs">
         <button className={tab === 'auj' ? 'on' : ''} onClick={() => go('aujourdhui')}>{Icon.planning}Aujourd'hui</button>
         <button className={tab === 'evts' ? 'on' : ''} onClick={() => go('accueil')}>{Icon.plan}Événements</button>
         <div className="mi-nav">
@@ -298,7 +300,7 @@ export default function App() {
         </div>
         <button className={`${tab === 'mapart' ? 'on' : ''} ${n(data.pour_toi) > 0 && tab !== 'mapart' ? 'pt-dot' : ''}`} onClick={() => go('mapart')}>{Icon.deleguer}Ma part</button>
         <button className={tab === 'notes' ? 'on' : ''} onClick={() => go('notes')}>{Icon.notes}Notes</button>
-      </nav>
+      </nav>}
 
       {prop && <Suspense fallback={null}><Proposition prop={prop} data={data} onClose={() => setProp(null)} onDone={() => { setProp(null); load(data.evt) }} /></Suspense>}
 

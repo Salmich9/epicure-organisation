@@ -70,6 +70,7 @@ export function Especes({ data, go }) {
       <div className="head">
         <button className="back" onClick={() => go('')}>‹ {ev.nom}</button>
         <h1 style={{ fontSize: 34 }}>Espèces</h1>
+        <button className="tr-lien" style={{ marginTop: 12 }} onClick={() => go(`achat-especes/${data.evt}`)}><span>🧾</span><b>Achat en espèces</b><em>bon signé par le vendeur ›</em></button>
       </div>
       <div className="esp-k">
         <div><b>{mad(encaisse)}</b>encaissé en espèces</div>
