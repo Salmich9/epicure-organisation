@@ -280,5 +280,18 @@ begin
     perform orga.ligne_terrain(tok, el, '{"charge":10}'); perform orga.ligne_terrain(tok, el, '{"revenu":7,"motif":"Vol"}');
     if (select x.quantite from public.ecarts_motifs x join public.motifs_ecart m on m.id = x.motif_id join orga.evenements e on e.depot_event = x.event_id where e.id = ev and m.name = 'Vol') <> 3 then raise exception 'ECHEC : motif du manquant'; end if;
   end; ok := ok + 1;
+  -- 18. Bascule : l'ancienne appli (clé publique, sans la marque de la nouvelle) ne peut plus écrire dans le dépôt ; la nouvelle si
+  declare a uuid; u uuid; bloque boolean := false; tt uuid; q0 numeric; begin
+    select article_id, quantity into a, q0 from public.current_stock where active order by name limit 1;
+    select id into u from public.users limit 1;
+    perform set_config('request.jwt.claims', '{"role":"anon"}', true); perform set_config('epicure.depuis_orga', 'off', true);
+    begin insert into public.stock_movements (article_id, type, quantity, reference_type, created_by) values (a, 'retour', 1, 'transfert', u);
+    exception when others then bloque := sqlerrm like '%lecture seule%'; end;
+    if not bloque then raise exception 'ECHEC : l''ancienne appli écrit encore'; end if;
+    tt := (orga.connexion('ZZGere', '135790')->>'token')::uuid; perform set_config('epicure.depuis_orga', 'off', true);
+    perform orga.depot_transfert(tt, jsonb_build_object('sens', 'retour', 'vers', 'Baromètre', 'lignes', jsonb_build_array(jsonb_build_object('article_id', a, 'qte', 1))));
+    if (select quantity from public.current_stock where article_id = a) <> q0 + 1 then raise exception 'ECHEC : la nouvelle appli bloquée par la lecture seule'; end if;
+    perform set_config('request.jwt.claims', '', true);
+  end; ok := ok + 1;
   raise exception 'REGRESSION OK (% vérifications)', ok;
 end $$;
