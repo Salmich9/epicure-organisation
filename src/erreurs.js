@@ -34,6 +34,7 @@ export const MESSAGES = {
   deja_present: 'Il est déjà revenu : rien à restaurer.',
   depasse_encaisse: 'Pas assez encaissé pour cette remise.',
   montant_invalide: 'Montant invalide.',
+  deja_en_cours: 'Un virement espèces est déjà en cours pour cet événement.',
   prix_invalide: 'Prix invalide.',
   role_inconnu: 'Rôle inconnu.',
   statut_inconnu: 'Statut inconnu.',

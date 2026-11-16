@@ -77,7 +77,7 @@ export function AchatEspeces({ go, evt: evt0 }) {
   const [ctx, setCtx] = useState(null)
   const [stock, setStock] = useState([])
   const [refs, setRefs] = useState(null)
-  const [f, setF] = useState({ evt: evt0 || null, societe: null, vendeur: '', lignes: [] })
+  const [f, setF] = useState({ evt: evt0 || null, societe: null, vendeur: '', lignes: [], paye_par: 'enveloppe' })
   const [etape, setEtape] = useState(1)
   const [ligne, setLigne] = useState(null)      // la ligne en cours d'ajout
   const [trace, setTrace] = useState(false)
@@ -96,7 +96,7 @@ export function AchatEspeces({ go, evt: evt0 }) {
   async function valider() {
     setBusy(true)
     try {
-      const r = await api.bonCreer({ societe: f.societe, evenement_id: f.evt, vendeur: f.vendeur.trim(), signature: sigRef.current(),
+      const r = await api.bonCreer({ societe: f.societe, evenement_id: f.evt, paye_par: f.evt ? f.paye_par : 'enveloppe', vendeur: f.vendeur.trim(), signature: sigRef.current(),
         lignes: f.lignes.map(l => ({ article_id: l.article_id || null, nom: l.article_id ? null : l.nom, cat_id: l.cat_id || null, unite_id: l.unite_id || null, qte: num(l.qte), prix: num(l.prix) })) })
       setFait({ ...r, drive: null }); setEtape(3)
       api.bonPdf(r.id).then(d => setFait(x => ({ ...x, drive: d.url }))).catch(e => setFait(x => ({ ...x, drive: false, err: e.message })))
@@ -140,14 +140,22 @@ export function AchatEspeces({ go, evt: evt0 }) {
         <div className="as-l">POUR</div>
         <div className="chips">{ctx.evenements.map(e => <button key={e.id} className={`chip ${f.evt === e.id ? 'on' : ''}`} onClick={() => setF(v => ({ ...v, evt: e.id, societe: e.entite === 'Business Boys' ? 'BB' : 'EPI' }))}>{e.nom}</button>)}
           <button className={`chip ${!f.evt ? 'on' : ''}`} onClick={() => setF(v => ({ ...v, evt: null }))}>Dépôt (réassort)</button></div>
-        <div className="as-l">PAYÉ PAR LA SOCIÉTÉ</div>
-        <div className="chips">{Object.entries(SOCIETES).map(([k, s]) => <button key={k} className={`chip ${f.societe === k ? 'on' : ''}`} onClick={() => setF(v => ({ ...v, societe: k }))}>{s.court}</button>)}</div>
+        {f.evt ? <>
+          <div className="as-l">PAYÉ PAR</div>
+          <div className="chips"><button className={`chip ${f.paye_par === 'enveloppe' ? 'on' : ''}`} onClick={() => setF(v => ({ ...v, paye_par: 'enveloppe' }))}>Enveloppe de l'événement</button>
+            {Object.entries(SOCIETES).map(([k, s]) => <button key={k} className={`chip ${f.paye_par === 'caisse' && f.societe === k ? 'on' : ''}`} onClick={() => setF(v => ({ ...v, paye_par: 'caisse', societe: k }))}>Caisse {s.court}</button>)}</div>
+          {f.paye_par === 'enveloppe' && <><div className="as-l">AU NOM DE</div>
+            <div className="chips">{Object.entries(SOCIETES).map(([k, s]) => <button key={k} className={`chip ${f.societe === k ? 'on' : ''}`} onClick={() => setF(v => ({ ...v, societe: k }))}>{s.court}</button>)}</div></>}
+        </> : <>
+          <div className="as-l">PAYÉ PAR LA SOCIÉTÉ</div>
+          <div className="chips">{Object.entries(SOCIETES).map(([k, s]) => <button key={k} className={`chip ${f.societe === k ? 'on' : ''}`} onClick={() => setF(v => ({ ...v, societe: k }))}>{s.court}</button>)}</div>
+        </>}
         <div className="as-l">VENDEUR</div>
         <input className="bn-in" style={{ width: '100%', font: 'inherit' }} placeholder="Nom du vendeur" value={f.vendeur} onChange={e => setF(v => ({ ...v, vendeur: e.target.value }))} />
         <div className="as-l">CE QUI A ÉTÉ ACHETÉ</div>
         <div className="list bn-l">{f.lignes.map((l, i) => <div key={i} className="row" onClick={() => setLigne({ ...l, i })}><div className="x"><b>{l.nom}{!l.article_id && <em className="bn-neuf"> nouveau</em>}</b><span>{l.qte} × {n(l.prix)} MAD</span></div><b>{n(num(l.qte) * num(l.prix))}</b></div>)}
           <button className="row bn-plus" onClick={() => setLigne({ q: '', qte: '', prix: '' })}>+ Ajouter une ligne</button></div>
-        {env != null && (env - total < 0
+        {env != null && !(f.evt && f.paye_par === 'caisse') && (env - total < 0
           ? <div className="bn-env"><span>Ton enveloppe {n(env)} MAD<Info text="Tu avances la différence : elle apparaît dans Espèces comme « on lui doit », et on te rembourse avec Confier." /></span><b>On te devra {n(total - env)} MAD</b></div>
           : <div className="bn-env"><span>Ton enveloppe espèces</span><b>{n(env)} → {n(env - total)} MAD</b></div>)}
         <button className="btn primary block" style={{ marginTop: 16 }} disabled={!pret} onClick={() => { setTrace(false); setEtape(2) }}>{pret ? `Faire signer le bon · ${n(total)} MAD` : 'Vendeur et au moins une ligne'}</button>

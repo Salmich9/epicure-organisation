@@ -8,6 +8,7 @@ import { Anneau, Journee, Merci, Pret, feliciter, pret } from './envie'
 import { arrets } from './terrain'
 import { vehicules } from './regles'
 import { Bulle, Fil, FilSheet, PourToi } from './fil'
+import { MesEspeces } from './especesRelais'
 
 /* Du général au particulier : enveloppes (prévu) → lignes (engagé) → actions (qui, quand, combien) */
 export const k = v => { v = n(v); return Math.abs(v) >= 10000 ? `${(v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: v >= 100000 ? 0 : 1 })} k` : Math.round(v).toLocaleString('fr-FR') }
@@ -95,6 +96,7 @@ export function Enveloppes({ data, go, reload }) {
       {equipe && <div className="pv-st" style={{ marginTop: 6 }}>TES ENVELOPPES</div>}
       {!equipe && <motion.button whileTap={{ scale: .98 }} className={`ve-cta ${ev.budget_valide_le ? '' : 'on'}`} onClick={() => go(ev.budget_valide_le ? `enveloppes-evt/${ev.id}` : `budget-valider/${ev.id}`)}>
         {ev.budget_valide_le ? <><b>Suivi des enveloppes</b><span>achats, dépassements, pièces à vérifier ›</span></> : <><b>Valider le budget et l'envoyer</b><span>chaque responsable reçoit son enveloppe ›</span></>}</motion.button>}
+      {!equipe && <motion.button whileTap={{ scale: .98 }} className="ve-cta" onClick={() => go(`especes-evt/${ev.id}`)}><b>Espèces de l'événement</b><span>virement au fournisseur relais, puis remise à chacun ›</span></motion.button>}
       <Compteur {...t} info="Prévu : la somme des enveloppes (chiffrage vocal, sinon un ratio par invité ; touche une enveloppe pour corriger). Engagé : ce que coûtent les lignes et les actions. Réel : les pièces imputées et les actions marquées payées." />
       {mat.length > 0 && <div className="pv-st">MATIÈRE PAR MOMENT</div>}
       {mat.map(p => <Ligne key={p.cle} p={p} />)}
@@ -570,6 +572,7 @@ export function Aujourdhui({ go, ouvrirPoste, mapart }) {
       <div className="head" style={{ position: 'relative' }}><button className="nt-cl" onClick={() => go('mes-rappels')} aria-label="Mes rappels">🔔</button><div className="when">{dateLongue(t)}</div><h1 style={{ fontSize: 40 }}>{mapart ? 'Ma part' : `${new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'} ${d.moi || ''}`.trim()}</h1>
         {!mapart && <div className="meta">Voici ta journée.</div>}
         {mapart && <div className="meta">Ce qui est à ton nom, tous événements.</div>}</div>
+      {mapart && <MesEspeces go={go} />}
       {mapart && <MesEnveloppes go={go} />}
       {!mapart && <div className="au-seg"><button className={!moi ? 'on' : ''} onClick={() => { setMoi(false); try { localStorage.setItem('orga_auj_moi', '0') } catch {} }}>Tout le monde</button><button className={moi ? 'on' : ''} onClick={() => { setMoi(true); try { localStorage.setItem('orga_auj_moi', '1') } catch {} }}>Ma part</button></div>}
       <div className="px">
