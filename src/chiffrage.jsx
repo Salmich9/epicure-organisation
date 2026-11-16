@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { api } from './api'
 import { Info, Sheet, mad, n, useUI } from './ui'
 import { nomStaff } from './staff'
+import { ParamEspeces } from './especesRelais'
 
 const glisse = { initial: { x: 40, opacity: 0 }, animate: { x: 0, opacity: 1 }, transition: { type: 'spring', damping: 30, stiffness: 300 } }
 export const fr = v => { v = n(v); return v.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) }
@@ -53,9 +54,10 @@ export function Parametres({ go }) {
         <div className="meta">{d && !d.peut_modifier ? 'Lecture seule : seul Salmane change les références' : 'Chiffrage écrit et vocal'}</div>
       </div>
       <div className="px"><div className="chips dp-cats" style={{ marginTop: 12 }}>
-        {SECTIONS.map(([k, l]) => <button key={k} className={`chip ${sec === k ? 'on' : ''}`} onClick={() => setSec(k)}>{l}</button>)}
+        {[...SECTIONS, ['especes', 'Espèces']].map(([k, l]) => <button key={k} className={`chip ${sec === k ? 'on' : ''}`} onClick={() => setSec(k)}>{l}</button>)}
       </div></div>
-      {!d && <p className="small mute px" style={{ marginTop: 20 }}>Chargement…</p>}
+      {sec === 'especes' && <ParamEspeces />}
+      {!d && sec !== 'especes' && <p className="small mute px" style={{ marginTop: 20 }}>Chargement…</p>}
       {groupes.map(g => (
         <div key={g.nom}>
           <div className="cf-grp">{g.nom.toUpperCase()}</div>

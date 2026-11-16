@@ -14,6 +14,7 @@ import { setRegles } from './regles'
 import { Sante } from './sante'
 import { Seuil, seuilDuJour } from './seuil'
 import { AchatEspeces } from './bon'
+import { EspecesEvt, EspecesRelais } from './especesRelais'
 import { Chargement, Retour, Tournees } from './terrain'
 import { useCibleActive, useMicro } from './micro'
 import { reseau } from './reseau'
@@ -271,6 +272,8 @@ export default function App() {
   else if (route === 'notifs') screen = <ReglagesNotifs go={go} />
   else if (route.startsWith('budget-valider/')) screen = <ValiderBudget key={route} evt={route.split('/')[1]} go={go} />
   else if (route.startsWith('mon-enveloppe/')) screen = <MonEnveloppe key={route} evt={route.split('/')[1]} go={go} />
+  else if (route.startsWith('especes-evt/')) screen = <EspecesEvt key={route} evt={route.split('/')[1]} go={go} />
+  else if (route.startsWith('especes-relais/')) screen = <EspecesRelais key={route} id={Number(route.split('/')[1])} go={go} />
   else if (route.startsWith('enveloppes-evt/')) screen = <EnveloppesEvt key={route} evt={route.split('/')[1]} data={data} go={go} />
   else if (route === 'mes-rappels') screen = <MesRappels go={go} />
   else if (route.startsWith('tache/')) { const [, e, t] = route.split('/'); screen = <Tache key={route} evt={e} id={t} go={go} ouvrirPlanning={async x => { await load(x); go('planning') }} /> }

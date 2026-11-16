@@ -1305,3 +1305,14 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 .ve-sg { font-style: normal; font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 6px; background: #FBE3DF; color: #A3392B; margin-left: 6px; }
 .ve-derive { margin-top: 10px; padding: 13px 14px; border-radius: 16px; background: #FFF4E5; border: 1px solid #F0C98A; font-size: 13.5px; }
 .ve-derive b { display: block; }
+
+/* v68 · Espèces de l'événement */
+.es-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 16px 12px; }
+.es-steps span { text-align: center; padding: 8px 2px; border-radius: 10px; font-size: 12px; font-weight: 700; background: var(--line); color: var(--mute); }
+.es-steps span.on { background: var(--ink); color: var(--bg); } .es-steps span.ok { background: #D7ECE8; color: #1F6F6B; }
+.aa-l.es-fort .x b, .aa-l.es-fort .v b { font-weight: 800; }
+.aa-l.es-on { box-shadow: inset 4px 0 0 var(--ink); background: var(--surface); }
+.es-taux { padding: 5px 10px; border-radius: 10px; background: var(--line); font-weight: 800; font-size: 13px; }
+.es-alerte { margin: 10px 16px; padding: 10px 14px; border-radius: 14px; background: #F6DCD7; color: #A3392B; font-size: 13.5px; font-weight: 600; }
+.es-gros { width: 100%; font-size: 30px; font-weight: 800; padding: 14px 16px; border-radius: 16px; border: 2px solid var(--ink); }
+.btn.es-mini { padding: 8px 14px; font-size: 13px; width: auto; flex: none; }
