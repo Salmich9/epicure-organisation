@@ -402,3 +402,14 @@ begin
 end $$;
 revoke all on function orga._notifs_test(text) from public, anon, authenticated;
 grant execute on function orga._notifs_test(text) to service_role;
+
+-- La fiche d'une tâche affiche le code et la société de l'événement
+do $$ declare d text := pg_get_functiondef('orga.planning_liste(uuid,text)'::regprocedure); begin
+  if d ~ '''evenement'', \(select' then return; end if;
+  d := replace(d, $x$  return jsonb_build_object(
+    'planning',$x$, $x$  return jsonb_build_object(
+    'evenement', (select jsonb_build_object('nom', e.nom, 'code', e.code, 'entite', e.entite, 'lieu', e.lieu, 'date', e.date) from orga.evenements e where e.id = p_evt),
+    'planning',$x$);
+  if d !~ '''evenement'', \(select' then raise exception 'planning_liste a changé'; end if;
+  execute d;
+end $$;

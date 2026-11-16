@@ -13,3 +13,22 @@ self.addEventListener('fetch', e => {
     e.respondWith(caches.match(r).then(m => m || fetch(r).then(res => { if (res.ok) { const cl = res.clone(); caches.open(CACHE).then(c => c.put(r, cl)) } return res })))
   }
 })
+
+// Notifications : le serveur envoie { title, body, url, tag } ; un même tag remplace la notif précédente (le « en retard » remplace le rappel).
+// Le toucher ouvre l'écran exact ; la notif ne coche jamais rien d'elle-même.
+self.addEventListener('push', e => {
+  let d = {}
+  try { d = e.data ? e.data.json() : {} } catch { d = { title: e.data?.text() || 'Epicure' } }
+  e.waitUntil(self.registration.showNotification(d.title || 'Epicure', {
+    body: d.body || '', tag: d.tag || undefined, renotify: !!d.tag, icon: '/icon-192.png', badge: '/icon-192.png', data: { url: d.url || '/#/mes-rappels' }
+  }))
+})
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  const url = new URL(e.notification.data?.url || '/#/mes-rappels', self.location.origin).href
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+    const c = cs.find(x => new URL(x.url).origin === self.location.origin)
+    if (c) return c.focus().then(w => (w || c).navigate ? (w || c).navigate(url) : null).catch(() => self.clients.openWindow(url))
+    return self.clients.openWindow(url)
+  }))
+})
