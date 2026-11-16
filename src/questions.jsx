@@ -6,7 +6,7 @@ import { api } from './api'
 import { Info, Sheet, n, useUI } from './ui'
 import { Picker } from './element'
 
-export const SECTIONS_Q = [['cadrage', 'Cadrage'], ['bar', 'Bar'], ['traiteur', 'Traiteur'], ['sur_place', 'Sur place'], ['prix', 'Prix et récap']]
+export const SECTIONS_Q = [['cadrage', 'Bases'], ['bar', 'Bar'], ['traiteur', 'Traiteur'], ['sur_place', 'Sur place'], ['prix', 'Prix et récap'], ['organisation', 'Cadrage · après le devis']]
 const TYPES = [['oui_non', 'Oui ou non'], ['choix', 'Un choix'], ['multi', 'Plusieurs choix'], ['nombre', 'Un nombre'], ['texte', 'Texte libre']]
 const NOM_TYPE = { oui_non: 'oui ou non', choix: 'un choix', multi: 'plusieurs choix', nombre: 'un nombre', texte: 'texte', date: 'date', horaires: 'horaires', etape: 'étape' }
 const OUI_NON = [{ cle: 'oui', libelle: 'Oui' }, { cle: 'non', libelle: 'Non' }]
@@ -37,6 +37,37 @@ export function tient(quand, r) {
     return Array.isArray(r[k]) ? r[k].some(x => vals.includes(x)) : vals.includes(String(r[k]))
   })
 }
+// v74 · Le cadrage affine : ce que le devis a dit est repris (jamais reposé) ; ce qu'il a laissé au défaut revient, pré-choisi ;
+// puis les questions propres au cadrage (partie « organisation »). Une réponse « ? » = pas encore su.
+const CHOIX_T = ['choix', 'multi', 'oui_non', 'nombre']
+const meme = (a, b) => JSON.stringify(Array.isArray(a) ? [...a].sort() : a) === JSON.stringify(Array.isArray(b) ? [...b].sort() : b)
+export function dansDevis(base, cle) {
+  const b = base || {}
+  if (cle in b && b[cle] !== null && b[cle] !== undefined) return true
+  return (cle === 'prestations' && ('traiteur' in b || 'bar' in b)) || (cle === 'zone' && 'hors_marrakech' in b) || (cle === 'alcool_qui' && 'alcool_client' in b)
+}
+export function planCadrage(base, questions, affine) {
+  const af = affine || {}, devis = reponsesDe(base, questions), r = {}, repris = [], etapes = []
+  for (const q of (questions || []).filter(x => x.actif && x.type !== 'etape').sort((a, c) => a.ordre - c.ordre)) {
+    const orga = q.section === 'organisation'
+    if (!orga && !CHOIX_T.includes(q.type)) continue
+    const dit = af[q.cle] !== undefined && af[q.cle] !== '?'
+    const v = dit ? af[q.cle] : orga ? undefined : devis[q.cle]
+    if (!tient(q.quand, r)) continue
+    if (v !== undefined && v !== null) r[q.cle] = v
+    if (!orga && dansDevis(base, q.cle)) repris.push({ q, v, corrige: dit && !meme(af[q.cle], devis[q.cle]) })
+    else etapes.push({ q, propose: orga ? undefined : devis[q.cle] ?? q.defaut })
+  }
+  return { repris, etapes, r }
+}
+export const libelleValeur = (q, v) => {
+  if (v === undefined || v === null || v === '?') return '?'
+  const lib = x => choixDe(q).find(c => c.cle === x)?.libelle || String(x)
+  return Array.isArray(v) ? (v.length ? v.map(lib).join(', ') : 'aucun') : q.type === 'nombre' ? String(v) : lib(v)
+}
+const COURTS = { societe: 'Société', zone: 'Zone', prestations: 'Prestations', alcool_qui: 'Qui fournit l\u2019alcool', heures: 'Horaires' }
+export const titreCourt = q => COURTS[q.cle] || q.texte.replace(/\s*[?…]\s*$/, '').replace(/ :.*$/, '').split(/,\s/)[0]
+
 // Libellé d'une condition « question:réponse »
 export function libelleCondition(c, questions, conditions) {
   const x = (conditions || []).find(y => y.cle === c)
@@ -89,7 +120,7 @@ export function ParamQuestions() {
     try { await api.chiffrageQuestionMaj(q.cle, { ordre: o.ordre }); setD(await api.chiffrageQuestionMaj(o.cle, { ordre: q.ordre })) } catch (e) { ui.toast(e.message) }
   }
   return <>
-    <p className="small mute px" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>Posées par l'agent vocal, et reprises dans le chiffrage écrit <Info text="E = posée aussi en Express. Une réponse devient une condition qu'un poste peut prendre pour « Quand ? ». Un changement vaut pour les prochains chiffrages." /></p>
+    <p className="small mute px" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>Posées par l'agent vocal et le chiffrage, puis au cadrage <Info text="E = posée aussi en Express. Une réponse devient une condition qu'un poste peut prendre pour « Quand ? ». Le cadrage ne repose jamais ce que le devis a déjà dit. Un changement vaut pour les prochains chiffrages." /></p>
     {SECTIONS_Q.map(([s, l]) => {
       const liste = qs.filter(q => q.section === s).sort((a, b) => a.ordre - b.ordre)
       if (!liste.length) return null
@@ -105,7 +136,7 @@ export function ParamQuestions() {
     {d.peut_modifier && <div className="px"><button className="pv-plus" onClick={() => setOuverte({ cle: null, texte: '', type: 'oui_non', section: 'cadrage', choix: [], quand: [], express: false, actif: true })}>+ Nouvelle question</button></div>}
     <ChallengeReglages />
     <QuestionSheet q={ouverte} d={d} onClose={() => setOuverte(null)} onMonter={monter}
-      onSaved={nd => { setD(nd); setOuverte(null); ui.toast('Enregistré : les prochains chiffrages la prennent') }} />
+      onSaved={nd => { setD(nd); setOuverte(null); ui.toast('Enregistré : vaut pour la suite') }} />
   </>
 }
 
@@ -134,12 +165,13 @@ function QuestionSheet({ q, d, onClose, onSaved, onMonter }) {
   return <Sheet open onClose={onClose} foot={peut ? <button className="btn primary" disabled={envoi} onClick={sauver}>{envoi ? '…' : nouvelle ? 'Créer la question' : 'Enregistrer'}</button> : null}>
     <div className="el-kicker">{nouvelle ? 'Nouvelle question' : `${SECTIONS_Q.find(([k]) => k === f.section)?.[1]} · ${NOM_TYPE[f.type]}`}</div>
     <textarea className="q-txt" rows={2} value={f.texte} disabled={!peut} onChange={e => set('texte', e.target.value)} placeholder="Ex : Il y a un DJ ?" />
-    <input value={f.aide || ''} disabled={!peut} onChange={e => set('aide', e.target.value)} placeholder="Aide pour l'agent (facultatif)" style={{ marginTop: 8 }} />
-    {nouvelle && <><div className="cf-lbl">Type de réponse</div><div className="chips">{TYPES.map(([k, l]) => <button key={k} className={`chip ${f.type === k ? 'on' : ''}`} onClick={() => set('type', k)}>{l}</button>)}</div>
-      <div className="cf-lbl">Partie</div><div className="chips">{SECTIONS_Q.filter(([k]) => k !== 'prix').map(([k, l]) => <button key={k} className={`chip ${f.section === k ? 'on' : ''}`} onClick={() => set('section', k)}>{l}</button>)}</div></>}
-    <div className="cf-lbl">Posée en</div>
+    <input value={f.aide || ''} disabled={!peut} onChange={e => set('aide', e.target.value)} placeholder={f.section === 'organisation' ? 'Exemple affiché sous la question (facultatif)' : "Aide pour l'agent (facultatif)"} style={{ marginTop: 8 }} />
+    {nouvelle && <><div className="cf-lbl">Type de réponse</div><div className="chips">{TYPES.map(([k, l]) => <button key={k} className={`chip ${f.type === k ? 'on' : ''}`} onClick={() => set('type', k)}>{l}</button>)}</div></>}
+    {(nouvelle || !q.systeme) && <><div className="cf-lbl">Partie <Info text="« Cadrage · après le devis » : posée au cadrage, jamais au chiffrage ni par l'agent vocal." /></div>
+      <div className="chips">{SECTIONS_Q.filter(([k]) => k !== 'prix').map(([k, l]) => <button key={k} className={`chip ${f.section === k ? 'on' : ''}`} disabled={!peut} onClick={() => set('section', k)}>{l}</button>)}</div></>}
+    {f.section !== 'organisation' && <><div className="cf-lbl">Posée en</div>
     <div className="chips"><button className={`chip ${f.express ? 'on' : ''}`} disabled={!peut} onClick={() => set('express', true)}>Express et Complet</button>
-      <button className={`chip ${!f.express ? 'on' : ''}`} disabled={!peut} onClick={() => set('express', false)}>Complet seulement</button></div>
+      <button className={`chip ${!f.express ? 'on' : ''}`} disabled={!peut} onClick={() => set('express', false)}>Complet seulement</button></div></>}
     {f.type !== 'etape' && <>
       <div className="cf-lbl">Quand</div>
       <div className="chips">{f.quand.length ? f.quand.map(c => <button key={c} className="chip on" disabled={!peut} onClick={() => set('quand', f.quand.filter(x => x !== c))}>{libelleCondition(c, d.questions)} ✕</button>)

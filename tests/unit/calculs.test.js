@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { n, mad, ddmm, jours, dans, dateLongue, envZone } from '../../src/ui.jsx'
 import { k, modeLigne, couleur } from '../../src/postes.jsx'
 import { etape } from '../../src/accueil.jsx'
-import { QUESTIONS } from '../../src/cadrage.jsx'
+import { planCadrage } from '../../src/questions.jsx'
 
 const sp = s => s.replace(/ | /g, ' ')
 
@@ -65,16 +65,34 @@ describe('étapes des événements (écran Événements)', () => {
 })
 
 describe('cadrage', () => {
-  const visibles = r => QUESTIONS.filter(q => !q.si || q.si(r)).map(q => q.k)
-  it('bar seul : pas de questions traiteur', () => {
-    const v = visibles({ prestations: ['Boissons'] })
-    expect(v).not.toContain('repas'); expect(v).not.toContain('cuisine'); expect(v).toContain('bars')
+  const Q = [
+    { cle: 'prestations', section: 'cadrage', type: 'multi', choix: [{ cle: 'bar', libelle: 'Bar' }, { cle: 'traiteur', libelle: 'Traiteur' }], defaut: ['bar', 'traiteur'], quand: [], actif: true, ordre: 80 },
+    { cle: 'client', section: 'cadrage', type: 'texte', choix: [], quand: [], actif: true, ordre: 20 },
+    { cle: 'nb_bars', section: 'bar', type: 'nombre', choix: [], defaut: 1, quand: ['prestations:bar'], actif: true, ordre: 110 },
+    { cle: 'cuisine', section: 'traiteur', type: 'choix', choix: [{ cle: 'equipee', libelle: 'Équipée' }, { cle: 'rien', libelle: 'Rien' }], defaut: 'equipee', quand: ['prestations:traiteur'], actif: true, ordre: 220 },
+    { cle: 'plonge', section: 'sur_place', type: 'choix', choix: [{ cle: 'fournie', libelle: 'Fournie' }, { cle: 'rien', libelle: 'Rien' }], defaut: 'fournie', quand: [], actif: true, ordre: 310 },
+    { cle: 'emplacement', section: 'organisation', type: 'choix', choix: [{ cle: 'interieur', libelle: 'Intérieur' }, { cle: 'exterieur', libelle: 'Extérieur' }], quand: [], actif: true, ordre: 510 },
+    { cle: 'sol', section: 'organisation', type: 'choix', choix: [{ cle: 'dur', libelle: 'Dur' }], quand: ['emplacement:exterieur'], actif: true, ordre: 520 },
+  ]
+  const cles = l => l.map(x => x.q.cle)
+  it('ce que le devis a dit est repris, jamais reposé', () => {
+    const p = planCadrage({ prestations: ['bar', 'traiteur'], nb_bars: 2, plonge: 'rien' }, Q, {})
+    expect(cles(p.repris)).toEqual(['prestations', 'nb_bars', 'plonge'])
+    expect(cles(p.etapes)).toEqual(['cuisine', 'emplacement'])
   })
-  it('traiteur seul : pas de questions bar', () => {
-    const v = visibles({ prestations: ['Traiteur'] })
-    expect(v).toContain('repas'); expect(v).not.toContain('alcool')
+  it('le défaut du devis revient pré-choisi', () => {
+    const p = planCadrage({ prestations: ['traiteur'] }, Q, {})
+    expect(p.etapes.find(x => x.q.cle === 'cuisine').propose).toBe('equipee')
+    expect(cles(p.etapes)).not.toContain('nb_bars')
   })
-  it('alcool fourni par le client : pas de gamme', () => {
-    expect(visibles({ prestations: ['Boissons'], alcool: 'Le client' })).not.toContain('gamme')
+  it('une réponse du cadrage ouvre la suite et marque la correction', () => {
+    const p = planCadrage({ prestations: ['bar'], plonge: 'rien' }, Q, { emplacement: 'exterieur', plonge: 'fournie' })
+    expect(cles(p.etapes)).toContain('sol')
+    expect(p.repris.find(x => x.q.cle === 'plonge')).toMatchObject({ v: 'fournie', corrige: true })
+  })
+  it('« je ne sais pas » laisse la question ouverte', () => {
+    const p = planCadrage({ prestations: ['bar'] }, Q, { emplacement: '?' })
+    expect(cles(p.etapes)).not.toContain('sol')
+    expect(p.r.emplacement).toBeUndefined()
   })
 })
