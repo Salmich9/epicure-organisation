@@ -47,9 +47,10 @@ const dernier = fn => appels.filter(a => a[0] === fn).pop()?.[1]
 
 // 1. Nouvel événement : le bouton dit ce qui manque, la gamme est obligatoire
 await voir('aujourdhui', 800); await voir('nouveau', 1000)
-if (!(await p.locator('.btn.primary:has-text("Il manque : nom, date, invités, lieu, gamme")').count())) echec('ce qui manque pas annoncé')
+if (!(await p.locator('.btn.primary:has-text("Il manque : nom, date, invités, lieu, gamme, horaires")').count())) echec('ce qui manque pas annoncé')
 await p.fill('input[placeholder="Mariage Cassandra"]', 'Mariage Norah'); await p.fill('input[type=date]', '2026-12-20'); await p.fill('input[placeholder="250"]', '200')
 await p.fill('input[placeholder="Domaine, riad, villa…"]', 'Domaine Rhoul')
+await p.locator('input[type=time]').nth(0).fill('19:00'); await p.locator('input[type=time]').nth(1).fill('02:00')
 if (!(await p.locator('.btn.primary:has-text("Il manque : gamme")').count())) echec('gamme pas réclamée')
 await p.click('.tile:has-text("Premium")'); await p.waitForTimeout(200)
 await photo("g1-nouveau.png", true)

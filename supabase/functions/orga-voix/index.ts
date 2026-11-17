@@ -73,6 +73,9 @@ Deno.serve(async (req) => {
     const evt = c.data.id
     // Le chiffrage de l'événement part de la même base que le dernier calcul de l'appel
     await sb.rpc('chiffrage_depuis_voix', { p_token: token, p_evt: evt })
+    // La timeline se pose d'après les horaires dits à l'appel (« 19h-2h ») et le chiffrage qu'on vient de poser
+    const [hd, hf] = String(p.heures || '').split(/\s*(?:-|–|à)\s*/)
+    if (hd && hf) await sb.rpc('timeline_action', { p_token: token, p_evt: evt, p_action: 'generer', p: { debut: hd, fin: hf } })
     await sb.rpc('evenement_maj', { p_token: token, p_evt: evt, p: { prix, ...(cout > 0 && prix > 0 ? { coef: Math.round((prix / (cout * (1 + Number(d0.data?.regles?.imprevus_pct ?? 5) / 100))) * 100) / 100 } : {}) } })
 
     // Devis Zoho brouillon avec les lignes validées pendant l'appel

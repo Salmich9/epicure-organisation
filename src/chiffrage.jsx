@@ -8,6 +8,7 @@ import { Info, Sheet, mad, n, useUI } from './ui'
 import { nomStaff } from './staff'
 import { ConditionsDevis, InfosQuestions, NouveauPoste, ParamQuestions, libelleCondition, reponsesDe } from './questions'
 import { ParamEspeces } from './especesRelais'
+import { ParamTimeline } from './timelineParam'
 import { Picker } from './element'
 
 const glisse = { initial: { x: 40, opacity: 0 }, animate: { x: 0, opacity: 1 }, transition: { type: 'spring', damping: 30, stiffness: 300 } }
@@ -59,11 +60,12 @@ export function Parametres({ go }) {
         <div className="meta">{d && !d.peut_modifier ? 'Lecture seule : seul Salmane change les références' : 'Chiffrage écrit et vocal'}</div>
       </div>
       <div className="px"><div className="chips dp-cats" style={{ marginTop: 12 }}>
-        {[...SECTIONS, ['questions', 'Questions'], ['especes', 'Espèces']].map(([k, l]) => <button key={k} className={`chip ${sec === k ? 'on' : ''}`} onClick={() => setSec(k)}>{l}</button>)}
+        {[...SECTIONS, ['questions', 'Questions'], ['timeline', 'Timeline'], ['especes', 'Espèces']].map(([k, l]) => <button key={k} className={`chip ${sec === k ? 'on' : ''}`} onClick={() => setSec(k)}>{l}</button>)}
       </div></div>
       {sec === 'especes' && <ParamEspeces />}
       {sec === 'questions' && <ParamQuestions />}
-      {!d && !['especes', 'questions'].includes(sec) && <p className="small mute px" style={{ marginTop: 20 }}>Chargement…</p>}
+      {sec === 'timeline' && <ParamTimeline />}
+      {!d && !['especes', 'questions', 'timeline'].includes(sec) && <p className="small mute px" style={{ marginTop: 20 }}>Chargement…</p>}
       {groupes.map(g => (
         <div key={g.nom}>
           <div className="cf-grp">{g.nom.toUpperCase()}</div>

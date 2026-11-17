@@ -11,6 +11,7 @@ const iso = d => d.toISOString().slice(0, 10)
 const addDays = (s, k) => { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + k); return iso(d) }
 const diff = (a, b) => Math.round((new Date(a + 'T12:00:00Z') - new Date(b + 'T12:00:00Z')) / 864e5)
 const jLabel = (date, evDate) => { const k = diff(date, evDate); return k === 0 ? 'J' : k < 0 ? `J${k}` : `J+${k}` }
+const hh = s => (s ? s.replace(':', ' h ').replace(' h 00', ' h') : '')
 const jour = s => { const d = new Date(s + 'T12:00:00Z'); return `${JOURS[d.getUTCDay()]} ${ddmm(s)}` }
 const toMin = h => (h ? Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5)) : null)
 const toH = m => `${String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0')}:${String(((m % 60) + 60) % 60).padStart(2, '0')}`
@@ -19,9 +20,9 @@ const toH = m => `${String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart
 export function construire(data, rows, factures) {
   const ev = data.evenements.find(x => x.id === data.evt) || {}
   const out = []
-  rows.forEach(r => out.push({ key: r.id, kind: 'planning', date: r.date, heure: r.heure, titre: r.titre, sous: [r.lieu, r.note].filter(Boolean).join(' · '), qui: r.qui, fait: r.fait, ref: r }))
+  rows.forEach(r => out.push({ key: r.id, kind: 'planning', date: r.date, heure: r.heure, titre: r.titre, sous: [r.lieu, r.note].filter(Boolean).join(' · '), qui: r.qui, fait: r.fait, auto: !!r.modele, ref: r }))
   data.actions.filter(a => a.echeance && a.statut !== 'Annulé').forEach(a => out.push({ key: a.id, kind: 'action', date: a.echeance, heure: null, titre: a.quoi, sous: 'Action', qui: a.resp, fait: a.statut === 'Fait', ref: a }))
-  if (ev.date) data.deroule.forEach(d => out.push({ key: `D${d.id}`, kind: 'deroule', date: d.date || ev.date, heure: d.debut, titre: d.moment, sous: [d.contenu, d.style].filter(x => x && x !== '—').join(' · '), qui: null, fait: false, ref: d }))
+  if (ev.date) data.deroule.forEach(d => out.push({ key: `D${d.id}`, kind: 'deroule', date: d.date || ev.date, heure: d.debut, titre: d.moment, sous: [d.fin && `jusqu'à ${d.fin}`, d.contenu, d.style].filter(x => x && x !== '—').join(' · '), qui: null, fait: false, auto: !!d.modele, ref: d }))
   const avecAction = new Set(data.actions.map(a => a.element_id).filter(Boolean))
   const groupes = {}
   data.elements.filter(e => e.echeance && OUVERT.includes(e.etat) && !avecAction.has(e.id)).forEach(e => {
@@ -189,8 +190,11 @@ export function Planning({ data, reload, open, go }) {
   const [ecartees, setEcartees] = useState([])
 
   const [rappels_, setRappels] = useState({})
+  const [tl, setTl] = useState(null)
+  const [hor, setHor] = useState(null)
   async function charger() {
     try { const r = await api.planningListe(data.evt); setRows(r.planning || []); setFactures(r.factures || []) } catch (e) { ui.toast(e.message) }
+    if (data.role !== 'equipe') api.timelineEtat(data.evt).then(setTl).catch(() => {})
     if (data.role !== 'equipe') api.rappelsEvenement(data.evt).then(x => setRappels(x || {})).catch(() => {})
   }
   useEffect(() => { charger() }, [data.evt])
@@ -280,7 +284,7 @@ export function Planning({ data, reload, open, go }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div><h1>Planning</h1><div className="meta">{ev.nom}{ev.date ? ` · ${jour(ev.date)}` : ''}</div></div>
+        <div><h1>Planning</h1><div className="meta">{ev.nom}{ev.date ? ` · ${jour(ev.date)}` : ''}{tl?.debut && tl?.fin ? ` · ${hh(tl.debut)} → ${hh(tl.fin)}` : ''}</div></div>
         <div style={{ display: 'flex', gap: 8 }}><button className="btn" style={{ flex: 'none', padding: '10px 14px', fontSize: 13.5 }} onClick={() => setEdit({ kind: 'planning', date: vue === 'jourj' ? evDate : data.aujourdhui })}>+ Créneau</button>
           <button className="btn primary" style={{ flex: 'none', padding: '10px 14px', fontSize: 13.5 }} onClick={() => setShare(true)}>Partager</button></div>
       </div>
@@ -290,6 +294,17 @@ export function Planning({ data, reload, open, go }) {
         <button className={`chip ${mine ? 'on' : 'ghost'}`} onClick={() => setMine(m => !m)}>Ma part</button>
       </div>
 
+      {tl && data.role !== 'equipe' && tl.a_decaler > 0 && <div className="tl-ban">
+        <b>{tl.base?.date !== ev.date ? 'Date ou horaires changés' : `Horaires changés : ${hh(tl.debut)} → ${hh(tl.fin)}`}</b>
+        Décaler {tl.a_decaler} ligne{tl.a_decaler > 1 ? 's' : ''} de la timeline ?{tl.retouchees > 0 ? ` ${tl.retouchees} ligne${tl.retouchees > 1 ? 's' : ''} retouchée${tl.retouchees > 1 ? 's' : ''} garde${tl.retouchees > 1 ? 'nt' : ''} leur heure.` : ''}
+        <div className="chips"><button className="chip on" onClick={garde(async () => { setTl(await api.timelineAction(data.evt, 'decaler')); ui.toast('Timeline décalée'); await charger(); reload() })}>Décaler</button>
+          <button className="chip" onClick={garde(async () => setTl(await api.timelineAction(data.evt, 'laisser')))}>Laisser</button></div></div>}
+      {tl && data.role !== 'equipe' && !tl.generees && <div className="tl-gen">
+        {hor === null ? <button className="chip on" onClick={() => setHor({ debut: tl.debut || '', fin: tl.fin || '' })}>⏱ Générer la timeline</button>
+          : <><div className="wiz-2"><div><div className="label">Début</div><input type="time" value={hor.debut} onChange={e => setHor({ ...hor, debut: e.target.value })} /></div>
+              <div><div className="label">Fin</div><input type="time" value={hor.fin} onChange={e => setHor({ ...hor, fin: e.target.value })} /></div></div>
+            <button className="btn primary block" style={{ marginTop: 10 }} disabled={!hor.debut || !hor.fin || !ev.date} onClick={garde(async () => { setTl(await api.timelineAction(data.evt, 'generer', hor)); setHor(null); ui.toast('Timeline posée'); await charger(); reload() })}>{ev.date ? 'Poser la timeline' : 'Il manque la date'}</button></>}
+      </div>}
       {rappels.length > 0 && <div className="rappels">
         <div className="small" style={{ fontWeight: 700 }}>Rappels à envoyer pour demain</div>
         {rappels.map(r => <div key={r.id} className="row-top" style={{ marginTop: 8 }}><span className="small">{r.heure ? `${r.heure} · ` : ''}{r.titre} ({r.qui})</span>
@@ -318,7 +333,7 @@ export function Planning({ data, reload, open, go }) {
                         ? <button className={`tick ${i.fait ? 'on' : ''}`} onClick={() => cocher(i)}>{i.fait ? '✓' : ''}</button>
                         : <span className="t">{i.fait ? '✓' : ''}</span>}
                       <button className="x" onClick={() => toucher(i)}>
-                        {i.heure && <em>{i.heure}</em>}{i.titre}
+                        {i.heure && <em>{i.heure}</em>}{i.titre}{i.auto && <i className="tl-auto">{i.ref?.retouche ? 'retouché' : 'auto'}</i>}
                         {(i.sous || late) && <span>{late ? 'En retard' : ''}{late && i.sous ? ' · ' : ''}{i.sous}</span>}
                         {i.kind === 'planning' && (rappels_[i.key] || i.ref?.critique) && <span className="nt-l">{i.ref?.critique && <i className="nt-crit">critique</i>}<PastilleRappel r={rappels_[i.key]} fait={i.fait} /></span>}
                       </button>
