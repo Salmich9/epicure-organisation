@@ -58,7 +58,7 @@ async function depotFrais(forcer) {
 function useHash() {
   const [h, setH] = useState(location.hash ? location.hash.slice(2) : 'aujourdhui')
   useEffect(() => { const f = () => setH(location.hash.slice(2)); addEventListener('hashchange', f); return () => removeEventListener('hashchange', f) }, [])
-  return [h, to => { location.hash = '/' + to; window.scrollTo(0, 0) }]
+  return [h, to => { location.hash = '/' + to; window.scrollTo(0, 0); document.querySelector('.app')?.scrollTo(0, 0) }]
 }
 
 /* ---------- Connexion ---------- */
