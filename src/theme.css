@@ -29,12 +29,14 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; overscroll-behavior: none; touch-action: manipulation; }
 body { min-height: 100dvh; }
+/* v79 · La page ne défile jamais : seul .app défile. Sur iPhone, la barre du bas ne peut plus remonter (clavier, rebond, retour d'appli). */
+html, body { height: 100%; overflow: hidden; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 input, textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; width: 100%; outline: none; }
 input:focus, textarea:focus { border-color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app { max-width: 560px; margin: 0 auto; padding-bottom: calc(110px + env(safe-area-inset-bottom)); min-height: 100dvh; }
+.app { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; max-width: 560px; margin: 0 auto; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
 .px { padding: 0 20px; }
 .display { font-family: var(--display); font-weight: 400; }
 .mute { color: var(--mute); }
