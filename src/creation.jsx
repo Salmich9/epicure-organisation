@@ -40,12 +40,19 @@ function useDictee(setTexte) {
 /* ---------- 1 · Les bases ---------- */
 export function Nouveau({ data, go, onCreated }) {
   const ui = useUI()
-  const [f, setF] = useState({ nom: '', client: '', date: '', invites: '', lieu: '', prestations: ['Traiteur'], format: 'Dîner assis', entite: 'Epicure', inter: 'Aucun', intermediaire: '', gamme: '' })
+  const [f, setF] = useState({ nom: '', client: '', date: '', invites: '', lieu: '', prestations: ['Traiteur'], format: 'Dîner assis', entite: 'Epicure', inter: 'Aucun', intermediaire: '', gamme: '', debut: '', fin: '' })
   const [envoi, setEnvoi] = useState(false)
+  const [tl, setTl] = useState(null)
   const set = (k, v) => setF(x => ({ ...x, [k]: v }))
+  // Combien de lignes de timeline la création posera (selon le modèle des Paramètres)
+  useEffect(() => {
+    if (!f.debut || !f.fin) { setTl(null); return }
+    const t = setTimeout(() => api.timelineApercu({ date: f.date || null, debut: f.debut, fin: f.fin, prestations: f.prestations, invites: n(f.invites) }).then(setTl).catch(() => setTl(null)), 300)
+    return () => clearTimeout(t)
+  }, [f.date, f.debut, f.fin, f.prestations.join()])
   const prest = p => set('prestations', f.prestations.includes(p) ? f.prestations.filter(x => x !== p) : [...f.prestations, p])
   const nomDossier = `${f.date || 'AAAA-MM-JJ'} · ${f.nom || 'Nom'}`
-  const manque = [!f.nom.trim() && 'nom', ...manqueDemande(f)].filter(Boolean)
+  const manque = [!f.nom.trim() && 'nom', ...manqueDemande(f), (!f.debut || !f.fin) && 'horaires'].filter(Boolean)
   const ok = !manque.length
 
   async function creer() {
@@ -55,6 +62,7 @@ export function Nouveau({ data, go, onCreated }) {
       const ev = await api.evenementCreer({
         nom: f.nom.trim(), client: f.client.trim(), date: f.date, invites: n(f.invites), lieu: f.lieu.trim(),
         prestations: f.prestations, format: f.prestations.includes('Traiteur') ? f.format : '', entite: f.entite, gamme: f.gamme,
+        heure_debut: f.debut, heure_fin: f.fin,
         intermediaire: f.inter === 'Aucun' ? '' : `${f.inter}${f.intermediaire.trim() ? ` : ${f.intermediaire.trim()}` : ''}`,
       })
       store.evt = ev.id
@@ -80,6 +88,11 @@ export function Nouveau({ data, go, onCreated }) {
           <div><div className="label">Date</div><input type="date" value={f.date} onChange={e => set('date', e.target.value)} /></div>
           <div><div className="label">Invités</div><input inputMode="numeric" value={f.invites} onChange={e => set('invites', e.target.value.replace(/\D/g, ''))} placeholder="250" /></div>
         </div>
+        <div className="wiz-2">
+          <div><div className="label">Début</div><input type="time" value={f.debut} onChange={e => set('debut', e.target.value)} /></div>
+          <div><div className="label">Fin</div><input type="time" value={f.fin} onChange={e => set('fin', e.target.value)} /></div>
+        </div>
+        {tl && tl.lignes > 0 && <div className="tl-ap">⏱ <b>{tl.lignes} lignes de timeline</b> seront posées, du J{tl.premier < 0 ? '−' + Math.abs(tl.premier) : '+' + tl.premier} au J{tl.dernier < 0 ? '−' + Math.abs(tl.dernier) : '+' + tl.dernier}.</div>}
         <div className="label">Lieu</div>
         <input value={f.lieu} list="lieux-connus" onChange={e => set('lieu', e.target.value)} placeholder="Domaine, riad, villa…" /><LieuxConnus />
 

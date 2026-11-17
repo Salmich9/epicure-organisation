@@ -1387,3 +1387,23 @@ a.btn { text-decoration: none; display: flex; align-items: center; justify-conte
 .pa-in input, .pa-al input { width: 64px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; font: inherit; font-size: 14px; background: var(--bg); color: var(--ink); text-align: right; }
 .pa-al { display: flex; align-items: center; gap: 6px; } .pa-al button { font-size: 12px; font-weight: 800; color: var(--accent); padding: 4px 6px; }
 .pa-input { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font: inherit; font-size: 16px; background: var(--bg); color: var(--ink); }
+/* v78 · Timeline : modèle dans les Paramètres, générée à la création */
+.tl-list { margin: 0 12px; border-radius: 18px; overflow: hidden; }
+.tl-l { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; background: var(--surface); border-bottom: 1px solid var(--line); color: var(--ink); }
+.tl-l.off { opacity: .45; }
+.tl-l .j { width: 66px; flex: none; font-size: 12px; font-weight: 800; color: var(--accent); line-height: 1.25; } .tl-l .j small { display: block; color: var(--mute); font-weight: 700; }
+.tl-l .t { flex: 1; min-width: 0; } .tl-l .t b { display: block; font-size: 14.5px; } .tl-l .t b i { font-style: normal; color: var(--red); font-size: 12.5px; } .tl-l .t span { font-size: 11.5px; color: var(--mute); }
+.tl-l .r { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: var(--surface2); white-space: nowrap; }
+.tl-add { margin: 8px 22px 0; color: var(--accent); font-weight: 800; font-size: 13.5px; }
+.tl-k { font-size: 11.5px; font-weight: 800; color: var(--mute); letter-spacing: .06em; text-transform: uppercase; }
+.tl-in { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font: inherit; font-size: 16px; font-weight: 700; background: var(--surface); color: var(--ink); margin-top: 8px; }
+.tl-step { display: flex; align-items: center; gap: 12px; } .tl-step button { width: 38px; height: 38px; flex: none; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-size: 18px; color: var(--accent); font-weight: 800; }
+.tl-step button:disabled { opacity: .4; } .tl-step b { min-width: 110px; text-align: center; font-size: 16px; }
+.tl-ex { margin-top: 10px; background: var(--surface); border-radius: 12px; padding: 9px 12px; font-size: 13px; } .tl-ex b { color: var(--accent); }
+.tl-plus { color: var(--accent); }
+.tl-ap { margin-top: 10px; background: var(--surface); border-radius: 12px; padding: 10px 12px; font-size: 13px; } .tl-ap b { color: var(--accent); }
+.tl-ban { margin: 10px 16px 4px; background: var(--ink); color: var(--bg); border-radius: 18px; padding: 13px 15px; font-size: 13.5px; line-height: 1.4; }
+.tl-ban b { display: block; font-size: 15px; margin-bottom: 2px; } .tl-ban .chips { margin-top: 10px; }
+.tl-ban .chip { background: transparent; color: var(--bg); border-color: rgba(255, 255, 255, .3); } .tl-ban .chip.on { background: var(--bg); color: var(--ink); border-color: var(--bg); }
+.tl-gen { margin: 10px 16px 4px; }
+.tl-auto { font-style: normal; font-size: 10px; font-weight: 800; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 999px; padding: 2px 7px; margin-left: 6px; vertical-align: 1px; }
