@@ -1,6 +1,6 @@
 # Epicure · Organisation des événements · fiche de reprise
 
-À lire en premier dans toute nouvelle conversation sur ce dépôt. Elle dit où on en est, comment Salmane veut travailler, et ce qui reste à faire. **Prochaine version : v82** (v81 sur la branche `v81-cout-qui-bouge` tant que Salmane n'a pas dit oui).
+À lire en premier dans toute nouvelle conversation sur ce dépôt. Elle dit où on en est, comment Salmane veut travailler, et ce qui reste à faire. **Prochaine version : v82.**
 
 ## Le but
 Organiser un événement Epicure, quelle que soit sa taille, en moins de 10 minutes, ultra flexible et précis, sans rien perdre en détail, délégation, historique, tableau de bord et conseils de l'IA. Hamza, Soufiane et Salmane doivent organiser exactement de la même façon : une seule méthode pour la boîte. Logique « du général au particulier » : chiffrage précis, puis on affine jusqu'à l'organisation finale, sans jamais reposer ce qui est validé.
@@ -53,7 +53,7 @@ Organiser un événement Epicure, quelle que soit sa taille, en moins de 10 minu
 | Jour J | Déroulé, brief, chargement, contacts |
 | Clôture | Solde encaissé + pièces rangées + matériel revenu + bilan |
 
-## Ce qui est fait (v68 à v80, toutes fusionnées et en ligne)
+## Ce qui est fait (v68 à v81, toutes fusionnées et en ligne)
 - **v68 · Espèces de l'événement** (`src/especesRelais.jsx`, migrations 68, 68b) : virement au fournisseur relais (garde 5 %), validation par Salmane, réception avec écart, remise confirmée par chaque responsable, bon payé par la caisse. Paramètres › Espèces.
 - **v69 · Demande complète et gamme** (69) : `evenements.gamme` (Classique, Premium ×1,08, Prestige ×1,15, params `g_gamme_*`), coef = palier de taille × `_gamme_mult`. Écran « Avant de chiffrer » tant qu'il manque une info.
 - **v70 · Versions du devis** (70) : table `devis_versions`, `devis_envoyer` fige Vn et passe le statut à « Devis envoyé » ; écarts ligne par ligne entre versions (`src/cycle.jsx` DevisClient).
@@ -69,7 +69,8 @@ Organiser un événement Epicure, quelle que soit sa taille, en moins de 10 minu
 - **v81 · Le coût qui bouge** (`supabase/81_cout_qui_bouge.sql`, test `tests/sql/cout_qui_bouge.sql` 11 / 11) : **seulement après signature** (`prix_signe`), une réponse propre au cadrage qui compte dans un poste (« Compté quand ? ») ou une correction de « Repris du devis » refait le chiffrage, **seulement les lignes de paramètre que la réponse touche** (`_cadrage_cout`, appelé par `cadrage_maj`, erreur rangée au journal sans bloquer la réponse). Pas les invités, la gamme ni la société. Le prix signé ne bouge jamais ; les enveloppes suivent tout de suite (hausse et baisse). Gardé et signalé : ligne 🔒, surcharge, effectif, personne nommée, bloc gardé, enveloppe corrigée à la main. Les réponses vont dans `chiffrages.base`, les valeurs du devis dans `base._avant_cadrage` (« Repris du devis » les montre, « corrigé » reste). Journal du chiffrage : source `cadrage` (« cadrage, après signature »). Salmane seul reçoit « Coût en hausse / en baisse » (famille enveloppes, code, écart, marge avant → après, réponses, lignes, 🔒 gardé, prix à régler) après `r_cout_calme` minutes sans nouvelle réponse (10, Paramètres › Marges › Coût après signature) : une séance = un message (`chiffrages.cout_annonce_le`). « Ton enveloppe change » attend le même calme. Nouvelle version du devis : Salmane passe par le devis comme avant. **Aucun poste n'utilise encore une question du cadrage dans « Compté quand ? »** : tant que Salmane n'en règle pas, seules les corrections du devis repris font bouger le coût.
 
 ## Où on en est (19/11)
-- v81 sur la branche `v81-cout-qui-bouge`, captures envoyées ; fusion et mise en ligne de la migration 81 après le « oui » de Salmane. Dernière fusion : v80 (6afaf20).
+- Dernière fusion : v81 (le coût qui bouge), en ligne ; migration 81 appliquée le 19/11 et test v81 repassé 11 / 11 sur la base en ligne. Rien en attente sur une branche.
+- À faire par Salmane pour que le cadrage compte vraiment : régler « Compté quand ? » sur les postes qui dépendent d'une question du cadrage (ex. plancher si sol = sable). Aucun ne l'est encore.
 - En attente d'un retour de Salmane : la barre du bas sur iPhone (v80) ; un premier appel test de l'agent vocal (Express, puis Challenge) ; un premier vrai cadrage avec les propositions de l'IA.
 - **Le crédit de l'API Anthropic était épuisé** (« credit balance is too low », ×12 dans État de l'appli, copilote, 16/11) : le copilote et l'IA du cadrage échouent tant qu'il n'est pas rechargé. Le lui rappeler s'il voit des erreurs IA.
 - Le mariage Kasbah Dif (EVT-2026-006, 17/11, espèces, 354 945 HT) est passé : sa clôture est à faire (solde, pièces, matériel, bilan).
