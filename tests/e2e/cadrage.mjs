@@ -61,7 +61,11 @@ await photo('c1-accueil.png')
 await p.click('.cd-rep-t'); await p.waitForTimeout(300)
 t = await texte()
 if (!t.includes('Combien de bars') || !t.includes('Côté plonge')) echec('lignes reprises absentes')
+if (!t.includes('Le prix signé ne bouge pas, les enveloppes suivent.')) echec('signé : « les enveloppes suivent » absent (v81)')
 await photo('c2-repris.png')
+await p.locator('.cd-rep-n').scrollIntoViewIfNeeded(); await p.waitForTimeout(300)
+await photo('c2b-enveloppes-suivent.png')
+await p.locator('.cd-rep-t').scrollIntoViewIfNeeded(); await p.waitForTimeout(200)
 
 // 2. Corriger une ligne reprise : la plonge
 await p.click('.cd-rep-l:has-text("plonge")'); await p.waitForTimeout(400)
@@ -112,6 +116,13 @@ affine = { plonge: 'fournie', cuisine: 'equipee' }; ev.cadrage = { affine }
 await voir('cadrage', 1200)
 await p.click('.cd-pied .p:has-text("Reprendre")'); await p.waitForTimeout(500)
 if (!(await texte()).includes('Où ça se passe')) echec('reprise pas à la bonne question')
+
+// 7. Pas encore signé : le cadrage ne touche pas aux enveloppes, l'écran ne le promet pas (v81)
+ev.prix_signe = null
+await voir('aujourdhui', 600); await voir('cadrage', 1200)
+await p.click('.cd-rep-t'); await p.waitForTimeout(300)
+t = await texte()
+if (!t.includes('Le prix signé ne bouge pas.') || t.includes('les enveloppes suivent')) echec('pas signé : texte des enveloppes faux')
 
 if (erreurs.length) echec(`erreurs : ${erreurs.join(' | ')}`)
 await b.close(); srv.close()

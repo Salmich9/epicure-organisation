@@ -419,7 +419,7 @@ export function JournalChiffrage({ evt, nom, retour }) {
   const ui = useUI()
   const [l, setL] = useState(null)
   useEffect(() => { api.chiffrageJournal(evt).then(setL).catch(e => { ui.toast(e.message); setL([]) }) }, [evt])
-  const SRC = { main: 'à la main', base: 'informations de base', copilote: 'copilote', comparaison: 'comparaison', premier: 'premier chiffrage' }
+  const SRC = { main: 'à la main', base: 'informations de base', copilote: 'copilote', comparaison: 'comparaison', premier: 'premier chiffrage', cadrage: 'cadrage, après signature' }
   return (
     <motion.div {...glisse} className="wiz">
       <div className="head"><button className="back" onClick={retour}>‹ Chiffrage</button><h1 style={{ fontSize: 34 }}>Historique</h1><div className="meta">{nom} · chaque changement</div></div>
