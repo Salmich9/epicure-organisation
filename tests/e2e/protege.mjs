@@ -39,6 +39,8 @@ const RPC = {
     : { lignes: [...moteur(n(b.p_base?.invites) || 150), extra], moteur: moteur(n(b.p_base?.invites) || 150), base: { ...BASE, ...(b.p_base || {}) } },
   chiffrage_valider: b => ({ lignes: b.p_lignes, base: b.p_base }), chiffrage_enregistrer: () => true, chiffrage_noter: () => true,
   chiffrage_journal_liste: () => [
+    { quand: '2026-11-19T18:12:00Z', qui: 'Hamza', source: 'cadrage', titre: 'Cadrage · Combien de bars : 1 → 2', detail: 'Chef de bar +1 500 · Repas du staff +60 · Petits achats +78 · Tenues et pressing +10' },
+    { quand: '2026-11-19T18:05:00Z', qui: 'Hamza', source: 'cadrage', titre: 'Cadrage · Le sol côté service : Sable ou terre', detail: 'Plancher +3 200 · 🔒 Enveloppe matériel et équipement +3 200' },
     { quand: '2026-11-16T17:42:00Z', qui: 'Salmane', source: 'base', titre: 'Invités 150 → 180', detail: '3 acceptés, 1 gardé 🔒' },
     { quand: '2026-11-16T17:40:00Z', qui: 'Salmane', source: 'main', titre: 'Caution loueur : 3 000 → 3 500' },
     { quand: '2026-11-16T15:31:00Z', qui: 'Salmane', source: 'main', titre: 'Cocktail dînatoire : 5,5 → 6', detail: 'réglé pour cet événement' },
@@ -110,7 +112,8 @@ if (ecrits().length !== avantCop) echec('Annuler a écrit')
 
 // 5. Historique
 await p.click('.chip:has-text("Historique")'); await p.waitForTimeout(700)
-if ((await p.locator('.aa-h').count()) !== 4) echec('historique')
+if ((await p.locator('.aa-h').count()) !== 6) echec('historique')
+if ((await p.locator('.aa-h:has-text("cadrage, après signature")').count()) !== 2) echec('historique : source cadrage absente (v81)')
 await photo('v5-historique.png')
 
 // 6. Chiffrage d'avant les paramètres : comparer bloc par bloc

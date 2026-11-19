@@ -1,6 +1,6 @@
 # Epicure · Organisation des événements · fiche de reprise
 
-À lire en premier dans toute nouvelle conversation sur ce dépôt. Elle dit où on en est, comment Salmane veut travailler, et ce qui reste à faire. **Prochaine version : v81.**
+À lire en premier dans toute nouvelle conversation sur ce dépôt. Elle dit où on en est, comment Salmane veut travailler, et ce qui reste à faire. **Prochaine version : v82** (v81 sur la branche `v81-cout-qui-bouge` tant que Salmane n'a pas dit oui).
 
 ## Le but
 Organiser un événement Epicure, quelle que soit sa taille, en moins de 10 minutes, ultra flexible et précis, sans rien perdre en détail, délégation, historique, tableau de bord et conseils de l'IA. Hamza, Soufiane et Salmane doivent organiser exactement de la même façon : une seule méthode pour la boîte. Logique « du général au particulier » : chiffrage précis, puis on affine jusqu'à l'organisation finale, sans jamais reposer ce qui est validé.
@@ -25,12 +25,14 @@ Organiser un événement Epicure, quelle que soit sa taille, en moins de 10 minu
 - Migrations : **éviter DROP et DELETE** dans le SQL envoyé (Supabase demande une confirmation qu'il ne voit pas sur son téléphone) : `create or replace trigger`, mises à jour par `replace()` de la définition (blocs `do $$ … pg_get_functiondef … execute`). Si une confirmation expire, s'arrêter et le dire.
 - Trailer de commit :
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
-  `Claude-Session: https://claude.ai/code/session_01D7B1rd2iPxHWaDNP49aZao` (remplacer par la ligne de la nouvelle conversation).
+  `Claude-Session: https://claude.ai/code/session_01LRHbtsMarkWQGJvUbTHe7T` (remplacer par la ligne de la nouvelle conversation).
 
 ## Tests (tous doivent passer avant de proposer une fusion)
 - `npm test` (vitest, 56 tests, `tests/unit`).
 - `npm run build && npm run test:e2e` : Playwright sur données fictives, RPC simulées (`tests/e2e/fixture.mjs`, `questions.fixture.mjs`). Chaque fichier écrit « XXX OK ». Captures : `node tests/e2e/<fichier>.mjs <dossier>`. Un nouvel écran = un nouveau fichier e2e ajouté à la chaîne `test:e2e` de package.json.
 - SQL : `tests/sql/*.sql` et `supabase/tests/regression.sql`, à lancer par execute_sql. Ils finissent par une erreur volontaire « RESULTATS n / n : tout passe » (tout est annulé). Une session de test se crée seulement dans ces blocs annulés (insert dans `orga.sessions`) ; ne pas créer de session réelle.
+- Essayer une migration **avant** de la mettre en ligne : un seul appel execute_sql = le contenu de la migration, puis un bloc `do $tous$ … $tous$` qui lance chaque test par `begin execute $t1$ <le test> $t1$; exception when others then res := res || sqlerrm; end;` et finit par `raise exception 'BILAN%', res`. Tout est annulé, un seul « Autoriser » pour Salmane. Vérifié : une erreur finale ne laisse rien en base.
+- Échecs connus, d'avant v81 (à réparer à part) : `notifs.sql` 21 / 25 (points 4, 5, 6, 23, rappels depuis la timeline v78) ; `cadrage_propositions.sql` point 6 (compte aussi les vrais événements proches de la base) ; `regression.sql` contrôle 1 (ne reconnaît pas `_qui_associe`, et `_mt`, `_court`, `_societe`, `_hhmm`, `_code_evt`, `_cle_lieu` sont ouvertes à anon) et contrôle 11 (liste de codes d'erreur en retard : `reserve_associes`, `valeur_invalide`…). Les contrôles 2 à 10 passent.
 - Le conteneur ne joint pas `*.supabase.co/functions` : une fonction Edge se teste par l'appli ou ses journaux.
 
 ## Parcours décidé (le « funnel »), du général au particulier
@@ -64,24 +66,24 @@ Organiser un événement Epicure, quelle que soit sa taille, en moins de 10 minu
 - **v77** : le code de connexion d'un associé ne se refait que par un associé (`compte_nouveau_code`), pas par un autre administrateur (Ghali est admin).
 - **v78 · Timeline** (78a à 78d) : modèle `orga.timeline_modele` (25 lignes de départ en 4 blocs : avant J, jour J équipe, déroulé invités, après), Paramètres › Timeline (`src/timelineParam.jsx`). Chaque ligne : intitulé, jour J−30 à J+5, accroche début / fin / heure fixe / sans heure + décalage, durée, rôle (coordination, bar, cuisine, achats, production → personne de `equipe_defaut` ou de l'équipe de l'événement), type, « Généré quand », critique. Début et fin obligatoires à la création (`heure_debut`, `heure_fin`), timeline posée par `evenement_creer` ; l'agent vocal la pose aussi après le chiffrage (`timeline_action` 'generer' dans orga-voix). Lignes « auto », bougée à la main = « retouché ». Date ou horaires changés : bandeau Décaler / Laisser (`timeline_etat`, `timeline_action`). Événements existants : bouton « ⏱ Générer la timeline » sur leur planning.
 - **v79, v80 · Barre du bas** : seule `.app` défile (position fixed, overflow auto), la page jamais ; recalage après le clavier (`src/main.jsx`) ; marge sous la barre réduite. **À confirmer sur l'iPhone de Salmane.**
+- **v81 · Le coût qui bouge** (`supabase/81_cout_qui_bouge.sql`, test `tests/sql/cout_qui_bouge.sql` 11 / 11) : **seulement après signature** (`prix_signe`), une réponse propre au cadrage qui compte dans un poste (« Compté quand ? ») ou une correction de « Repris du devis » refait le chiffrage, **seulement les lignes de paramètre que la réponse touche** (`_cadrage_cout`, appelé par `cadrage_maj`, erreur rangée au journal sans bloquer la réponse). Pas les invités, la gamme ni la société. Le prix signé ne bouge jamais ; les enveloppes suivent tout de suite (hausse et baisse). Gardé et signalé : ligne 🔒, surcharge, effectif, personne nommée, bloc gardé, enveloppe corrigée à la main. Les réponses vont dans `chiffrages.base`, les valeurs du devis dans `base._avant_cadrage` (« Repris du devis » les montre, « corrigé » reste). Journal du chiffrage : source `cadrage` (« cadrage, après signature »). Salmane seul reçoit « Coût en hausse / en baisse » (famille enveloppes, code, écart, marge avant → après, réponses, lignes, 🔒 gardé, prix à régler) après `r_cout_calme` minutes sans nouvelle réponse (10, Paramètres › Marges › Coût après signature) : une séance = un message (`chiffrages.cout_annonce_le`). « Ton enveloppe change » attend le même calme. Nouvelle version du devis : Salmane passe par le devis comme avant. **Aucun poste n'utilise encore une question du cadrage dans « Compté quand ? »** : tant que Salmane n'en règle pas, seules les corrections du devis repris font bouger le coût.
 
 ## Où on en est (19/11)
-- Dernière fusion : v80 (6afaf20), en ligne. Rien en attente sur une branche.
+- v81 sur la branche `v81-cout-qui-bouge`, captures envoyées ; fusion et mise en ligne de la migration 81 après le « oui » de Salmane. Dernière fusion : v80 (6afaf20).
 - En attente d'un retour de Salmane : la barre du bas sur iPhone (v80) ; un premier appel test de l'agent vocal (Express, puis Challenge) ; un premier vrai cadrage avec les propositions de l'IA.
 - **Le crédit de l'API Anthropic était épuisé** (« credit balance is too low », ×12 dans État de l'appli, copilote, 16/11) : le copilote et l'IA du cadrage échouent tant qu'il n'est pas rechargé. Le lui rappeler s'il voit des erreurs IA.
 - Le mariage Kasbah Dif (EVT-2026-006, 17/11, espèces, 354 945 HT) est passé : sa clôture est à faire (solde, pièces, matériel, bilan).
 - 8 prix « à régler » à remplir par Salmane dans Paramètres : kit bar, création de signature, shots, inventaire alcool, comptoir de bar, kit plonge, kit cuisine, cuisine complète.
 
 ## Reste à faire, dans l'ordre (un chantier = une version, questions puis maquettes)
-1. **Le coût qui bouge** (prévu au départ comme v76, pas encore fait) : une réponse du cadrage qui change le coût après signature → le prix signé ne bouge pas, l'enveloppe s'ajuste, alerte marge, Salmane décide d'une nouvelle version du devis. (Dans les captures du cadrage, une ligne corrigée est seulement marquée « corrigé ».)
-2. **Option** : devis ouvert = date, personnes clés et matériel du dépôt bloqués, date limite, relance.
-3. **Acompte** → statut Confirmé automatique.
-4. **Enveloppes à −10 %** du coût.
-5. **Check-list** (lignes du chiffrage + modèle par zone) et **attribution automatique** puis retouche.
-6. **Rétroplanning** ajusté par chaque responsable (s'appuyer sur la timeline v78).
-7. **Lien staff** : confirmation des extras par lien.
-8. **Chargement et contacts** du jour J.
-9. **Clôture** : conditions (solde, pièces, matériel, bilan).
+1. **Option** : devis ouvert = date, personnes clés et matériel du dépôt bloqués, date limite, relance.
+2. **Acompte** → statut Confirmé automatique.
+3. **Enveloppes à −10 %** du coût.
+4. **Check-list** (lignes du chiffrage + modèle par zone) et **attribution automatique** puis retouche.
+5. **Rétroplanning** ajusté par chaque responsable (s'appuyer sur la timeline v78).
+6. **Lien staff** : confirmation des extras par lien.
+7. **Chargement et contacts** du jour J.
+8. **Clôture** : conditions (solde, pièces, matériel, bilan).
 - Plus tard : la gamme pilote aussi l'alcool, les ratios de staff et la vaisselle ; chronomètre « 10 minutes » ; ouvrir les notifications à toute l'équipe (`notifs.ouvert_equipe`).
 
 ## Pièges connus
@@ -94,3 +96,5 @@ Organiser un événement Epicure, quelle que soit sa taille, en moins de 10 minu
 - Playwright : `goto` sur le même hash ne remonte pas l'écran (passer par `about:blank`) ; attendre ~3,5 s qu'un toast disparaisse avant une capture.
 - Les codes d'erreur SQL (`reserve_associes`, `reserve_editeur_parametres`…) doivent avoir leur phrase dans `src/erreurs.js` (un test le vérifie).
 - Supabase ne rend jamais plus de 1 000 lignes d'un coup.
+- Titre d'une notification : 28 caractères au plus (des tests le vérifient) ; le code de l'événement va au début du corps.
+- `orga.evenements` a un déclencheur d'historique sur toute mise à jour (`t_hist`) : une donnée technique (ex. « dernier message envoyé ») va ailleurs, sinon l'historique se remplit (v81 la range dans `orga.chiffrages`).

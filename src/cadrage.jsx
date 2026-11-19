@@ -24,6 +24,7 @@ export function Cadrage({ data, go, fin, reload }) {
   const [vu, setVu] = useState(false)       // liste « repris » dépliée
   const [etat, setEtat] = useState(fin ? 'fin' : 'questions')
   const [txt, setTxt] = useState('')
+  const signe = !!(data.evenements || []).find(x => x.id === data.evt)?.prix_signe   // après signature, une réponse qui compte fait suivre les enveloppes (v81)
   useEffect(() => { api.cadrageContexte(data.evt).then(c => { const x = c && typeof c === 'object' ? c : { base: {}, questions: [] }; setCtx(x); setAf(x.affine || {}) }).catch(e => ui.toast(e.message)) }, [data.evt])
   const props = useMemo(() => ctx ? { ...(ctx.ia?.propositions || {}), ...(ctx.propositions || {}) } : {}, [ctx])
   const plan = useMemo(() => ctx ? planCadrage(ctx.base, ctx.questions, af, props) : null, [ctx, af, props])
@@ -108,7 +109,7 @@ export function Cadrage({ data, go, fin, reload }) {
           <button className="cd-rep-t" onClick={() => setVu(!vu)}><b>Repris du devis</b><span>{plan.repris.length}{plan.repris.some(x => x.corrige) ? ' · corrigé' : ''}</span><i>{vu ? '⌃' : '⌄'}</i></button>
           {vu && plan.repris.map(x => <button key={x.q.cle} className="cd-rep-l" onClick={() => setCorr(x)}>
             <span>{titreCourt(x.q)}</span><b>{libelleValeur(x.q, x.v)}</b>{x.corrige && <em>corrigé</em>}</button>)}
-          {vu && <p className="cd-rep-n">Touche une ligne pour corriger. Le prix signé ne bouge pas.</p>}
+          {vu && <p className="cd-rep-n">Touche une ligne pour corriger. Le prix signé ne bouge pas{signe ? ', les enveloppes suivent' : ''}.</p>}
         </div>}
         <div className="cd-pied"><motion.button whileTap={{ scale: .97 }} className="p" onClick={() => (nbA ? setI(Math.max(0, plan.etapes.findIndex(x => af[x.q.cle] === undefined))) : preparer())}>{!nbA ? 'Poser les enveloppes' : plan.etapes.some(x => af[x.q.cle] !== undefined) && plan.etapes.some(x => af[x.q.cle] === undefined) ? 'Reprendre' : 'Affiner'}</motion.button></div>
       </div>
