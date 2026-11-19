@@ -30,7 +30,7 @@
 html, body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; overscroll-behavior: none; touch-action: manipulation; }
 body { min-height: 100dvh; }
 /* v79 · La page ne défile jamais : seul .app défile. Sur iPhone, la barre du bas ne peut plus remonter (clavier, rebond, retour d'appli). */
-html, body { height: 100%; overflow: hidden; }
+html, body { overflow: hidden; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 input, textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; width: 100%; outline: none; }
 input:focus, textarea:focus { border-color: var(--accent); }
@@ -95,7 +95,7 @@ input:focus, textarea:focus { border-color: var(--accent); }
 
 /* Barre d'onglets */
 .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: space-around; align-items: flex-start;
-  padding: 12px 6px calc(10px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--line); }
+  padding: 10px 6px max(6px, calc(env(safe-area-inset-bottom) - 10px)); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--line); }
 .tabs button { width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--mute); }
 .tabs button.on { color: var(--ink); }
 .tabs .mic { width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); margin-top: -26px; justify-content: center; box-shadow: var(--shadow); }
